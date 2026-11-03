@@ -40,7 +40,7 @@ function Gauge({ segs, icon: Icon }: { segs: Seg[]; icon: typeof Bus }) {
   );
 }
 
-const segsOf = (v: number[]): Seg[] => [
+const segsOf = (v: [number, number, number, number]): Seg[] => [
   { label: "Full Day", value: v[0], color: "var(--chart-1)", dot: "bg-chart-1" },
   { label: "Fin de semana", value: v[1], color: "var(--chart-2)", dot: "bg-chart-2" },
   { label: "Grupos", value: v[2], color: "var(--chart-3)", dot: "bg-chart-3" },
@@ -57,7 +57,7 @@ const kpis = [
 const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 const bars = Array.from({ length: 48 }, (_, i) => {
   const base = 120 + Math.sin(i / 5) * 30 + i * 2.2;
-  return [base * 0.5, base * 0.25, base * 0.15, base * 0.1];
+  return [base * 0.5, base * 0.25, base * 0.15, base * 0.1] as [number, number, number, number];
 });
 
 const salidas = [
