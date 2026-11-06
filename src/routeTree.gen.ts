@@ -11,7 +11,43 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as Admin2faRouteImport } from './routes/admin.2fa'
+import { Route as AdminAuditoriaRouteImport } from './routes/admin.auditoria'
+import { Route as AdminClientesRouteImport } from './routes/admin.clientes'
+import { Route as AdminConfiguracionRouteImport } from './routes/admin.configuracion'
+import { Route as AdminLoginRouteImport } from './routes/admin.login'
+import { Route as AdminPagosRouteImport } from './routes/admin.pagos'
+import { Route as AdminRecuperarRouteImport } from './routes/admin.recuperar'
+import { Route as AdminReportesRouteImport } from './routes/admin.reportes'
+import { Route as AdminReservasRouteImport } from './routes/admin.reservas'
+import { Route as AdminRestablecerRouteImport } from './routes/admin.restablecer'
+import { Route as AdminSalidasRouteImport } from './routes/admin.salidas'
+import { Route as AdminToursRouteImport } from './routes/admin.tours'
+import { Route as DescargaVoucherRouteImport } from './routes/descarga.voucher'
 import { Route as RTokenRouteImport } from './routes/r.$token'
+import { Route as VVerifTokenRouteImport } from './routes/v.$verifToken'
+import { Route as AdminClientesIndexRouteImport } from './routes/admin.clientes.index'
+import { Route as AdminClientesIdRouteImport } from './routes/admin.clientes.$id'
+import { Route as AdminConfiguracionIndexRouteImport } from './routes/admin.configuracion.index'
+import { Route as AdminConfiguracionFirmaRouteImport } from './routes/admin.configuracion.firma'
+import { Route as AdminConfiguracionGeneralRouteImport } from './routes/admin.configuracion.general'
+import { Route as AdminConfiguracionMetodosRouteImport } from './routes/admin.configuracion.metodos'
+import { Route as AdminConfiguracionPlantillasRouteImport } from './routes/admin.configuracion.plantillas'
+import { Route as AdminConfiguracionPoliticasRouteImport } from './routes/admin.configuracion.politicas'
+import { Route as AdminConfiguracionPromosRouteImport } from './routes/admin.configuracion.promos'
+import { Route as AdminConfiguracionTasaRouteImport } from './routes/admin.configuracion.tasa'
+import { Route as AdminConfiguracionTerminosRouteImport } from './routes/admin.configuracion.terminos'
+import { Route as AdminConfiguracionUsuariosRouteImport } from './routes/admin.configuracion.usuarios'
+import { Route as AdminPagosIndexRouteImport } from './routes/admin.pagos.index'
+import { Route as AdminPagosIdRouteImport } from './routes/admin.pagos.$id'
+import { Route as AdminReservasIndexRouteImport } from './routes/admin.reservas.index'
+import { Route as AdminReservasIdRouteImport } from './routes/admin.reservas.$id'
+import { Route as AdminReservasNuevaRouteImport } from './routes/admin.reservas.nueva'
+import { Route as AdminSalidasIndexRouteImport } from './routes/admin.salidas.index'
+import { Route as AdminSalidasIdRouteImport } from './routes/admin.salidas.$id'
+import { Route as AdminToursIndexRouteImport } from './routes/admin.tours.index'
+import { Route as AdminToursIdRouteImport } from './routes/admin.tours.$id'
+import { Route as AdminToursIdFormularioRouteImport } from './routes/admin.tours.$id.formulario'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -23,39 +59,454 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/admin/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const Admin2faRoute = Admin2faRouteImport.update({
+  id: '/admin/2fa',
+  path: '/admin/2fa',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminAuditoriaRoute = AdminAuditoriaRouteImport.update({
+  id: '/admin/auditoria',
+  path: '/admin/auditoria',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminClientesRoute = AdminClientesRouteImport.update({
+  id: '/admin/clientes',
+  path: '/admin/clientes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminConfiguracionRoute = AdminConfiguracionRouteImport.update({
+  id: '/admin/configuracion',
+  path: '/admin/configuracion',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminLoginRoute = AdminLoginRouteImport.update({
+  id: '/admin/login',
+  path: '/admin/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminPagosRoute = AdminPagosRouteImport.update({
+  id: '/admin/pagos',
+  path: '/admin/pagos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRecuperarRoute = AdminRecuperarRouteImport.update({
+  id: '/admin/recuperar',
+  path: '/admin/recuperar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminReportesRoute = AdminReportesRouteImport.update({
+  id: '/admin/reportes',
+  path: '/admin/reportes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminReservasRoute = AdminReservasRouteImport.update({
+  id: '/admin/reservas',
+  path: '/admin/reservas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRestablecerRoute = AdminRestablecerRouteImport.update({
+  id: '/admin/restablecer',
+  path: '/admin/restablecer',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminSalidasRoute = AdminSalidasRouteImport.update({
+  id: '/admin/salidas',
+  path: '/admin/salidas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminToursRoute = AdminToursRouteImport.update({
+  id: '/admin/tours',
+  path: '/admin/tours',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DescargaVoucherRoute = DescargaVoucherRouteImport.update({
+  id: '/descarga/voucher',
+  path: '/descarga/voucher',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RTokenRoute = RTokenRouteImport.update({
   id: '/r/$token',
   path: '/r/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const VVerifTokenRoute = VVerifTokenRouteImport.update({
+  id: '/v/$verifToken',
+  path: '/v/$verifToken',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminClientesIndexRoute = AdminClientesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminClientesRoute,
+} as any)
+const AdminClientesIdRoute = AdminClientesIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AdminClientesRoute,
+} as any)
+const AdminConfiguracionIndexRoute = AdminConfiguracionIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminConfiguracionRoute,
+} as any)
+const AdminConfiguracionFirmaRoute = AdminConfiguracionFirmaRouteImport.update({
+  id: '/firma',
+  path: '/firma',
+  getParentRoute: () => AdminConfiguracionRoute,
+} as any)
+const AdminConfiguracionGeneralRoute =
+  AdminConfiguracionGeneralRouteImport.update({
+    id: '/general',
+    path: '/general',
+    getParentRoute: () => AdminConfiguracionRoute,
+  } as any)
+const AdminConfiguracionMetodosRoute =
+  AdminConfiguracionMetodosRouteImport.update({
+    id: '/metodos',
+    path: '/metodos',
+    getParentRoute: () => AdminConfiguracionRoute,
+  } as any)
+const AdminConfiguracionPlantillasRoute =
+  AdminConfiguracionPlantillasRouteImport.update({
+    id: '/plantillas',
+    path: '/plantillas',
+    getParentRoute: () => AdminConfiguracionRoute,
+  } as any)
+const AdminConfiguracionPoliticasRoute =
+  AdminConfiguracionPoliticasRouteImport.update({
+    id: '/politicas',
+    path: '/politicas',
+    getParentRoute: () => AdminConfiguracionRoute,
+  } as any)
+const AdminConfiguracionPromosRoute =
+  AdminConfiguracionPromosRouteImport.update({
+    id: '/promos',
+    path: '/promos',
+    getParentRoute: () => AdminConfiguracionRoute,
+  } as any)
+const AdminConfiguracionTasaRoute = AdminConfiguracionTasaRouteImport.update({
+  id: '/tasa',
+  path: '/tasa',
+  getParentRoute: () => AdminConfiguracionRoute,
+} as any)
+const AdminConfiguracionTerminosRoute =
+  AdminConfiguracionTerminosRouteImport.update({
+    id: '/terminos',
+    path: '/terminos',
+    getParentRoute: () => AdminConfiguracionRoute,
+  } as any)
+const AdminConfiguracionUsuariosRoute =
+  AdminConfiguracionUsuariosRouteImport.update({
+    id: '/usuarios',
+    path: '/usuarios',
+    getParentRoute: () => AdminConfiguracionRoute,
+  } as any)
+const AdminPagosIndexRoute = AdminPagosIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminPagosRoute,
+} as any)
+const AdminPagosIdRoute = AdminPagosIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AdminPagosRoute,
+} as any)
+const AdminReservasIndexRoute = AdminReservasIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminReservasRoute,
+} as any)
+const AdminReservasIdRoute = AdminReservasIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AdminReservasRoute,
+} as any)
+const AdminReservasNuevaRoute = AdminReservasNuevaRouteImport.update({
+  id: '/nueva',
+  path: '/nueva',
+  getParentRoute: () => AdminReservasRoute,
+} as any)
+const AdminSalidasIndexRoute = AdminSalidasIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminSalidasRoute,
+} as any)
+const AdminSalidasIdRoute = AdminSalidasIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AdminSalidasRoute,
+} as any)
+const AdminToursIndexRoute = AdminToursIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminToursRoute,
+} as any)
+const AdminToursIdRoute = AdminToursIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AdminToursRoute,
+} as any)
+const AdminToursIdFormularioRoute = AdminToursIdFormularioRouteImport.update({
+  id: '/formulario',
+  path: '/formulario',
+  getParentRoute: () => AdminToursIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin/2fa': typeof Admin2faRoute
+  '/admin/auditoria': typeof AdminAuditoriaRoute
+  '/admin/clientes': typeof AdminClientesRouteWithChildren
+  '/admin/configuracion': typeof AdminConfiguracionRouteWithChildren
+  '/admin/login': typeof AdminLoginRoute
+  '/admin/pagos': typeof AdminPagosRouteWithChildren
+  '/admin/recuperar': typeof AdminRecuperarRoute
+  '/admin/reportes': typeof AdminReportesRoute
+  '/admin/reservas': typeof AdminReservasRouteWithChildren
+  '/admin/restablecer': typeof AdminRestablecerRoute
+  '/admin/salidas': typeof AdminSalidasRouteWithChildren
+  '/admin/tours': typeof AdminToursRouteWithChildren
+  '/descarga/voucher': typeof DescargaVoucherRoute
   '/r/$token': typeof RTokenRoute
+  '/v/$verifToken': typeof VVerifTokenRoute
   '/admin/': typeof AdminIndexRoute
+  '/admin/clientes/$id': typeof AdminClientesIdRoute
+  '/admin/configuracion/firma': typeof AdminConfiguracionFirmaRoute
+  '/admin/configuracion/general': typeof AdminConfiguracionGeneralRoute
+  '/admin/configuracion/metodos': typeof AdminConfiguracionMetodosRoute
+  '/admin/configuracion/plantillas': typeof AdminConfiguracionPlantillasRoute
+  '/admin/configuracion/politicas': typeof AdminConfiguracionPoliticasRoute
+  '/admin/configuracion/promos': typeof AdminConfiguracionPromosRoute
+  '/admin/configuracion/tasa': typeof AdminConfiguracionTasaRoute
+  '/admin/configuracion/terminos': typeof AdminConfiguracionTerminosRoute
+  '/admin/configuracion/usuarios': typeof AdminConfiguracionUsuariosRoute
+  '/admin/pagos/$id': typeof AdminPagosIdRoute
+  '/admin/reservas/$id': typeof AdminReservasIdRoute
+  '/admin/reservas/nueva': typeof AdminReservasNuevaRoute
+  '/admin/salidas/$id': typeof AdminSalidasIdRoute
+  '/admin/tours/$id': typeof AdminToursIdRouteWithChildren
+  '/admin/clientes/': typeof AdminClientesIndexRoute
+  '/admin/configuracion/': typeof AdminConfiguracionIndexRoute
+  '/admin/pagos/': typeof AdminPagosIndexRoute
+  '/admin/reservas/': typeof AdminReservasIndexRoute
+  '/admin/salidas/': typeof AdminSalidasIndexRoute
+  '/admin/tours/': typeof AdminToursIndexRoute
+  '/admin/tours/$id/formulario': typeof AdminToursIdFormularioRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin/2fa': typeof Admin2faRoute
+  '/admin/auditoria': typeof AdminAuditoriaRoute
+  '/admin/login': typeof AdminLoginRoute
+  '/admin/recuperar': typeof AdminRecuperarRoute
+  '/admin/reportes': typeof AdminReportesRoute
+  '/admin/restablecer': typeof AdminRestablecerRoute
+  '/descarga/voucher': typeof DescargaVoucherRoute
   '/r/$token': typeof RTokenRoute
+  '/v/$verifToken': typeof VVerifTokenRoute
   '/admin': typeof AdminIndexRoute
+  '/admin/clientes/$id': typeof AdminClientesIdRoute
+  '/admin/configuracion/firma': typeof AdminConfiguracionFirmaRoute
+  '/admin/configuracion/general': typeof AdminConfiguracionGeneralRoute
+  '/admin/configuracion/metodos': typeof AdminConfiguracionMetodosRoute
+  '/admin/configuracion/plantillas': typeof AdminConfiguracionPlantillasRoute
+  '/admin/configuracion/politicas': typeof AdminConfiguracionPoliticasRoute
+  '/admin/configuracion/promos': typeof AdminConfiguracionPromosRoute
+  '/admin/configuracion/tasa': typeof AdminConfiguracionTasaRoute
+  '/admin/configuracion/terminos': typeof AdminConfiguracionTerminosRoute
+  '/admin/configuracion/usuarios': typeof AdminConfiguracionUsuariosRoute
+  '/admin/pagos/$id': typeof AdminPagosIdRoute
+  '/admin/reservas/$id': typeof AdminReservasIdRoute
+  '/admin/reservas/nueva': typeof AdminReservasNuevaRoute
+  '/admin/salidas/$id': typeof AdminSalidasIdRoute
+  '/admin/tours/$id': typeof AdminToursIdRouteWithChildren
+  '/admin/clientes': typeof AdminClientesIndexRoute
+  '/admin/configuracion': typeof AdminConfiguracionIndexRoute
+  '/admin/pagos': typeof AdminPagosIndexRoute
+  '/admin/reservas': typeof AdminReservasIndexRoute
+  '/admin/salidas': typeof AdminSalidasIndexRoute
+  '/admin/tours': typeof AdminToursIndexRoute
+  '/admin/tours/$id/formulario': typeof AdminToursIdFormularioRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin/2fa': typeof Admin2faRoute
+  '/admin/auditoria': typeof AdminAuditoriaRoute
+  '/admin/clientes': typeof AdminClientesRouteWithChildren
+  '/admin/configuracion': typeof AdminConfiguracionRouteWithChildren
+  '/admin/login': typeof AdminLoginRoute
+  '/admin/pagos': typeof AdminPagosRouteWithChildren
+  '/admin/recuperar': typeof AdminRecuperarRoute
+  '/admin/reportes': typeof AdminReportesRoute
+  '/admin/reservas': typeof AdminReservasRouteWithChildren
+  '/admin/restablecer': typeof AdminRestablecerRoute
+  '/admin/salidas': typeof AdminSalidasRouteWithChildren
+  '/admin/tours': typeof AdminToursRouteWithChildren
+  '/descarga/voucher': typeof DescargaVoucherRoute
   '/r/$token': typeof RTokenRoute
+  '/v/$verifToken': typeof VVerifTokenRoute
   '/admin/': typeof AdminIndexRoute
+  '/admin/clientes/$id': typeof AdminClientesIdRoute
+  '/admin/configuracion/firma': typeof AdminConfiguracionFirmaRoute
+  '/admin/configuracion/general': typeof AdminConfiguracionGeneralRoute
+  '/admin/configuracion/metodos': typeof AdminConfiguracionMetodosRoute
+  '/admin/configuracion/plantillas': typeof AdminConfiguracionPlantillasRoute
+  '/admin/configuracion/politicas': typeof AdminConfiguracionPoliticasRoute
+  '/admin/configuracion/promos': typeof AdminConfiguracionPromosRoute
+  '/admin/configuracion/tasa': typeof AdminConfiguracionTasaRoute
+  '/admin/configuracion/terminos': typeof AdminConfiguracionTerminosRoute
+  '/admin/configuracion/usuarios': typeof AdminConfiguracionUsuariosRoute
+  '/admin/pagos/$id': typeof AdminPagosIdRoute
+  '/admin/reservas/$id': typeof AdminReservasIdRoute
+  '/admin/reservas/nueva': typeof AdminReservasNuevaRoute
+  '/admin/salidas/$id': typeof AdminSalidasIdRoute
+  '/admin/tours/$id': typeof AdminToursIdRouteWithChildren
+  '/admin/clientes/': typeof AdminClientesIndexRoute
+  '/admin/configuracion/': typeof AdminConfiguracionIndexRoute
+  '/admin/pagos/': typeof AdminPagosIndexRoute
+  '/admin/reservas/': typeof AdminReservasIndexRoute
+  '/admin/salidas/': typeof AdminSalidasIndexRoute
+  '/admin/tours/': typeof AdminToursIndexRoute
+  '/admin/tours/$id/formulario': typeof AdminToursIdFormularioRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/r/$token' | '/admin/'
+  fullPaths:
+    | '/'
+    | '/admin/2fa'
+    | '/admin/auditoria'
+    | '/admin/clientes'
+    | '/admin/configuracion'
+    | '/admin/login'
+    | '/admin/pagos'
+    | '/admin/recuperar'
+    | '/admin/reportes'
+    | '/admin/reservas'
+    | '/admin/restablecer'
+    | '/admin/salidas'
+    | '/admin/tours'
+    | '/descarga/voucher'
+    | '/r/$token'
+    | '/v/$verifToken'
+    | '/admin/'
+    | '/admin/clientes/$id'
+    | '/admin/configuracion/firma'
+    | '/admin/configuracion/general'
+    | '/admin/configuracion/metodos'
+    | '/admin/configuracion/plantillas'
+    | '/admin/configuracion/politicas'
+    | '/admin/configuracion/promos'
+    | '/admin/configuracion/tasa'
+    | '/admin/configuracion/terminos'
+    | '/admin/configuracion/usuarios'
+    | '/admin/pagos/$id'
+    | '/admin/reservas/$id'
+    | '/admin/reservas/nueva'
+    | '/admin/salidas/$id'
+    | '/admin/tours/$id'
+    | '/admin/clientes/'
+    | '/admin/configuracion/'
+    | '/admin/pagos/'
+    | '/admin/reservas/'
+    | '/admin/salidas/'
+    | '/admin/tours/'
+    | '/admin/tours/$id/formulario'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/r/$token' | '/admin'
-  id: '__root__' | '/' | '/r/$token' | '/admin/'
+  to:
+    | '/'
+    | '/admin/2fa'
+    | '/admin/auditoria'
+    | '/admin/login'
+    | '/admin/recuperar'
+    | '/admin/reportes'
+    | '/admin/restablecer'
+    | '/descarga/voucher'
+    | '/r/$token'
+    | '/v/$verifToken'
+    | '/admin'
+    | '/admin/clientes/$id'
+    | '/admin/configuracion/firma'
+    | '/admin/configuracion/general'
+    | '/admin/configuracion/metodos'
+    | '/admin/configuracion/plantillas'
+    | '/admin/configuracion/politicas'
+    | '/admin/configuracion/promos'
+    | '/admin/configuracion/tasa'
+    | '/admin/configuracion/terminos'
+    | '/admin/configuracion/usuarios'
+    | '/admin/pagos/$id'
+    | '/admin/reservas/$id'
+    | '/admin/reservas/nueva'
+    | '/admin/salidas/$id'
+    | '/admin/tours/$id'
+    | '/admin/clientes'
+    | '/admin/configuracion'
+    | '/admin/pagos'
+    | '/admin/reservas'
+    | '/admin/salidas'
+    | '/admin/tours'
+    | '/admin/tours/$id/formulario'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin/2fa'
+    | '/admin/auditoria'
+    | '/admin/clientes'
+    | '/admin/configuracion'
+    | '/admin/login'
+    | '/admin/pagos'
+    | '/admin/recuperar'
+    | '/admin/reportes'
+    | '/admin/reservas'
+    | '/admin/restablecer'
+    | '/admin/salidas'
+    | '/admin/tours'
+    | '/descarga/voucher'
+    | '/r/$token'
+    | '/v/$verifToken'
+    | '/admin/'
+    | '/admin/clientes/$id'
+    | '/admin/configuracion/firma'
+    | '/admin/configuracion/general'
+    | '/admin/configuracion/metodos'
+    | '/admin/configuracion/plantillas'
+    | '/admin/configuracion/politicas'
+    | '/admin/configuracion/promos'
+    | '/admin/configuracion/tasa'
+    | '/admin/configuracion/terminos'
+    | '/admin/configuracion/usuarios'
+    | '/admin/pagos/$id'
+    | '/admin/reservas/$id'
+    | '/admin/reservas/nueva'
+    | '/admin/salidas/$id'
+    | '/admin/tours/$id'
+    | '/admin/clientes/'
+    | '/admin/configuracion/'
+    | '/admin/pagos/'
+    | '/admin/reservas/'
+    | '/admin/salidas/'
+    | '/admin/tours/'
+    | '/admin/tours/$id/formulario'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  Admin2faRoute: typeof Admin2faRoute
+  AdminAuditoriaRoute: typeof AdminAuditoriaRoute
+  AdminClientesRoute: typeof AdminClientesRouteWithChildren
+  AdminConfiguracionRoute: typeof AdminConfiguracionRouteWithChildren
+  AdminLoginRoute: typeof AdminLoginRoute
+  AdminPagosRoute: typeof AdminPagosRouteWithChildren
+  AdminRecuperarRoute: typeof AdminRecuperarRoute
+  AdminReportesRoute: typeof AdminReportesRoute
+  AdminReservasRoute: typeof AdminReservasRouteWithChildren
+  AdminRestablecerRoute: typeof AdminRestablecerRoute
+  AdminSalidasRoute: typeof AdminSalidasRouteWithChildren
+  AdminToursRoute: typeof AdminToursRouteWithChildren
+  DescargaVoucherRoute: typeof DescargaVoucherRoute
   RTokenRoute: typeof RTokenRoute
+  VVerifTokenRoute: typeof VVerifTokenRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
@@ -75,6 +526,97 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/2fa': {
+      id: '/admin/2fa'
+      path: '/admin/2fa'
+      fullPath: '/admin/2fa'
+      preLoaderRoute: typeof Admin2faRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/auditoria': {
+      id: '/admin/auditoria'
+      path: '/admin/auditoria'
+      fullPath: '/admin/auditoria'
+      preLoaderRoute: typeof AdminAuditoriaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/clientes': {
+      id: '/admin/clientes'
+      path: '/admin/clientes'
+      fullPath: '/admin/clientes'
+      preLoaderRoute: typeof AdminClientesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/configuracion': {
+      id: '/admin/configuracion'
+      path: '/admin/configuracion'
+      fullPath: '/admin/configuracion'
+      preLoaderRoute: typeof AdminConfiguracionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/login': {
+      id: '/admin/login'
+      path: '/admin/login'
+      fullPath: '/admin/login'
+      preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/pagos': {
+      id: '/admin/pagos'
+      path: '/admin/pagos'
+      fullPath: '/admin/pagos'
+      preLoaderRoute: typeof AdminPagosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/recuperar': {
+      id: '/admin/recuperar'
+      path: '/admin/recuperar'
+      fullPath: '/admin/recuperar'
+      preLoaderRoute: typeof AdminRecuperarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/reportes': {
+      id: '/admin/reportes'
+      path: '/admin/reportes'
+      fullPath: '/admin/reportes'
+      preLoaderRoute: typeof AdminReportesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/reservas': {
+      id: '/admin/reservas'
+      path: '/admin/reservas'
+      fullPath: '/admin/reservas'
+      preLoaderRoute: typeof AdminReservasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/restablecer': {
+      id: '/admin/restablecer'
+      path: '/admin/restablecer'
+      fullPath: '/admin/restablecer'
+      preLoaderRoute: typeof AdminRestablecerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/salidas': {
+      id: '/admin/salidas'
+      path: '/admin/salidas'
+      fullPath: '/admin/salidas'
+      preLoaderRoute: typeof AdminSalidasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/tours': {
+      id: '/admin/tours'
+      path: '/admin/tours'
+      fullPath: '/admin/tours'
+      preLoaderRoute: typeof AdminToursRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/descarga/voucher': {
+      id: '/descarga/voucher'
+      path: '/descarga/voucher'
+      fullPath: '/descarga/voucher'
+      preLoaderRoute: typeof DescargaVoucherRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/r/$token': {
       id: '/r/$token'
       path: '/r/$token'
@@ -82,12 +624,300 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/v/$verifToken': {
+      id: '/v/$verifToken'
+      path: '/v/$verifToken'
+      fullPath: '/v/$verifToken'
+      preLoaderRoute: typeof VVerifTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/clientes/': {
+      id: '/admin/clientes/'
+      path: '/'
+      fullPath: '/admin/clientes/'
+      preLoaderRoute: typeof AdminClientesIndexRouteImport
+      parentRoute: typeof AdminClientesRoute
+    }
+    '/admin/clientes/$id': {
+      id: '/admin/clientes/$id'
+      path: '/$id'
+      fullPath: '/admin/clientes/$id'
+      preLoaderRoute: typeof AdminClientesIdRouteImport
+      parentRoute: typeof AdminClientesRoute
+    }
+    '/admin/configuracion/': {
+      id: '/admin/configuracion/'
+      path: '/'
+      fullPath: '/admin/configuracion/'
+      preLoaderRoute: typeof AdminConfiguracionIndexRouteImport
+      parentRoute: typeof AdminConfiguracionRoute
+    }
+    '/admin/configuracion/firma': {
+      id: '/admin/configuracion/firma'
+      path: '/firma'
+      fullPath: '/admin/configuracion/firma'
+      preLoaderRoute: typeof AdminConfiguracionFirmaRouteImport
+      parentRoute: typeof AdminConfiguracionRoute
+    }
+    '/admin/configuracion/general': {
+      id: '/admin/configuracion/general'
+      path: '/general'
+      fullPath: '/admin/configuracion/general'
+      preLoaderRoute: typeof AdminConfiguracionGeneralRouteImport
+      parentRoute: typeof AdminConfiguracionRoute
+    }
+    '/admin/configuracion/metodos': {
+      id: '/admin/configuracion/metodos'
+      path: '/metodos'
+      fullPath: '/admin/configuracion/metodos'
+      preLoaderRoute: typeof AdminConfiguracionMetodosRouteImport
+      parentRoute: typeof AdminConfiguracionRoute
+    }
+    '/admin/configuracion/plantillas': {
+      id: '/admin/configuracion/plantillas'
+      path: '/plantillas'
+      fullPath: '/admin/configuracion/plantillas'
+      preLoaderRoute: typeof AdminConfiguracionPlantillasRouteImport
+      parentRoute: typeof AdminConfiguracionRoute
+    }
+    '/admin/configuracion/politicas': {
+      id: '/admin/configuracion/politicas'
+      path: '/politicas'
+      fullPath: '/admin/configuracion/politicas'
+      preLoaderRoute: typeof AdminConfiguracionPoliticasRouteImport
+      parentRoute: typeof AdminConfiguracionRoute
+    }
+    '/admin/configuracion/promos': {
+      id: '/admin/configuracion/promos'
+      path: '/promos'
+      fullPath: '/admin/configuracion/promos'
+      preLoaderRoute: typeof AdminConfiguracionPromosRouteImport
+      parentRoute: typeof AdminConfiguracionRoute
+    }
+    '/admin/configuracion/tasa': {
+      id: '/admin/configuracion/tasa'
+      path: '/tasa'
+      fullPath: '/admin/configuracion/tasa'
+      preLoaderRoute: typeof AdminConfiguracionTasaRouteImport
+      parentRoute: typeof AdminConfiguracionRoute
+    }
+    '/admin/configuracion/terminos': {
+      id: '/admin/configuracion/terminos'
+      path: '/terminos'
+      fullPath: '/admin/configuracion/terminos'
+      preLoaderRoute: typeof AdminConfiguracionTerminosRouteImport
+      parentRoute: typeof AdminConfiguracionRoute
+    }
+    '/admin/configuracion/usuarios': {
+      id: '/admin/configuracion/usuarios'
+      path: '/usuarios'
+      fullPath: '/admin/configuracion/usuarios'
+      preLoaderRoute: typeof AdminConfiguracionUsuariosRouteImport
+      parentRoute: typeof AdminConfiguracionRoute
+    }
+    '/admin/pagos/': {
+      id: '/admin/pagos/'
+      path: '/'
+      fullPath: '/admin/pagos/'
+      preLoaderRoute: typeof AdminPagosIndexRouteImport
+      parentRoute: typeof AdminPagosRoute
+    }
+    '/admin/pagos/$id': {
+      id: '/admin/pagos/$id'
+      path: '/$id'
+      fullPath: '/admin/pagos/$id'
+      preLoaderRoute: typeof AdminPagosIdRouteImport
+      parentRoute: typeof AdminPagosRoute
+    }
+    '/admin/reservas/': {
+      id: '/admin/reservas/'
+      path: '/'
+      fullPath: '/admin/reservas/'
+      preLoaderRoute: typeof AdminReservasIndexRouteImport
+      parentRoute: typeof AdminReservasRoute
+    }
+    '/admin/reservas/$id': {
+      id: '/admin/reservas/$id'
+      path: '/$id'
+      fullPath: '/admin/reservas/$id'
+      preLoaderRoute: typeof AdminReservasIdRouteImport
+      parentRoute: typeof AdminReservasRoute
+    }
+    '/admin/reservas/nueva': {
+      id: '/admin/reservas/nueva'
+      path: '/nueva'
+      fullPath: '/admin/reservas/nueva'
+      preLoaderRoute: typeof AdminReservasNuevaRouteImport
+      parentRoute: typeof AdminReservasRoute
+    }
+    '/admin/salidas/': {
+      id: '/admin/salidas/'
+      path: '/'
+      fullPath: '/admin/salidas/'
+      preLoaderRoute: typeof AdminSalidasIndexRouteImport
+      parentRoute: typeof AdminSalidasRoute
+    }
+    '/admin/salidas/$id': {
+      id: '/admin/salidas/$id'
+      path: '/$id'
+      fullPath: '/admin/salidas/$id'
+      preLoaderRoute: typeof AdminSalidasIdRouteImport
+      parentRoute: typeof AdminSalidasRoute
+    }
+    '/admin/tours/': {
+      id: '/admin/tours/'
+      path: '/'
+      fullPath: '/admin/tours/'
+      preLoaderRoute: typeof AdminToursIndexRouteImport
+      parentRoute: typeof AdminToursRoute
+    }
+    '/admin/tours/$id': {
+      id: '/admin/tours/$id'
+      path: '/$id'
+      fullPath: '/admin/tours/$id'
+      preLoaderRoute: typeof AdminToursIdRouteImport
+      parentRoute: typeof AdminToursRoute
+    }
+    '/admin/tours/$id/formulario': {
+      id: '/admin/tours/$id/formulario'
+      path: '/formulario'
+      fullPath: '/admin/tours/$id/formulario'
+      preLoaderRoute: typeof AdminToursIdFormularioRouteImport
+      parentRoute: typeof AdminToursIdRoute
+    }
   }
 }
 
+interface AdminClientesRouteChildren {
+  AdminClientesIdRoute: typeof AdminClientesIdRoute
+  AdminClientesIndexRoute: typeof AdminClientesIndexRoute
+}
+
+const AdminClientesRouteChildren: AdminClientesRouteChildren = {
+  AdminClientesIdRoute: AdminClientesIdRoute,
+  AdminClientesIndexRoute: AdminClientesIndexRoute,
+}
+
+const AdminClientesRouteWithChildren = AdminClientesRoute._addFileChildren(
+  AdminClientesRouteChildren,
+)
+
+interface AdminConfiguracionRouteChildren {
+  AdminConfiguracionFirmaRoute: typeof AdminConfiguracionFirmaRoute
+  AdminConfiguracionGeneralRoute: typeof AdminConfiguracionGeneralRoute
+  AdminConfiguracionMetodosRoute: typeof AdminConfiguracionMetodosRoute
+  AdminConfiguracionPlantillasRoute: typeof AdminConfiguracionPlantillasRoute
+  AdminConfiguracionPoliticasRoute: typeof AdminConfiguracionPoliticasRoute
+  AdminConfiguracionPromosRoute: typeof AdminConfiguracionPromosRoute
+  AdminConfiguracionTasaRoute: typeof AdminConfiguracionTasaRoute
+  AdminConfiguracionTerminosRoute: typeof AdminConfiguracionTerminosRoute
+  AdminConfiguracionUsuariosRoute: typeof AdminConfiguracionUsuariosRoute
+  AdminConfiguracionIndexRoute: typeof AdminConfiguracionIndexRoute
+}
+
+const AdminConfiguracionRouteChildren: AdminConfiguracionRouteChildren = {
+  AdminConfiguracionFirmaRoute: AdminConfiguracionFirmaRoute,
+  AdminConfiguracionGeneralRoute: AdminConfiguracionGeneralRoute,
+  AdminConfiguracionMetodosRoute: AdminConfiguracionMetodosRoute,
+  AdminConfiguracionPlantillasRoute: AdminConfiguracionPlantillasRoute,
+  AdminConfiguracionPoliticasRoute: AdminConfiguracionPoliticasRoute,
+  AdminConfiguracionPromosRoute: AdminConfiguracionPromosRoute,
+  AdminConfiguracionTasaRoute: AdminConfiguracionTasaRoute,
+  AdminConfiguracionTerminosRoute: AdminConfiguracionTerminosRoute,
+  AdminConfiguracionUsuariosRoute: AdminConfiguracionUsuariosRoute,
+  AdminConfiguracionIndexRoute: AdminConfiguracionIndexRoute,
+}
+
+const AdminConfiguracionRouteWithChildren =
+  AdminConfiguracionRoute._addFileChildren(AdminConfiguracionRouteChildren)
+
+interface AdminPagosRouteChildren {
+  AdminPagosIdRoute: typeof AdminPagosIdRoute
+  AdminPagosIndexRoute: typeof AdminPagosIndexRoute
+}
+
+const AdminPagosRouteChildren: AdminPagosRouteChildren = {
+  AdminPagosIdRoute: AdminPagosIdRoute,
+  AdminPagosIndexRoute: AdminPagosIndexRoute,
+}
+
+const AdminPagosRouteWithChildren = AdminPagosRoute._addFileChildren(
+  AdminPagosRouteChildren,
+)
+
+interface AdminReservasRouteChildren {
+  AdminReservasIdRoute: typeof AdminReservasIdRoute
+  AdminReservasNuevaRoute: typeof AdminReservasNuevaRoute
+  AdminReservasIndexRoute: typeof AdminReservasIndexRoute
+}
+
+const AdminReservasRouteChildren: AdminReservasRouteChildren = {
+  AdminReservasIdRoute: AdminReservasIdRoute,
+  AdminReservasNuevaRoute: AdminReservasNuevaRoute,
+  AdminReservasIndexRoute: AdminReservasIndexRoute,
+}
+
+const AdminReservasRouteWithChildren = AdminReservasRoute._addFileChildren(
+  AdminReservasRouteChildren,
+)
+
+interface AdminSalidasRouteChildren {
+  AdminSalidasIdRoute: typeof AdminSalidasIdRoute
+  AdminSalidasIndexRoute: typeof AdminSalidasIndexRoute
+}
+
+const AdminSalidasRouteChildren: AdminSalidasRouteChildren = {
+  AdminSalidasIdRoute: AdminSalidasIdRoute,
+  AdminSalidasIndexRoute: AdminSalidasIndexRoute,
+}
+
+const AdminSalidasRouteWithChildren = AdminSalidasRoute._addFileChildren(
+  AdminSalidasRouteChildren,
+)
+
+interface AdminToursIdRouteChildren {
+  AdminToursIdFormularioRoute: typeof AdminToursIdFormularioRoute
+}
+
+const AdminToursIdRouteChildren: AdminToursIdRouteChildren = {
+  AdminToursIdFormularioRoute: AdminToursIdFormularioRoute,
+}
+
+const AdminToursIdRouteWithChildren = AdminToursIdRoute._addFileChildren(
+  AdminToursIdRouteChildren,
+)
+
+interface AdminToursRouteChildren {
+  AdminToursIdRoute: typeof AdminToursIdRouteWithChildren
+  AdminToursIndexRoute: typeof AdminToursIndexRoute
+}
+
+const AdminToursRouteChildren: AdminToursRouteChildren = {
+  AdminToursIdRoute: AdminToursIdRouteWithChildren,
+  AdminToursIndexRoute: AdminToursIndexRoute,
+}
+
+const AdminToursRouteWithChildren = AdminToursRoute._addFileChildren(
+  AdminToursRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  Admin2faRoute: Admin2faRoute,
+  AdminAuditoriaRoute: AdminAuditoriaRoute,
+  AdminClientesRoute: AdminClientesRouteWithChildren,
+  AdminConfiguracionRoute: AdminConfiguracionRouteWithChildren,
+  AdminLoginRoute: AdminLoginRoute,
+  AdminPagosRoute: AdminPagosRouteWithChildren,
+  AdminRecuperarRoute: AdminRecuperarRoute,
+  AdminReportesRoute: AdminReportesRoute,
+  AdminReservasRoute: AdminReservasRouteWithChildren,
+  AdminRestablecerRoute: AdminRestablecerRoute,
+  AdminSalidasRoute: AdminSalidasRouteWithChildren,
+  AdminToursRoute: AdminToursRouteWithChildren,
+  DescargaVoucherRoute: DescargaVoucherRoute,
   RTokenRoute: RTokenRoute,
+  VVerifTokenRoute: VVerifTokenRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
 export const routeTree = rootRouteImport

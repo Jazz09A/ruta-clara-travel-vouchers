@@ -9,9 +9,12 @@ import {
   type ErrorComponentProps,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
+import { TriangleAlert, RotateCcw } from "lucide-react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { Toaster } from "../components/ui/sonner";
+import { MARCA } from "../lib/brand";
 
 function NotFoundComponent() {
   return (
@@ -22,14 +25,21 @@ function NotFoundComponent() {
         <p className="mt-2 text-sm text-muted-foreground">
           El enlace no existe o ya expiró. Escríbenos y te ayudamos.
         </p>
-        <div className="mt-6">
+        <div className="mt-6 flex flex-wrap justify-center gap-2">
           <Link
             to="/"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
           >
             Ir al inicio
           </Link>
-          <a href="https://wa.me/" className="ml-2 inline-flex items-center justify-center rounded-md border border-input px-4 py-2 text-sm font-medium text-foreground">Contactar por WhatsApp</a>
+          <a
+            href={`https://wa.me/${MARCA.whatsapp.replace(/\D/g, "")}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-input px-4 text-sm font-semibold text-foreground transition-colors hover:bg-accent"
+          >
+            Contactar por WhatsApp
+          </a>
         </div>
       </div>
     </div>
@@ -46,11 +56,15 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
+        <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-destructive/10 text-destructive">
+          <TriangleAlert className="h-6 w-6" />
+        </span>
+        <h1 className="mt-4 text-xl font-semibold tracking-tight text-foreground">
+          Esta pantalla no se pudo cargar
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+          Algo falló de nuestro lado. Puedes reintentar o volver al inicio. Si el problema sigue,
+          escríbenos y lo resolvemos.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -58,16 +72,16 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
               router.invalidate();
               reset();
             }}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Try again
+            <RotateCcw className="h-4 w-4" /> Reintentar
           </button>
-          <a
-            href="/"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+          <Link
+            to="/"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-input bg-background px-4 text-sm font-semibold text-foreground transition-colors hover:bg-accent"
           >
-            Go home
-          </a>
+            Volver al inicio
+          </Link>
         </div>
       </div>
     </div>
@@ -78,15 +92,22 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Agencia Full Days · Reservas" },
-      { name: "description", content: "Gestión de reservas de Full Days y Fines de Semana" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Agencia Full Days · Reservas" },
-      { property: "og:description", content: "Gestión de reservas de Full Days y Fines de Semana" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
+      { title: `${MARCA.nombreCompleto} · Reservas` },
+      {
+        name: "description",
+        content: "Reservas de Full Days y Fines de Semana: registro, preguntas del tour, firma, pago y voucher.",
+      },
+      { name: "author", content: MARCA.nombreCompleto },
+      // Las rutas con datos personales y el panel no se indexan (SEG-16).
+      { name: "robots", content: "noindex, nofollow" },
+      { property: "og:title", content: `${MARCA.nombreCompleto} · Reservas` },
+      {
+        property: "og:description",
+        content: "Reservas de Full Days y Fines de Semana: registro, preguntas del tour, firma, pago y voucher.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
       {
@@ -94,7 +115,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: appCss,
       },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap",
+      },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
   }),
@@ -110,8 +134,9 @@ function RootShell({ children }: { children: ReactNode }) {
       <head>
         <HeadContent />
       </head>
-      <body>
+      <body className="antialiased">
         {children}
+        <Toaster position="top-center" richColors closeButton />
         <Scripts />
       </body>
     </html>

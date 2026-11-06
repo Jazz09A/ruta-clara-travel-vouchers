@@ -1,0 +1,105 @@
+import * as React from "react";
+import { useQuery } from "@tanstack/react-query";
+import { ShieldAlert } from "lucide-react";
+
+import { tienePermiso, type Permiso } from "@/lib/domain/types";
+import { useSesion } from "@/components/admin/auth/sesion";
+
+/**
+ * Permiso del usuario actual para la acción en pantalla.
+ *
+ * Mientras no haya un usuario cargado (la demo arranca sin sesión
+ * restaurada) no se bloquea nada; en cuanto hay usuario, **manda el rol** y sus
+ * permisos (Spec 9.1).
+ */
+export function usePermisoAdmin(permiso: Permiso): boolean {
+  const { usuario } = useSesion();
+  if (!usuario) return true;
+  return tienePermiso(usuario.rol, permiso);
+}
+
+export interface SinPermisoProps {
+  /** Qué necesita el usuario para ver esta pantalla. */
+  permiso: Permiso;
+  /** Texto de la acción que sí puede hacer. */
+  accion?: string | undefined;
+}
+
+/**
+ * Aviso para cuando el rol no tiene permiso.
+ *
+ * Se muestra **dentro** de la pantalla (no como botón deshabilitado) con una
+ * explicación de qué falta (Spec 9.1).
+ */
+export function SinPermiso({ permiso, accion }: SinPermisoProps) {
+  const { usuario } = useSesion();
+  const rol = usuario?.rol ?? null;
+
+  return (
+    <div
+      role="alert"
+      className="flex items-start gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-5 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200"
+    >
+      <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+      <div className="space-y-1">
+        <p className="font-semibold">No tienes permiso para esta sección</p>
+        <p className="text-sm leading-relaxed">
+          {accion
+            ? `Tu rol (${rol ?? "sin sesión"}) no puede ${accion}. Pídeselo a un superadministrador si necesitas acceso.`
+            : `Tu rol (${rol ?? "sin sesión"}) no tiene el permiso «${permiso}».`}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Comprueba si una consulta debe esperar a tener datos antes de pintar.
+ *
+ * Evita el parpadeo del estado vacío mientras la primera petición sigue en
+ * curso (Spec 3.5).
+ */
+export function useCargaInicial(isPending: boolean, hayDatos: boolean): boolean {
+  return React.useMemo(() => isPending && !hayDatos, [isPending, hayDatos]);
+}
+
+/** Limpia un valor de búsqueda para comparar. */
+export function normalizarBusqueda(texto: string): string {
+  return texto.trim().toLowerCase();
+}
+
+/** `true` si el texto parece un documento (sólo dígitos, 5 o más). */
+export function pareceDocumento(texto: string): boolean {
+  const limpio = texto.replace(/\D/g, "");
+  return limpio.length >= 5 && limpio === texto.trim();
+}
+
+/** Descarga un texto como archivo en el navegador. */
+export function descargarTexto(nombre: string, contenido: string, tipo = "text/csv;charset=utf-8"): void {
+  const blob = new Blob([contenido], { type: tipo });
+  const url = URL.createObjectURL(blob);
+  const enlace = document.createElement("a");
+  enlace.href = url;
+  enlace.download = nombre;
+  document.body.appendChild(enlace);
+  enlace.click();
+  document.body.removeChild(enlace);
+  URL.revokeObjectURL(url);
+}
+
+/** Escapa un valor para escribirlo en un CSV. */
+export function escaparCsv(valor: string): string {
+  if (/[",\n;]/.test(valor)) {
+    return `"${valor.replace(/"/g, '""')}"`;
+  }
+  return valor;
+}
+
+/** Construye un CSV a partir de filas. */
+export function aCsv(encabezados: string[], filas: string[][]): string {
+  const lineas = [encabezados.map(escaparCsv).join(",")];
+  for (const fila of filas) {
+    lineas.push(fila.map(escaparCsv).join(","));
+  }
+  return lineas.join("\n");
+}

@@ -1,14 +1,18 @@
+# Rutas con datos personales y panel administrativo: nunca se indexan (SEG-16).
+User-agent: *
+Disallow: /r/
+Disallow: /v/
+Disallow: /admin
+Disallow: /descarga/
+
 User-agent: Googlebot
-Allow: /
+Disallow: /r/
+Disallow: /v/
+Disallow: /admin
+Disallow: /descarga/
 
 User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
-
-User-agent: *
-Allow: /
+Disallow: /r/
+Disallow: /v/
+Disallow: /admin
+Disallow: /descarga/

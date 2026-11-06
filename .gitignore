@@ -30,3 +30,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+.vercel
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+
+# Copias locales de node_modules
+_node_modules*/
