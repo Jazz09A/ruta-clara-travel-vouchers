@@ -422,6 +422,17 @@ const admin = {
   reportes: (params: { desde: string; hasta: string }) =>
     peticion("/adminfx/reportes", { admin: true }, { desde: params.desde, hasta: params.hasta }),
 
+  // ── exportaciones ──────────────────────────────────────────────────
+  exportaciones: () => peticion("/exportaciones", { admin: true }),
+
+  crearExportacion: (tipo: string, filtros?: Record<string, unknown>) =>
+    peticion("/exportaciones", { metodo: "POST", admin: true, body: { tipo, filtros } }),
+
+  exportacion: (id: string) => peticion(`/exportaciones/${id}`, { admin: true }),
+
+  descargarExportacion: (id: string) =>
+    peticion(`/exportaciones/${id}/descarga`, { admin: true }),
+
   // ── configuración ──────────────────────────────────────────────────
   configuracion: () => peticion("/adminfx/configuracion", { admin: true }),
 

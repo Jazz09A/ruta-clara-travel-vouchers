@@ -18,7 +18,8 @@ export interface Usuario {
   nombre: string;
   correo: string;
   rol: Rol;
-  dos_factores_activo: boolean;
+  /** 2FA desactivado del flujo actual; el campo se conserva por compatibilidad. */
+  dos_factores_activo?: boolean;
   activo: boolean;
 }
 
@@ -569,6 +570,36 @@ export interface DashboardData {
     entidad_id: string;
     severidad: "alta" | "media" | "baja";
   }[];
+}
+
+// ---------------------------------------------------------------------------
+// Exportaciones XLSX
+// ---------------------------------------------------------------------------
+
+export type TipoExportacion =
+  | "reservas"
+  | "tours"
+  | "pasajeros_tour"
+  | "clientes"
+  | "pagos"
+  | "manifest"
+  | "cocina";
+
+export type EstadoExportacion = "en_cola" | "procesando" | "lista" | "error" | "expirada";
+
+export interface Exportacion {
+  id: string;
+  tipo: TipoExportacion;
+  filtros: Record<string, unknown>;
+  estado: EstadoExportacion;
+  archivo_id?: string | null;
+  solicitada_por: string;
+  nombre_archivo?: string | null;
+  expira_en?: string | null;
+  error?: string | null;
+  intentos: number;
+  creado_en: string;
+  actualizado_en: string;
 }
 
 // ---------------------------------------------------------------------------

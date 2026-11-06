@@ -32,6 +32,7 @@ import type {
   Configuracion,
   DetalleError,
   EstadoReserva,
+  Exportacion,
   FechaTour,
   Formulario,
   LineaPrecio,
@@ -1243,6 +1244,8 @@ function refCorta(): string {
 const sesiones = new Map<string, Usuario>();
 /** Notas internas de clientes (la ficha se arma a partir de las reservas). */
 const notasCliente = new Map<string, string>();
+/** Exportaciones XLSX simuladas (en producción las genera el worker del backend). */
+const exportacionesMock = new Map<string, Exportacion>();
 
 function usuarioActual(token?: string): Usuario {
   if (!token) throw err(401, "NO_AUTENTICADO", "Tu sesión expiró. Vuelve a entrar.");
@@ -2438,6 +2441,39 @@ const admin: ApiSurface["admin"] = {
     };
   },
 
+  // ── exportaciones (mock: genera "al instante" para demo) ────────────
+  async exportaciones() {
+    return [...exportacionesMock.values()];
+  },
+
+  async crearExportacion(tipo, filtros) {
+    const exp: Exportacion = {
+      id: `exp_${Date.now().toString(36)}`,
+      tipo,
+      filtros: filtros ?? {},
+      estado: "lista",
+      nombre_archivo: `${tipo}-${ahoraIso().slice(0, 10)}.xlsx`,
+      solicitada_por: "admin",
+      intentos: 1,
+      creado_en: ahoraIso(),
+      actualizado_en: ahoraIso(),
+    };
+    exportacionesMock.set(exp.id, exp);
+    return exp;
+  },
+
+  async exportacion(id) {
+    const exp = exportacionesMock.get(id);
+    if (!exp) throw new Error("Exportación no encontrada");
+    return exp;
+  },
+
+  async descargarExportacion(id) {
+    const exp = exportacionesMock.get(id);
+    if (!exp) throw new Error("Exportación no encontrada");
+    return { url: `/mock/exports/${exp.nombre_archivo}`, expira_en: ahoraIso() };
+  },
+
   async configuracion() {
     const datos = db();
     return {
@@ -2690,6 +2726,8 @@ export function reiniciarDemo(): void {
   resetDb();
   IDEMPORALIDAD.clear();
   sesiones.clear();
+  notasCliente.clear();
+  exportacionesMock.clear();
 }
 
 export type { LineaPrecio, Progreso, Respuesta };

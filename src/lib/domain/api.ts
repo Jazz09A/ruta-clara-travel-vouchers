@@ -8,6 +8,7 @@ import type {
   DashboardData,
   DetalleError,
   EstadoReserva,
+  Exportacion,
   FechaTour,
   Formulario,
   MetodoPago,
@@ -24,6 +25,7 @@ import type {
   Tarifa,
   TasaCambio,
   Tour,
+  TipoExportacion,
   Usuario,
   VersionTerminos,
   CodigoPromocional,
@@ -395,6 +397,11 @@ export interface ApiAdmin {
     reembolsos: { total_usd: string; count: number };
     ocupacion: { fecha: string; tour: string; vendidos: number; total: number; pct: number }[];
   }>;
+
+  exportaciones(): Promise<Exportacion[]>;
+  crearExportacion(tipo: TipoExportacion, filtros?: Record<string, unknown>): Promise<Exportacion>;
+  exportacion(id: string): Promise<Exportacion>;
+  descargarExportacion(id: string): Promise<{ url: string; expira_en: string }>;
 
   configuracion(): Promise<{
     config: Configuracion;
