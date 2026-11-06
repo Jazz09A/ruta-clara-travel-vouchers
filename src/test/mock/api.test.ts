@@ -342,7 +342,7 @@ describe("API simulada — ciclo de vida de una reserva", () => {
       expect(contexto.tour, `Tour de ${escenario.token}`).toBeDefined();
       expect(contexto.fecha, `Fecha de ${escenario.token}`).toBeDefined();
       expect(contexto.tarifas?.length).toBeGreaterThan(0);
-      expect(contexto.form_version, `Formulario de ${escenario.token}`).toBeDefined();
+      expect(contexto.formulario, `Formulario de ${escenario.token}`).toBeDefined();
       expect(contexto.config, `Config de ${escenario.token}`).toBeDefined();
     }
   });

@@ -287,22 +287,21 @@ test("flujo completo: enlace → registro → pago → validación → voucher",
 
     // Localiza la fila del pago recién reportado por su referencia. En
     // escritorio la cola es una tabla (las tarjetas <li> quedan ocultas).
+    // Antes de confirmar, la reserva se identifica por `ref_corta`: el código
+    // VJ-AAAA-NNNNN se asigna recién al aprobar el pago (spec D-01).
     const fila = page.getByRole("row").filter({ hasText: referenciaPago }).first();
     await expect(fila).toBeVisible({ timeout: 20_000 });
-    // La celda junta el código y la referencia corta («VJ-2026-00020DEMO123»):
-    // extraer solo el código con formato VJ-AAAA-NNNNN.
-    const textoReserva = await fila
-      .getByText(/VJ-2026-/)
-      .first()
-      .textContent();
-    codigoReserva = textoReserva?.match(/VJ-2026-\d+/)?.[0] ?? "";
-    expect(codigoReserva).toMatch(/^VJ-2026-/);
 
     await fila.getByRole("link", { name: "Revisar", exact: true }).click();
     await page.getByRole("button", { name: "Aprobar", exact: true }).click();
     await page.getByRole("button", { name: "Aprobar pago" }).click();
 
     await expect(page.getByText("Aprobado").first()).toBeVisible({ timeout: 20_000 });
+
+    // El detalle del pago ya muestra el código VJ- asignado en la confirmación.
+    const textoCodigo = await page.getByText(/VJ-2026-\d+/).first().textContent();
+    codigoReserva = textoCodigo?.match(/VJ-2026-\d+/)?.[0] ?? "";
+    expect(codigoReserva).toMatch(/^VJ-2026-/);
   });
 
   // -----------------------------------------------------------------------

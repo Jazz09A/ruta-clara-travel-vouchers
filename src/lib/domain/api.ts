@@ -225,7 +225,6 @@ export interface ApiPublica {
 export interface SesionAdmin {
   token: string;
   usuario: Usuario;
-  requiere_2fa: boolean;
 }
 
 export interface FiltrosReservas {
@@ -275,8 +274,7 @@ export interface ReservaAdmin extends Reserva {
 }
 
 export interface ApiAdmin {
-  login(body: { correo: string; password: string }): Promise<{ requiere_2fa: boolean; token_parcial?: string }>;
-  verificar2fa(body: { token_parcial: string; codigo: string }): Promise<SesionAdmin>;
+  login(body: { correo: string; password: string }): Promise<void>;
   recuperar(body: { correo: string }): Promise<{ ok: true }>;
   restablecer(body: { token: string; password: string }): Promise<{ ok: true }>;
   yo(): Promise<{ usuario: Usuario }>;

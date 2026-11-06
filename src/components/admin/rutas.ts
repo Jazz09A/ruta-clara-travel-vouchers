@@ -20,8 +20,6 @@ export interface RutasAdmin {
   configuracion: string;
   auditoria: string;
   login: string;
-  dosFactores: string;
-  recuperar: string;
   formularioCliente: string;
 }
 
@@ -37,8 +35,6 @@ export const RUTA: RutasAdmin = {
   configuracion: RUTAS_ADMIN.configuracion,
   auditoria: RUTAS_ADMIN.auditoria,
   login: "/admin/login",
-  dosFactores: "/admin/2fa",
-  recuperar: "/admin/recuperar",
   formularioCliente: "/r/demo",
 };
 

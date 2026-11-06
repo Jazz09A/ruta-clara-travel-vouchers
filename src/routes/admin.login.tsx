@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Eye, EyeOff, KeyRound, LogIn, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, LogIn, ShieldCheck } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { Banner } from "@/components/admin/Banner";
@@ -31,7 +31,7 @@ export const Route = createFileRoute("/admin/login")({
 const MAX_INTENTOS = 5;
 const ESPERA_SEGUNDOS = 60;
 
-/** Cuentas de la demo local. */
+/** Cuentas de la demo local (solo visibles en desarrollo). */
 const CUENTAS_DEMO = [
   { correo: "admin@rutaclara.ve", rol: "Administración" },
   { correo: "operador@rutaclara.ve", rol: "Operación" },
@@ -39,6 +39,9 @@ const CUENTAS_DEMO = [
   { correo: "guia@rutaclara.ve", rol: "Guía / logística" },
 ];
 const PASSWORD_DEMO = "demo1234";
+
+/** Solo desarrollo: muestra las cuentas demo. */
+const ES_DEV = import.meta.env.DEV;
 
 function PantallaLogin() {
   return (
@@ -87,11 +90,7 @@ function FormularioLogin() {
     limpiarMotivoCierre();
 
     try {
-      const resultado = await login(correo.trim(), password);
-      if (resultado.requiere2fa) {
-        navegar("/admin/2fa");
-        return;
-      }
+      await login(correo.trim(), password);
       navegar(rutaPendiente ?? "/admin");
     } catch (fallo) {
       const apiError = fallo instanceof ApiError ? fallo : null;
@@ -203,14 +202,7 @@ function FormularioLogin() {
             Entrar
           </BotonCargar>
 
-          <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-            <Link
-              to="/admin/recuperar"
-              className="inline-flex min-h-11 items-center gap-2 rounded font-semibold text-primary underline-offset-4 hover:underline"
-            >
-              <KeyRound className="h-4 w-4" aria-hidden="true" />
-              Recuperar contraseña
-            </Link>
+          <div className="flex flex-wrap items-center justify-end gap-2 text-sm">
             <Link
               to="/r/$token"
               params={{ token: "demo" }}
@@ -222,31 +214,33 @@ function FormularioLogin() {
           </div>
         </form>
 
-        <section className="rounded-xl border border-dashed border-border bg-muted/40 p-4">
-          <h2 className="text-sm font-bold text-foreground">Cuentas de la demo local</h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Esta demo no tiene servidor real: usa cualquiera de estas cuentas con la contraseña{" "}
-            <code className="rounded bg-background px-1 py-0.5 font-mono">{PASSWORD_DEMO}</code>.
-          </p>
-          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-            {CUENTAS_DEMO.map((cuenta) => (
-              <li key={cuenta.correo}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCorreo(cuenta.correo);
-                    setPassword(PASSWORD_DEMO);
-                    setError(null);
-                  }}
-                  className="flex min-h-11 w-full flex-col rounded-lg border border-border bg-background px-3 py-2 text-left hover:bg-accent"
-                >
-                  <span className="truncate text-xs font-mono font-semibold">{cuenta.correo}</span>
-                  <span className="text-[11px] text-muted-foreground">{cuenta.rol}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
+        {ES_DEV ? (
+          <section className="rounded-xl border border-dashed border-border bg-muted/40 p-4">
+            <h2 className="text-sm font-bold text-foreground">Cuentas de la demo local</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Esta demo usa cualquiera de estas cuentas con la contraseña{" "}
+              <code className="rounded bg-background px-1 py-0.5 font-mono">{PASSWORD_DEMO}</code>.
+            </p>
+            <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+              {CUENTAS_DEMO.map((cuenta) => (
+                <li key={cuenta.correo}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCorreo(cuenta.correo);
+                      setPassword(PASSWORD_DEMO);
+                      setError(null);
+                    }}
+                    className="flex min-h-11 w-full flex-col rounded-lg border border-border bg-background px-3 py-2 text-left hover:bg-accent"
+                  >
+                    <span className="truncate text-xs font-mono font-semibold">{cuenta.correo}</span>
+                    <span className="text-[11px] text-muted-foreground">{cuenta.rol}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
       </div>
     </main>
   );

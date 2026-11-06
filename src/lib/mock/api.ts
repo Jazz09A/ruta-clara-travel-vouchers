@@ -1241,7 +1241,6 @@ function refCorta(): string {
 // ---------------------------------------------------------------------------
 
 const sesiones = new Map<string, Usuario>();
-const tokensParciales = new Map<string, { correo: string; expira: number }>();
 /** Notas internas de clientes (la ficha se arma a partir de las reservas). */
 const notasCliente = new Map<string, string>();
 
@@ -1269,30 +1268,8 @@ const admin: ApiSurface["admin"] = {
     if (!usuario || !usuario.activo) {
       throw err(401, "NO_AUTENTICADO", "Correo o contraseña incorrectos.");
     }
-    if (usuario.dos_factores_activo) {
-      const parcial = `parcial_${Math.random().toString(36).slice(2)}`;
-      tokensParciales.set(parcial, { correo: usuario.correo, expira: Date.now() + 5 * 60_000 });
-      return { requiere_2fa: true, token_parcial: parcial };
-    }
-    return { requiere_2fa: false };
-  },
-
-  async verificar2fa(body) {
-    const parcial = tokensParciales.get(body.token_parcial);
-    if (!parcial || parcial.expira < Date.now()) {
-      throw err(401, "NO_AUTENTICADO", "El código expiró. Vuelve a entrar.");
-    }
-    const codigoLimpiado = body.codigo.trim();
-    if (codigoLimpiado !== "123456" && codigoLimpiado.toUpperCase() !== "ABCD-EFGH") {
-      throw err(401, "NO_AUTENTICADO", "Ese código no es válido.");
-    }
-    tokensParciales.delete(body.token_parcial);
-    const usuario = db().usuarios.find((u) => u.correo === parcial.correo);
-    if (!usuario) throw err(401, "NO_AUTENTICADO", "Vuelve a entrar.");
     const token = `tok_${Math.random().toString(36).slice(2)}`;
     sesiones.set(token, usuario);
-    const sesion: SesionAdmin = { token, usuario, requiere_2fa: false };
-    return sesion;
   },
 
   async recuperar() {
@@ -2713,7 +2690,6 @@ export function reiniciarDemo(): void {
   resetDb();
   IDEMPORALIDAD.clear();
   sesiones.clear();
-  tokensParciales.clear();
 }
 
 export type { LineaPrecio, Progreso, Respuesta };

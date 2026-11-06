@@ -76,7 +76,6 @@ function UsuariosPermisos() {
       correo: formData.get("correo") as string,
       rol: formData.get("rol") as Rol,
       activo: formData.get("activo") === "true",
-      dos_factores_activo: formData.get("dos_factores") === "true",
     };
 
     mutationGuardar.mutate(usuario);
@@ -123,7 +122,6 @@ function UsuariosPermisos() {
               nombre: "",
               correo: "",
               rol: "OP",
-              dos_factores_activo: false,
               activo: true,
             })}
           >
@@ -176,12 +174,6 @@ function UsuariosPermisos() {
                         <Badge variant="secondary" className="min-h-8">
                           <XCircle className="mr-1 h-3 w-3" aria-hidden="true" />
                           Inactivo
-                        </Badge>
-                      )}
-                      {usuario.dos_factores_activo && (
-                        <Badge variant="outline" className="min-h-8">
-                          <ShieldCheck className="mr-1 h-3 w-3" aria-hidden="true" />
-                          2FA activo
                         </Badge>
                       )}
                     </div>
@@ -278,18 +270,6 @@ function UsuariosPermisos() {
               >
                 <option value="true">Activo</option>
                 <option value="false">Inactivo</option>
-              </Campo>
-
-              <Campo
-                id="dos_factores"
-                label="Autenticación de dos factores"
-                type="select"
-                defaultValue={editando.dos_factores_activo ? "true" : "false"}
-                required
-                ayuda="Recomendado para mayor seguridad"
-              >
-                <option value="true">Activado</option>
-                <option value="false">Desactivado</option>
               </Campo>
 
               <div className="flex justify-end gap-2">

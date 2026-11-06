@@ -269,26 +269,9 @@ const publica: ApiPublica = {
 
 const admin = {
   async login(body: { correo: string; password: string }) {
-    const res = await peticion<
-      | { requiere_2fa: true; token_parcial: string }
-      | { access_token: string; refresh_token: string; usuario: UsuarioBackend }
-    >("/auth/login", { metodo: "POST", body });
-    if ("requiere_2fa" in res && res.requiere_2fa) {
-      return { requiere_2fa: true as const, token_parcial: res.token_parcial };
-    }
+    const res = await peticion<{ access_token: string; refresh_token: string; usuario: UsuarioBackend }>("/auth/login", { metodo: "POST", body });
     if (!("access_token" in res)) throw new ApiError(500, { codigo: "ERROR_INTERNO" as never, mensaje: "Respuesta de login inválida", request_id: "" });
     accessToken = res.access_token;
-    return { requiere_2fa: false as const };
-  },
-
-  async verificar2fa(body: { token_parcial: string; codigo: string }): Promise<SesionAdmin> {
-    const res = await peticion<{
-      access_token: string;
-      refresh_token: string;
-      usuario: UsuarioBackend;
-    }>("/auth/2fa/verificar", { metodo: "POST", body });
-    accessToken = res.access_token;
-    return { token: res.access_token, usuario: usuarioFe(res.usuario), requiere_2fa: false };
   },
 
   async recuperar(body: { correo: string }) {

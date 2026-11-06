@@ -49,21 +49,14 @@ export interface EstadoSesion {
   cargando: boolean;
   /** `true` si hay una sesión válida. */
   autenticado: boolean;
-  /** Inicia sesión. Si el rol exige 2FA devuelve `requiere2fa: true`. */
-  login(correo: string, password: string): Promise<{ requiere2fa: boolean; tokenParcial?: string }>;
-  /** Confirma el segundo factor y abre la sesión. */
-  verificar2fa(codigo: string, tokenParcial: string): Promise<void>;
+  /** Inicia sesión. */
+  login(correo: string, password: string): Promise<void>;
   /** Cierra sesión y limpia la caché de datos. */
   cerrarSesion(): void;
   /** Ruta a la que volver tras el login (validada contra rutas internas). */
   setRutaPendiente(ruta: string): void;
 
   // ---- Extensiones del panel (útiles para A-01/A-02) ----
-  /** Token parcial del segundo factor (sólo en memoria). */
-  tokenParcial: string | null;
-  /** Momento en que se generó el token parcial (vigencia de 5 min). */
-  tokenParcialCreadoEn: number | null;
-  setTokenParcial(token: string | null): void;
   /** Ruta guardada a la que se vuelve tras entrar. */
   rutaPendiente: string | null;
   /** Motivo por el que el servidor cerró la sesión (si aplica). */
@@ -87,8 +80,6 @@ export const AVISO_INACTIVIDAD_MS = 25 * 60 * 1000;
 export const CIERRE_INACTIVIDAD_MS = 30 * 60 * 1000;
 /** Renovación silenciosa del token antes de vencer (UX-67). */
 export const RENOVACION_MS = 12 * 60 * 1000;
-/** Vigencia del token parcial de 2FA (UX-62). */
-export const VIGENCIA_TOKEN_PARCIAL_MS = 5 * 60 * 1000;
 
 const CLAVE_RUTA_PENDIENTE = "ruta-clara:ruta-pendiente";
 
@@ -122,8 +113,6 @@ interface EstadoInterno {
   usuario: Usuario | null;
   cargando: boolean;
   autenticado: boolean;
-  tokenParcial: string | null;
-  tokenParcialCreadoEn: number | null;
   rutaPendiente: string | null;
   motivoCierre: string | null;
   avisoInactividad: boolean;
@@ -133,8 +122,6 @@ const ESTADO_INICIAL: EstadoInterno = {
   usuario: null,
   cargando: true,
   autenticado: false,
-  tokenParcial: null,
-  tokenParcialCreadoEn: null,
   rutaPendiente: null,
   motivoCierre: null,
   avisoInactividad: false,
@@ -272,13 +259,6 @@ export function setRutaPendiente(ruta: string): void {
   fijarEstado({ rutaPendiente: ruta });
 }
 
-export function setTokenParcial(token: string | null): void {
-  fijarEstado({
-    tokenParcial: token,
-    tokenParcialCreadoEn: token ? Date.now() : null,
-  });
-}
-
 export function limpiarMotivoCierre(): void {
   fijarEstado({ motivoCierre: null });
 }
@@ -291,8 +271,6 @@ export function cerrarSesion(motivo?: string): void {
     usuario: null,
     autenticado: false,
     cargando: false,
-    tokenParcial: null,
-    tokenParcialCreadoEn: null,
     rutaPendiente: null,
     motivoCierre: motivo ?? null,
     avisoInactividad: false,
@@ -338,43 +316,13 @@ export async function restaurarSesion(): Promise<void> {
   }
 }
 
-export async function login(
-  correo: string,
-  password: string,
-): Promise<{ requiere2fa: boolean; tokenParcial?: string }> {
-  const respuesta = await api.admin.login({ correo, password });
-
-  if (respuesta.requiere_2fa) {
-    const parcial = respuesta.token_parcial ?? "";
-    setTokenParcial(parcial);
-    return parcial ? { requiere2fa: true, tokenParcial: parcial } : { requiere2fa: true };
-  }
-
-  // Sin segundo factor: la API deja la sesión lista y `yo()` la confirma.
+export async function login(correo: string, password: string): Promise<void> {
+  await api.admin.login({ correo, password });
+  // La API deja la sesión lista y `yo()` la confirma.
   const { usuario } = await api.admin.yo();
   tokenAcceso = "sesion-activa";
   fijarEstado({ usuario, autenticado: true, cargando: false });
   programarInactividad();
-  return { requiere2fa: false };
-}
-
-export async function verificar2fa(codigo: string, tokenParcial: string): Promise<void> {
-  const sesion = await api.admin.verificar2fa({ token_parcial: tokenParcial, codigo });
-  tokenAcceso = sesion.token;
-  fijarEstado({
-    usuario: sesion.usuario,
-    autenticado: true,
-    cargando: false,
-    tokenParcial: null,
-    tokenParcialCreadoEn: null,
-  });
-  programarInactividad();
-}
-
-/** ¿Seguir vivo el token parcial de 2FA? */
-export function tokenParcialVigente(): boolean {
-  if (!estado.tokenParcial || estado.tokenParcialCreadoEn === null) return false;
-  return Date.now() - estado.tokenParcialCreadoEn < VIGENCIA_TOKEN_PARCIAL_MS;
 }
 
 // ---------------------------------------------------------------------------
@@ -393,12 +341,8 @@ export function useSesion(): EstadoSesion {
       cargando: foto.cargando,
       autenticado: foto.autenticado,
       login,
-      verificar2fa,
       cerrarSesion: () => cerrarSesion(),
       setRutaPendiente,
-      tokenParcial: foto.tokenParcial,
-      tokenParcialCreadoEn: foto.tokenParcialCreadoEn,
-      setTokenParcial,
       rutaPendiente: foto.rutaPendiente,
       motivoCierre: foto.motivoCierre,
       limpiarMotivoCierre,
@@ -551,12 +495,8 @@ export function ProveedorSesion({ children }: ProveedorSesionProps): React.JSX.E
       cargando: foto.cargando,
       autenticado: foto.autenticado,
       login,
-      verificar2fa,
       cerrarSesion: () => cerrarSesion(),
       setRutaPendiente,
-      tokenParcial: foto.tokenParcial,
-      tokenParcialCreadoEn: foto.tokenParcialCreadoEn,
-      setTokenParcial,
       rutaPendiente: foto.rutaPendiente,
       motivoCierre: foto.motivoCierre,
       limpiarMotivoCierre,

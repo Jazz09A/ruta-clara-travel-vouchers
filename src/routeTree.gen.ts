@@ -11,7 +11,6 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
-import { Route as Admin2faRouteImport } from './routes/admin.2fa'
 import { Route as AdminAuditoriaRouteImport } from './routes/admin.auditoria'
 import { Route as AdminClientesRouteImport } from './routes/admin.clientes'
 import { Route as AdminConfiguracionRouteImport } from './routes/admin.configuracion'
@@ -57,11 +56,6 @@ const IndexRoute = IndexRouteImport.update({
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/admin/',
   path: '/admin/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const Admin2faRoute = Admin2faRouteImport.update({
-  id: '/admin/2fa',
-  path: '/admin/2fa',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminAuditoriaRoute = AdminAuditoriaRouteImport.update({
@@ -254,7 +248,6 @@ const AdminToursIdFormularioRoute = AdminToursIdFormularioRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/admin/2fa': typeof Admin2faRoute
   '/admin/auditoria': typeof AdminAuditoriaRoute
   '/admin/clientes': typeof AdminClientesRouteWithChildren
   '/admin/configuracion': typeof AdminConfiguracionRouteWithChildren
@@ -295,7 +288,6 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin/2fa': typeof Admin2faRoute
   '/admin/auditoria': typeof AdminAuditoriaRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/recuperar': typeof AdminRecuperarRoute
@@ -331,7 +323,6 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/admin/2fa': typeof Admin2faRoute
   '/admin/auditoria': typeof AdminAuditoriaRoute
   '/admin/clientes': typeof AdminClientesRouteWithChildren
   '/admin/configuracion': typeof AdminConfiguracionRouteWithChildren
@@ -374,7 +365,6 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/admin/2fa'
     | '/admin/auditoria'
     | '/admin/clientes'
     | '/admin/configuracion'
@@ -415,7 +405,6 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/admin/2fa'
     | '/admin/auditoria'
     | '/admin/login'
     | '/admin/recuperar'
@@ -450,7 +439,6 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
-    | '/admin/2fa'
     | '/admin/auditoria'
     | '/admin/clientes'
     | '/admin/configuracion'
@@ -492,7 +480,6 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  Admin2faRoute: typeof Admin2faRoute
   AdminAuditoriaRoute: typeof AdminAuditoriaRoute
   AdminClientesRoute: typeof AdminClientesRouteWithChildren
   AdminConfiguracionRoute: typeof AdminConfiguracionRouteWithChildren
@@ -524,13 +511,6 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin/2fa': {
-      id: '/admin/2fa'
-      path: '/admin/2fa'
-      fullPath: '/admin/2fa'
-      preLoaderRoute: typeof Admin2faRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/auditoria': {
@@ -903,7 +883,6 @@ const AdminToursRouteWithChildren = AdminToursRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  Admin2faRoute: Admin2faRoute,
   AdminAuditoriaRoute: AdminAuditoriaRoute,
   AdminClientesRoute: AdminClientesRouteWithChildren,
   AdminConfiguracionRoute: AdminConfiguracionRouteWithChildren,

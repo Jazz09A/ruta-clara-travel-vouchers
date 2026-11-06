@@ -4,7 +4,7 @@ import { addDecimals } from "@/lib/format";
 import type {
   Categoria,
   EstadoReserva,
-  FormVersion,
+  Formulario,
   PasoActual,
   Reserva,
   Tarifa,
@@ -42,10 +42,10 @@ const PASO_POR_ESTADO: Record<EstadoReserva, PasoActual> = {
   expirada: "cerrada",
 };
 
-function formDeReserva(reserva: Reserva): FormVersion {
-  const version = seed.form_versiones.find((item) => item.id === reserva.form_version_id);
-  if (!version) throw new Error(`Falta la versión de formulario ${reserva.form_version_id}`);
-  return version;
+function formDeReserva(reserva: Reserva): Formulario {
+  const formulario = seed.formularios.find((item) => item.id === reserva.formulario_id);
+  if (!formulario) throw new Error(`Falta el formulario ${reserva.formulario_id}`);
+  return formulario;
 }
 
 function tarifaDe(fechaId: string, categoria: Categoria): Tarifa {
@@ -57,26 +57,14 @@ function tarifaDe(fechaId: string, categoria: Categoria): Tarifa {
 }
 
 describe("seed — catálogo", () => {
-  it("los tours activos apuntan a una versión de formulario publicada", () => {
-    const activos = seed.tours.filter((tour) => tour.estado === "activo");
-    expect(activos.length).toBeGreaterThan(0);
+  it("todo tour apunta a un formulario propio del catálogo", () => {
+    expect(seed.tours.length).toBeGreaterThan(0);
 
-    for (const tour of activos) {
-      const version = seed.form_versiones.find((item) => item.id === tour.form_version_actual_id);
-      expect(version, `El tour ${tour.nombre} no tiene versión de formulario actual`).toBeDefined();
-      expect(version?.tour_id).toBe(tour.id);
-      expect(version?.estado).toBe("publicada");
+    for (const tour of seed.tours) {
+      const formulario = seed.formularios.find((item) => item.id === tour.formulario_id);
+      expect(formulario, `El tour ${tour.nombre} no tiene formulario`).toBeDefined();
+      expect(formulario?.tour_id).toBe(tour.id);
     }
-  });
-
-  it("el tour en borrador conserva una versión de formulario sin publicar (requisitos pendientes)", () => {
-    const borrador = seed.tours.find((tour) => tour.estado === "borrador");
-    expect(borrador).toBeDefined();
-
-    const version = seed.form_versiones.find(
-      (item) => item.id === borrador?.form_version_actual_id,
-    );
-    expect(version?.estado).toBe("borrador");
   });
 
   it("cada fecha tiene exactamente una tarifa por categoría y todas apuntan a fechas existentes", () => {
@@ -115,16 +103,16 @@ describe("seed — catálogo", () => {
 });
 
 describe("seed — reservas", () => {
-  it("toda reserva referencia una fecha y una versión de formulario existentes", () => {
+  it("toda reserva referencia una fecha y un formulario existentes", () => {
     const idsFechas = new Set(seed.fechas.map((fecha) => fecha.id));
-    const idsFormularios = new Set(seed.form_versiones.map((version) => version.id));
+    const idsFormularios = new Set(seed.formularios.map((formulario) => formulario.id));
 
     for (const reserva of seed.reservas) {
       expect(idsFechas.has(reserva.fecha_tour_id), `Fecha inválida en ${reserva.codigo}`).toBe(
         true,
       );
       expect(
-        idsFormularios.has(reserva.form_version_id),
+        idsFormularios.has(reserva.formulario_id),
         `Formulario inválido en ${reserva.codigo}`,
       ).toBe(true);
     }
@@ -389,7 +377,7 @@ describe("db — estado en memoria", () => {
       codigo: "VJ-2026-99999",
       ref_corta: "TEST0001",
       fecha_tour_id: "fch_roq_01",
-      form_version_id: "form_roques_v1",
+      formulario_id: "form_roques",
       estado: "enlace_creado",
       estado_pago: "sin_pago",
       pasajeros: [],
