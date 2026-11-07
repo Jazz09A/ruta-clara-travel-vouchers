@@ -1336,6 +1336,11 @@ const admin: ApiSurface["admin"] = {
     return { ok: true };
   },
 
+  async renovar() {
+    // La API simulada no usa refresh cookies: siempre hay "sesión" activa.
+    return { ok: true };
+  },
+
   async yo() {
     return { usuario: db().usuarios[0] as Usuario };
   },

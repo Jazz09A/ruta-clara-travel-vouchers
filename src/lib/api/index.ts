@@ -81,18 +81,21 @@ async function peticion<T>(
   opts: Opciones = {},
   params?: Record<string, string | number | boolean | undefined>,
 ): Promise<T> {
-  const headers: Record<string, string> = { ...(opts.headers ?? {}) };
-  if (opts.body !== undefined) headers["content-type"] = "application/json";
-  if (opts.token) headers["X-Enlace-Token"] = opts.token;
-  if (opts.admin && accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
-
-  const hacer = () =>
-    fetch(url(path, params), {
+  // Los headers se arman en CADA intento: tras un refresh el access token en
+  // memoria cambia y el reintento debe llevarlo. Si se capturaran antes,
+  // el reintento saldría sin `Authorization` y volvería a fallar con 401.
+  const hacer = () => {
+    const headers: Record<string, string> = { ...(opts.headers ?? {}) };
+    if (opts.body !== undefined) headers["content-type"] = "application/json";
+    if (opts.token) headers["X-Enlace-Token"] = opts.token;
+    if (opts.admin && accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+    return fetch(url(path, params), {
       method: opts.metodo ?? "GET",
       headers,
       credentials: "include",
       body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
     });
+  };
 
   let res = await hacer();
   if (res.status === 401 && opts.admin && !opts.sinRefresh) {
@@ -120,21 +123,36 @@ async function peticion<T>(
   return (await res.json()) as T;
 }
 
+let refrescoEnCurso: Promise<boolean> | null = null;
+
 async function refrescarSesion(): Promise<boolean> {
+  // Single-flight: ante una ráfaga de 401 (varias consultas a la vez al abrir
+  // el panel, varias pestañas) sólo un refresh sale a la red y los demás
+  // esperan su resultado. El backend rota el refresh token en cada uso, y los
+  // refreshes concurrentes con el mismo cookie estamparían un token ya
+  // revocado, lo que el backend interpretaría como robo y mataría la familia.
+  if (refrescoEnCurso) return refrescoEnCurso;
+  refrescoEnCurso = (async () => {
+    try {
+      const res = await fetch(url("/auth/refresh"), {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: "{}",
+      });
+      if (!res.ok) return false;
+      const data = (await res.json()) as { access_token?: string };
+      if (!data.access_token) return false;
+      accessToken = data.access_token;
+      return true;
+    } catch {
+      return false;
+    }
+  })();
   try {
-    const res = await fetch(url("/auth/refresh"), {
-      method: "POST",
-      credentials: "include",
-      headers: { "content-type": "application/json" },
-      body: "{}",
-    });
-    if (!res.ok) return false;
-    const data = (await res.json()) as { access_token?: string };
-    if (!data.access_token) return false;
-    accessToken = data.access_token;
-    return true;
-  } catch {
-    return false;
+    return await refrescoEnCurso;
+  } finally {
+    refrescoEnCurso = null;
   }
 }
 
@@ -298,6 +316,19 @@ const admin = {
   async yo() {
     const u = await peticion<UsuarioBackend>("/auth/yo", { admin: true });
     return { usuario: usuarioFe(u) };
+  },
+
+  /** Renueva el access token con el refresh cookie HttpOnly. Lanza 401 si falló. */
+  async renovar() {
+    const ok = await refrescarSesion();
+    if (!ok) {
+      throw new ApiError(401, {
+        codigo: "NO_AUTENTICADO" as never,
+        mensaje: "Sesión expirada",
+        request_id: "",
+      });
+    }
+    return { ok: true as const };
   },
 
   async notificaciones() {
@@ -567,4 +598,14 @@ export function verificarQR(token: string) {
 /** Solo para pruebas internas del cliente. */
 export function __setAccessToken(token: string | null) {
   accessToken = token;
+}
+
+/** Access token vigente en memoria (sólo lectura; SEG-03: nunca almacenamiento). */
+export function tokenAccesoActual(): string | null {
+  return accessToken;
+}
+
+/** Limpia el access token en memoria al cerrar la sesión (SEG-06). */
+export function limpiarAccessToken(): void {
+  accessToken = null;
 }

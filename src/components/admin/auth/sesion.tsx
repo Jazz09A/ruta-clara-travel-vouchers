@@ -36,7 +36,7 @@ import { DialogoConfirmacion } from "@/components/admin/DialogoConfirmacion";
 import { Toaster } from "@/components/ui/sonner";
 import { ApiError } from "@/lib/domain/api";
 import { tienePermiso, type Permiso, type Usuario } from "@/lib/domain/types";
-import { api } from "@/lib/api";
+import { api, limpiarAccessToken, tokenAccesoActual } from "@/lib/api";
 
 // ---------------------------------------------------------------------------
 // Contrato público
@@ -102,7 +102,9 @@ export function esRutaInternaValida(ruta: string): boolean {
   if (ruta.includes("\\")) return false;
   const base = ruta.split("?")[0] ?? "";
   const limpia = base.length > 1 ? base.replace(/\/+$/, "") : base;
-  return RUTAS_INTERNAS.some((permitida) => limpia === permitida || limpia.startsWith(`${permitida}/`));
+  return RUTAS_INTERNAS.some(
+    (permitida) => limpia === permitida || limpia.startsWith(`${permitida}/`),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -130,8 +132,14 @@ const ESTADO_INICIAL: EstadoInterno = {
 let estado: EstadoInterno = { ...ESTADO_INICIAL };
 const suscriptores = new Set<() => void>();
 
-/** Access token: sólo en memoria (SEG-03). */
-let tokenAcceso: string | null = null;
+/**
+ * Época de la sesión: se incrementa con cada login. Las restauraciones y
+ * renovaciones en vuelo capturan su época al arrancar y **sólo aplican su
+ * resultado si sigue siendo la época vigente**. Sin esto, una restauración
+ * tardía que falla borraba una sesión que el usuario acababa de crear (el
+ * login respondía 200, la navegación saltaba y la sesión rebotaba al login).
+ */
+let epocaSesion = 0;
 
 function fijarEstado(cambio: Partial<EstadoInterno>): void {
   estado = { ...estado, ...cambio };
@@ -219,17 +227,17 @@ export function seguirConectado(): void {
 let renovacionEnCurso: Promise<boolean> | null = null;
 
 /**
- * Renueva el token en silencio. Sólo una renovación a la vez: las
- * peticiones que llegan mientras corre esperan a la misma promesa.
+ * Renueva el token en silencio vía `POST /auth/refresh`. Sólo una renovación
+ * a la vez: las peticiones que llegan mientras corre esperan a la misma
+ * promesa. El intervalo (12 min) es menor al TTL del access token (15 min),
+ * así que en condiciones normales nunca vence durante la sesión.
  */
 async function renovarToken(): Promise<boolean> {
   if (renovacionEnCurso) return renovacionEnCurso;
 
   const tarea = (async (): Promise<boolean> => {
     try {
-      const { usuario } = await api.admin.yo();
-      tokenAcceso = tokenAcceso ?? "sesion-activa";
-      fijarEstado({ usuario, autenticado: true, cargando: false });
+      await api.admin.renovar();
       return true;
     } catch {
       return false;
@@ -244,9 +252,9 @@ async function renovarToken(): Promise<boolean> {
   }
 }
 
-/** Access token en memoria (sólo para las llamadas de la API). */
+/** Access token vigente en memoria (delegado en el cliente HTTP; SEG-03). */
 export function tokenEnMemoria(): string | null {
-  return tokenAcceso;
+  return tokenAccesoActual();
 }
 
 // ---------------------------------------------------------------------------
@@ -264,7 +272,7 @@ export function limpiarMotivoCierre(): void {
 }
 
 export function cerrarSesion(motivo?: string): void {
-  tokenAcceso = null;
+  limpiarAccessToken();
   avisoMostrado = false;
   limpiarTemporizadores();
   fijarEstado({
@@ -298,31 +306,71 @@ export function enviarAlLogin(motivo?: string): void {
   }
 }
 
-/** Restaura la sesión al recargar la página (llama a `/auth/yo`). */
+let restauracionEnCurso: Promise<void> | null = null;
+
+/**
+ * Restaura la sesión al recargar la página (llama a `/auth/yo`).
+ *
+ * - **Dedupe**: varios `ProveedorSesion` pueden montarse a la vez (el login,
+ *   cada pangina admin que envuelve `AdminShell`, las transiciones de ruta);
+ *   aquí sólo una restauración va a la red y todos esperan la misma promesa.
+ * - **Época**: si el usuario entró mientras la restauración corría, el
+ *   resultado tardío de ésta se descarta en ambos sentidos — su éxito no pisa
+ *   al usuario que acaba de entrar y su fallo (401 ya sin cookie válida) no
+ *   puede tumbar una sesión recién creada. Ese choque era la causa del
+ *   «la petición respondió bien pero me devolvió al login».
+ */
 export async function restaurarSesion(): Promise<void> {
+  if (estado.autenticado) return;
+  if (restauracionEnCurso) return restauracionEnCurso;
+
+  const miEpoca = epocaSesion;
+  restauracionEnCurso = (async () => {
+    try {
+      const { usuario } = await api.admin.yo();
+      if (miEpoca !== epocaSesion || estado.autenticado) return;
+      fijarEstado({
+        usuario,
+        autenticado: true,
+        cargando: false,
+        rutaPendiente: leerRutaPendiente(),
+      });
+      programarInactividad();
+    } catch {
+      // Llegó tarde: la época cambió (el usuario ya entró o ya salió); no
+      // tocamos el estado vigente.
+      if (miEpoca !== epocaSesion || estado.autenticado) return;
+      fijarEstado({ usuario: null, autenticado: false, cargando: false });
+    }
+  })();
+
   try {
-    const { usuario } = await api.admin.yo();
-    tokenAcceso = tokenAcceso ?? "sesion-restaurada";
-    fijarEstado({
-      usuario,
-      autenticado: true,
-      cargando: false,
-      rutaPendiente: leerRutaPendiente(),
-    });
-    programarInactividad();
-  } catch {
-    tokenAcceso = null;
-    fijarEstado({ usuario: null, autenticado: false, cargando: false });
+    await restauracionEnCurso;
+  } finally {
+    restauracionEnCurso = null;
   }
 }
 
 export async function login(correo: string, password: string): Promise<void> {
+  // Nueva época: cualquier restauración en vuelo queda obsoleta.
+  const miEpoca = ++epocaSesion;
   await api.admin.login({ correo, password });
-  // La API deja la sesión lista y `yo()` la confirma.
-  const { usuario } = await api.admin.yo();
-  tokenAcceso = "sesion-activa";
-  fijarEstado({ usuario, autenticado: true, cargando: false });
-  programarInactividad();
+  // La API deja la sesión lista y `yo()` la confirma. Si `yo()` falla, las
+  // credenciales YA fueron aceptadas: el error no debe mostrarse como
+  // «correo o contraseña incorrectos» sino como un fallo transitorio.
+  try {
+    const { usuario } = await api.admin.yo();
+    if (miEpoca !== epocaSesion) return;
+    fijarEstado({ usuario, autenticado: true, cargando: false });
+    programarInactividad();
+  } catch (_fallo) {
+    if (miEpoca !== epocaSesion) return;
+    throw new ApiError(500, {
+      codigo: "VERIFICACION_SESION",
+      mensaje: "Entramos, pero no pudimos verificar tu sesión. Intenta de nuevo.",
+      request_id: "",
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -367,10 +415,7 @@ export function usePermiso(permiso: Permiso): boolean {
  * navega indicando siempre el `href` completo: así funciona aunque la ruta
  * todavía no esté en el árbol generado.
  */
-export function useNavegarAdmin(): (
-  destino: string,
-  opciones?: { reemplazar?: boolean },
-) => void {
+export function useNavegarAdmin(): (destino: string, opciones?: { reemplazar?: boolean }) => void {
   const navegar = useNavigate();
   return useCallback(
     (destino: string, opciones?: { reemplazar?: boolean }) => {

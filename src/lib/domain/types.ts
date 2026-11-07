@@ -675,7 +675,9 @@ export type CodigoError =
   | "DEMASIADAS_SOLICITUDES"
   | "TASA_NO_CONFIGURADA"
   | "ERROR_INTERNO"
-  | "STEP_UP_REQUERIDO";
+  | "STEP_UP_REQUERIDO"
+  /** Login con credenciales válidas, pero la verificación de la sesión (`/auth/yo`) falló. */
+  | "VERIFICACION_SESION";
 
 export interface DetalleError {
   campo: string;

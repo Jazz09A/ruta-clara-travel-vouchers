@@ -286,6 +286,8 @@ export interface ReservaAdmin extends Reserva {
 
 export interface ApiAdmin {
   login(body: { correo: string; password: string }): Promise<void>;
+  /** Renueva el access token con el refresh cookie; lanza 401 si la sesión ya no existe. */
+  renovar(): Promise<{ ok: true }>;
   recuperar(body: { correo: string }): Promise<{ ok: true }>;
   restablecer(body: { token: string; password: string }): Promise<{ ok: true }>;
   yo(): Promise<{ usuario: Usuario }>;

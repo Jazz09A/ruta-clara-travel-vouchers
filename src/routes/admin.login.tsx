@@ -103,6 +103,14 @@ function FormularioLogin() {
         return;
       }
 
+      // Credenciales ya aceptadas pero falló la verificación de la sesión
+      // (transitorio, p. ej. un refresh en carrera): no cuenta como intento
+      // fallido ni se muestra como error de contraseña.
+      if (apiError?.codigo === "VERIFICACION_SESION") {
+        setError("No pudimos completar el ingreso. Intenta de nuevo en unos segundos.");
+        return;
+      }
+
       const total = intentos + 1;
       setIntentos(total);
       if (total >= MAX_INTENTOS) {
@@ -181,7 +189,10 @@ function FormularioLogin() {
           </button>
 
           {error ? (
-            <div role="alert" className="rounded-xl border border-red-600/30 bg-red-500/10 px-4 py-3">
+            <div
+              role="alert"
+              className="rounded-xl border border-red-600/30 bg-red-500/10 px-4 py-3"
+            >
               <p className="text-sm font-semibold text-red-800 dark:text-red-200">{error}</p>
               {bloqueado ? (
                 <p className="mt-1 text-sm text-red-800 dark:text-red-200" aria-live="polite">
@@ -233,7 +244,9 @@ function FormularioLogin() {
                     }}
                     className="flex min-h-11 w-full flex-col rounded-lg border border-border bg-background px-3 py-2 text-left hover:bg-accent"
                   >
-                    <span className="truncate text-xs font-mono font-semibold">{cuenta.correo}</span>
+                    <span className="truncate text-xs font-mono font-semibold">
+                      {cuenta.correo}
+                    </span>
                     <span className="text-[11px] text-muted-foreground">{cuenta.rol}</span>
                   </button>
                 </li>
