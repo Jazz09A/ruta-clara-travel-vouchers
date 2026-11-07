@@ -27,6 +27,8 @@ export interface FirmaProps {
   scrollCompleto: boolean;
   /** La firma se registró: se avanza a P-08. */
   onFirmado: () => void;
+  /** La respuesta del servidor trae la versión nueva: hay que adoptarla. */
+  onVersionServidor?: ((version: number) => void) | undefined;
   /** Los términos cambiaron: se vuelve a P-07. */
   onVolverATerminos: () => void;
   /** Cambiaron los datos: se vuelve al resumen (P-05). */
@@ -44,6 +46,7 @@ export function Firma({
   versionTerminosId,
   scrollCompleto,
   onFirmado,
+  onVersionServidor,
   onVolverATerminos,
   onVolverAlResumen,
   onReservaCerrada,
@@ -109,7 +112,7 @@ export function Firma({
     setOfrecerLimpiar(false);
 
     try {
-      await api.publica.firmar(
+      const respuesta = await api.publica.firmar(
         token,
         {
           firma_png_base64: exportacion.resultado.png_base64,
@@ -122,6 +125,9 @@ export function Firma({
         claveRef.current,
       );
       claveRef.current = null;
+      // La firma incrementó la versión en el servidor: adoptarla ya
+      // (con la actualización de la consulta puede llegar tarde de más).
+      onVersionServidor?.(respuesta.version);
       setExito(true);
       void queryClient.invalidateQueries({ queryKey: ["reserva", token] });
     } catch (error) {

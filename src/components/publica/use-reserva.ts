@@ -114,6 +114,8 @@ export interface UseReserva {
   refrescarProgreso: () => Promise<void>;
   /** Fuerza el envío de lo pendiente y espera a que termine. */
   sincronizar: () => Promise<void>;
+  /** Adopta la versión del servidor tras un éxito que la no devuelven los writes. */
+  sincronizarVersion: (nueva: number) => void;
 }
 
 /**
@@ -435,6 +437,26 @@ export function useReserva(token: string): UseReserva {
     await refetch();
   }, [refetch]);
 
+  /**
+   * Sincroniza la versión conocida con la fuente de verdad del servidor.
+   *
+   * `confirmarResumen` y `firmar` no pasan por `completarPaso`, pero ambas
+   * incrementan la versión en el servidor. Sin esta sincronización, la
+   * siguiente escritura viaja con la versión vieja y el servidor responde
+   * `409 VERSION_DESACTUALIZADA` («se actualizó en otro dispositivo»).
+   */
+  const sincronizarVersion = useCallback(
+    (nueva: number) => {
+      if (!Number.isFinite(nueva) || nueva <= versionRef.current) return;
+      versionRef.current = nueva;
+      setVersion(nueva);
+      queryClient.setQueryData<DatosReserva>(["reserva", token], (prev) =>
+        prev ? { ...prev, reserva: { ...prev.reserva, version: nueva } } : prev,
+      );
+    },
+    [queryClient, token],
+  );
+
   // Estado de la conexión: sin red se sigue escribiendo y se acumula (UX-31).
   useEffect(() => {
     if (typeof navigator === "undefined") return () => {};
@@ -518,5 +540,6 @@ export function useReserva(token: string): UseReserva {
     completarPaso,
     refrescarProgreso,
     sincronizar,
+    sincronizarVersion,
   };
 }

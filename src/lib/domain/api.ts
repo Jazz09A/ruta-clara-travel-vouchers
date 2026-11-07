@@ -107,11 +107,15 @@ export interface ResultadoFirma {
   ok: true;
   hash_imagen: string;
   firmada_en: string;
+  /** Versión de la reserva tras firmar (fuente de verdad del servidor). */
+  version: number;
 }
 
 export interface ResultadoConfirmar {
   total_usd: string;
   expira_en: string | null;
+  /** Versión de la reserva tras confirmar (fuente de verdad del servidor). */
+  version: number;
 }
 
 export interface ReportePago {
@@ -504,7 +508,12 @@ export interface ApiAdmin {
   ): Promise<PoliticaCancelacion>;
   guardarPromo(body: Partial<CodigoPromocional> & { id?: string }): Promise<CodigoPromocional>;
   guardarUsuario(body: Partial<Usuario> & { id?: string }): Promise<Usuario>;
-  subirFirmaEmpresa(body: { nombre: string; tamano: number }): Promise<{ ok: true; fecha: string }>;
+  subirFirmaEmpresa(body: {
+    nombre: string;
+    tamano: number;
+    /** PNG en base64 (con o sin prefijo `data:`); de la subida de archivo o del lienzo. */
+    imagen_base64?: string;
+  }): Promise<{ ok: true; fecha: string; archivo_id?: string | null }>;
 
   auditoria(params?: {
     entidad?: string;

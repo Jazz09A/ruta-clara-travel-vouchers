@@ -146,6 +146,7 @@ function ArranquePublico({ token }: { token: string }) {
     guardarAcompanantes,
     guardarRespuestas,
     completarPaso,
+    sincronizarVersion,
   } = useReserva(token);
 
   const queryClient = useQueryClient();
@@ -338,13 +339,20 @@ function ArranquePublico({ token }: { token: string }) {
     // La clave se genera en el clic y se reutiliza si hay que reintentar.
     if (!claveConfirmarRef.current) claveConfirmarRef.current = nuevaClaveIdempotencia();
     try {
-      await api.publica.confirmarResumen(
+      const respuesta = await api.publica.confirmarResumen(
         token,
         { total_visto_usd: totalVistoUsd, version, acepta_politica: aceptaPolitica },
         claveConfirmarRef.current,
       );
       claveConfirmarRef.current = null;
+      // La confirmación incrementó la versión en el servidor y la respuesta
+      // la trae. Sin sincronizarla aquí, la siguiente escritura (términos)
+      // viaja con la versión vieja y falla con 409 («otro dispositivo»).
+      sincronizarVersion(respuesta.version);
       setPasoForzado(null);
+      // El paso cambió en el servidor (resumen → firma): refrescar de
+      // inmediato para que la UI avance al primer clic.
+      await queryClient.invalidateQueries({ queryKey: ["reserva", token] });
       return { ok: true };
     } catch (error) {
       if (esApiError(error)) {
@@ -478,6 +486,7 @@ function ArranquePublico({ token }: { token: string }) {
               void queryClient.invalidateQueries({ queryKey: ["reserva", token] });
               setPasoForzado(null);
             }}
+            onVersionServidor={sincronizarVersion}
             onVolverATerminos={() => setPasoForzado("terminos")}
             onVolverAlResumen={() => irAPaso("resumen")}
             onReservaCerrada={() => setPasoForzado("cerrada")}

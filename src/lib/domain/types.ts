@@ -537,6 +537,9 @@ export interface Configuracion {
   documento_menores: "opcional" | "obligatorio" | "del_representante";
   minutos_inactividad: number;
   firma_empresa_fecha?: string | undefined;
+  firma_empresa_archivo_id?: string | undefined;
+  /** URL firmada temporal para el preview en el panel (solo lectura). */
+  firma_empresa_url?: string | undefined;
   tour_activo_default: string;
 }
 

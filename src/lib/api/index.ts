@@ -526,7 +526,7 @@ const admin = {
   guardarUsuario: (body: Partial<Usuario> & { id?: string; password?: string }) =>
     peticion("/adminfx/usuarios", { metodo: "POST", admin: true, body }),
 
-  subirFirmaEmpresa: (body: { nombre: string; tamano: number }) =>
+  subirFirmaEmpresa: (body: { nombre: string; tamano: number; imagen_base64?: string }) =>
     peticion("/adminfx/firma-empresa", { metodo: "POST", admin: true, body }),
 
   auditoria: (params?: { entidad?: string; usuario_id?: string; accion?: string }) =>

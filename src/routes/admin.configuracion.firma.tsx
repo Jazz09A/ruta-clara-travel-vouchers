@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useRef } from "react";
-import { ArrowLeft, PenTool, Upload, X, Check } from "lucide-react";
+import { ArrowLeft, PenTool, Upload, X, Check, Eraser, Undo2 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { BotonCargar } from "@/components/admin/BotonCargar";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { LienzoFirma, type LienzoFirmaRef } from "@/components/publica/firma/LienzoFirma";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -19,11 +20,19 @@ export const Route = createFileRoute("/admin/configuracion/firma")({
   component: FirmaEmpresa,
 });
 
+/** Límite del PNG que viaja en base64 por el cuerpo del request (backend: 1 MB). */
+const TAMANO_MAX_BYTES = 2 * 1024 * 1024;
+
+type ViaFirma = "subir" | "firmar";
+
 function FirmaEmpresa() {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const lienzoRef = useRef<LienzoFirmaRef>(null);
+  const [via, setVia] = useState<ViaFirma>("subir");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
+  const [hayTrazos, setHayTrazos] = useState(false);
 
   const { data: datos, isLoading } = useQuery({
     queryKey: ["configuracion"],
@@ -32,22 +41,34 @@ function FirmaEmpresa() {
 
   const config = datos?.config;
   const firmaEmpresaFecha = config?.firma_empresa_fecha;
+  const firmaEmpresaUrl = config?.firma_empresa_url;
 
   const mutationGuardar = useMutation({
-    mutationFn: async (file: File) => {
-      // Simular subida de archivo
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      return { success: true };
+    mutationFn: async (imagen_base64: string) => {
+      const nombre = via === "firmar" ? "firma-empresa-canvas.png" : "firma-empresa.png";
+      return api.admin.subirFirmaEmpresa({ nombre, tamano: imagen_base64.length, imagen_base64 });
     },
     onSuccess: () => {
       toast.success("Firma de la empresa actualizada");
       setPreviewUrl(null);
+      setHayTrazos(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      lienzoRef.current?.limpiar();
+      setVia("subir");
       queryClient.invalidateQueries({ queryKey: ["configuracion"] });
     },
     onError: () => {
       toast.error("No pudimos actualizar la firma de la empresa");
     },
   });
+
+  const leerArchivo = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error("No se pudo leer el archivo"));
+      reader.readAsDataURL(file);
+    });
 
   const handleFileSelect = (file: File | null) => {
     if (!file) return;
@@ -58,9 +79,9 @@ function FirmaEmpresa() {
       return;
     }
 
-    // Validar tamaño (máximo 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("La imagen no puede superar 5MB");
+    // Validar tamaño: viaja en base64 por el request (~+33%)
+    if (file.size > TAMANO_MAX_BYTES) {
+      toast.error("La imagen no puede superar 2MB");
       return;
     }
 
@@ -98,9 +119,26 @@ function FirmaEmpresa() {
     }
   };
 
+  /** Guarda: desde el archivo subido o desde el lienzo dibujado. */
   const handleGuardar = async () => {
-    if (!fileInputRef.current?.files?.[0]) return;
-    mutationGuardar.mutate(fileInputRef.current.files[0]);
+    if (via === "firmar") {
+      const out = lienzoRef.current?.exportar();
+      if (!out) return;
+      if (!out.ok) {
+        toast.error(out.mensaje);
+        return;
+      }
+      mutationGuardar.mutate(out.resultado.data_url);
+      return;
+    }
+    const file = fileInputRef.current?.files?.[0];
+    if (!file) return;
+    try {
+      const dataUrl = await leerArchivo(file);
+      mutationGuardar.mutate(dataUrl);
+    } catch {
+      toast.error("No pudimos leer la imagen");
+    }
   };
 
   const handleCancelar = () => {
@@ -108,6 +146,8 @@ function FirmaEmpresa() {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+    lienzoRef.current?.limpiar();
+    setHayTrazos(false);
   };
 
   const handleClickUpload = () => {
@@ -117,7 +157,11 @@ function FirmaEmpresa() {
   return (
     <AdminShell
       titulo="Firma de la empresa"
-      breadcrumb={[{ label: "Panel", to: "/admin" }, { label: "Configuración", to: "/admin/configuracion" }, { label: "Firma de la empresa" }]}
+      breadcrumb={[
+        { label: "Panel", to: "/admin" },
+        { label: "Configuración", to: "/admin/configuracion" },
+        { label: "Firma de la empresa" },
+      ]}
     >
       <div className="mx-auto w-full max-w-3xl">
         <Link
@@ -133,7 +177,7 @@ function FirmaEmpresa() {
             Firma de la empresa
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Sube la imagen de firma digital que aparecerá en los vouchers
+            Sube una imagen o firma directamente; esta es la firma que aparecerá en los vouchers
           </p>
         </div>
 
@@ -141,9 +185,7 @@ function FirmaEmpresa() {
         <div className="mb-6 rounded-2xl border border-border bg-card p-6 shadow-card">
           <div className="flex items-center gap-2">
             <PenTool className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
-            <h2 className="text-xl font-extrabold tracking-tight text-foreground">
-              Firma actual
-            </h2>
+            <h2 className="text-xl font-extrabold tracking-tight text-foreground">Firma actual</h2>
           </div>
           <p className="mt-2 text-sm text-muted-foreground">
             Esta es la firma que actualmente se usa en los vouchers
@@ -151,6 +193,26 @@ function FirmaEmpresa() {
 
           {isLoading ? (
             <div className="mt-4 h-48 animate-pulse rounded-xl bg-muted" />
+          ) : firmaEmpresaUrl ? (
+            <div className="mt-4 rounded-xl border border-border bg-muted/30 p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  {firmaEmpresaFecha
+                    ? `Actualizada el ${new Date(firmaEmpresaFecha).toLocaleDateString("es-VE")}`
+                    : "Sin fecha de actualización"}
+                </p>
+                <Badge variant="default" className="min-h-8">
+                  Activa
+                </Badge>
+              </div>
+              <div className="flex items-center justify-center rounded-lg bg-background p-8">
+                <img
+                  src={firmaEmpresaUrl}
+                  alt="Firma actual de la empresa"
+                  className="max-h-40 max-w-full object-contain"
+                />
+              </div>
+            </div>
           ) : firmaEmpresaFecha ? (
             <div className="mt-4 rounded-xl border border-border bg-muted/30 p-4">
               <div className="mb-3 flex items-center justify-between">
@@ -164,9 +226,7 @@ function FirmaEmpresa() {
               <div className="flex items-center justify-center rounded-lg bg-background p-8">
                 <div className="text-center">
                   <PenTool className="mx-auto h-16 w-16 text-muted-foreground" aria-hidden="true" />
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Firma digital de la empresa
-                  </p>
+                  <p className="mt-2 text-sm text-muted-foreground">Firma digital de la empresa</p>
                 </div>
               </div>
             </div>
@@ -180,17 +240,48 @@ function FirmaEmpresa() {
           )}
         </div>
 
-        {/* Subir nueva firma */}
+        {/* Nueva firma: subir o firmar */}
         <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
           <div className="flex items-center gap-2">
             <Upload className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
-            <h2 className="text-xl font-extrabold tracking-tight text-foreground">
-              Subir nueva firma
-            </h2>
+            <h2 className="text-xl font-extrabold tracking-tight text-foreground">Nueva firma</h2>
           </div>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Formatos aceptados: PNG, JPG, JPEG. Tamaño máximo: 5MB
-          </p>
+
+          {/* Selector de vía */}
+          <div
+            className="mt-4 inline-flex rounded-xl border border-border bg-muted/40 p-1"
+            role="tablist"
+            aria-label="Método para definir la firma"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={via === "subir"}
+              onClick={() => setVia("subir")}
+              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                via === "subir"
+                  ? "bg-background shadow-sm text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Upload className="h-4 w-4" aria-hidden="true" />
+              Subir imagen
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={via === "firmar"}
+              onClick={() => setVia("firmar")}
+              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                via === "firmar"
+                  ? "bg-background shadow-sm text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <PenTool className="h-4 w-4" aria-hidden="true" />
+              Firmar aquí
+            </button>
+          </div>
 
           <input
             ref={fileInputRef}
@@ -201,74 +292,117 @@ function FirmaEmpresa() {
             aria-label="Seleccionar imagen de firma"
           />
 
-          <div
-            className={`mt-6 rounded-xl border-2 border-dashed p-8 text-center transition-colors ${
-              dragActive
-                ? "border-primary bg-primary/5"
-                : "border-border bg-muted/30 hover:border-primary/50"
-            }`}
-            onDragEnter={handleDrag}
-            onDragLeave={handleDrag}
-            onDragOver={handleDrag}
-            onDrop={handleDrop}
-          >
-            {previewUrl ? (
-              <div className="space-y-4">
-                <div className="flex items-center justify-center rounded-lg bg-background p-4">
-                  <img
-                    src={previewUrl}
-                    alt="Vista previa de la firma"
-                    className="max-h-48 max-w-full object-contain"
-                  />
-                </div>
-                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                  <Check className="h-4 w-4 text-green-600" aria-hidden="true" />
-                  <span>Imagen lista para guardar</span>
-                </div>
+          {via === "subir" ? (
+            <>
+              <div
+                className={`mt-6 rounded-xl border-2 border-dashed p-8 text-center transition-colors ${
+                  dragActive
+                    ? "border-primary bg-primary/5"
+                    : "border-border bg-muted/30 hover:border-primary/50"
+                }`}
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+              >
+                {previewUrl ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-center rounded-lg bg-background p-4">
+                      <img
+                        src={previewUrl}
+                        alt="Vista previa de la firma"
+                        className="max-h-48 max-w-full object-contain"
+                      />
+                    </div>
+                    <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                      <Check className="h-4 w-4 text-green-600" aria-hidden="true" />
+                      <span>Imagen lista para guardar</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <Upload
+                      className="mx-auto h-12 w-12 text-muted-foreground"
+                      aria-hidden="true"
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">
+                        Arrastra una imagen aquí o
+                      </p>
+                      <Button
+                        type="button"
+                        variant="link"
+                        className="p-0 text-sm"
+                        onClick={handleClickUpload}
+                      >
+                        haz clic para seleccionar
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">PNG, JPG o JPEG (máx. 2MB)</p>
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="space-y-4">
-                <Upload className="mx-auto h-12 w-12 text-muted-foreground" aria-hidden="true" />
-                <div>
-                  <p className="text-sm font-medium text-foreground">
-                    Arrastra una imagen aquí o
-                  </p>
+
+              {previewUrl && (
+                <div className="mt-4 flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={handleCancelar}>
+                    <X className="mr-2 h-4 w-4" aria-hidden="true" />
+                    Cancelar
+                  </Button>
+                  <BotonCargar
+                    type="button"
+                    cargando={mutationGuardar.isPending}
+                    onClick={() => void handleGuardar()}
+                    textoCargando="Guardando..."
+                  >
+                    <Check className="mr-2 h-4 w-4" aria-hidden="true" />
+                    Guardar firma
+                  </BotonCargar>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="mt-6">
+                <LienzoFirma
+                  ref={lienzoRef}
+                  bloqueado={mutationGuardar.isPending}
+                  onCambio={(estado) => setHayTrazos(!estado.vacio)}
+                />
+              </div>
+              <div className="mt-4 flex items-center justify-between">
+                <div className="flex gap-2">
                   <Button
                     type="button"
-                    variant="link"
-                    className="p-0 text-sm"
-                    onClick={handleClickUpload}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => lienzoRef.current?.deshacer()}
                   >
-                    haz clic para seleccionar
+                    <Undo2 className="mr-2 h-4 w-4" aria-hidden="true" />
+                    Deshacer
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => lienzoRef.current?.limpiar()}
+                  >
+                    <Eraser className="mr-2 h-4 w-4" aria-hidden="true" />
+                    Limpiar
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  PNG, JPG o JPEG (máx. 5MB)
-                </p>
+                <BotonCargar
+                  type="button"
+                  cargando={mutationGuardar.isPending}
+                  onClick={() => void handleGuardar()}
+                  disabled={!hayTrazos}
+                  textoCargando="Guardando..."
+                >
+                  <Check className="mr-2 h-4 w-4" aria-hidden="true" />
+                  Guardar firma
+                </BotonCargar>
               </div>
-            )}
-          </div>
-
-          {previewUrl && (
-            <div className="mt-4 flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleCancelar}
-              >
-                <X className="mr-2 h-4 w-4" aria-hidden="true" />
-                Cancelar
-              </Button>
-              <BotonCargar
-                type="button"
-                cargando={mutationGuardar.isPending}
-                onClick={handleGuardar}
-                textoCargando="Guardando..."
-              >
-                <Check className="mr-2 h-4 w-4" aria-hidden="true" />
-                Guardar firma
-              </BotonCargar>
-            </div>
+            </>
           )}
         </div>
 
@@ -276,8 +410,9 @@ function FirmaEmpresa() {
         <div className="mt-6 rounded-2xl border border-border bg-muted/30 p-6">
           <h3 className="text-sm font-bold text-foreground">Recomendaciones</h3>
           <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-            <li>• Usa una imagen con fondo transparente (PNG) para mejor integración</li>
+            <li>• Si subes una imagen, usa un PNG con fondo transparente para mejor integración</li>
             <li>• La resolución recomendada es de al menos 300x100 píxeles</li>
+            <li>• Si firmas aquí, usa el ratón o el dedo ocupando el espacio del lienzo</li>
             <li>• Asegúrate de que la firma sea legible en tamaños pequeños</li>
             <li>• Evita imágenes con mucho ruido o artefactos de compresión</li>
           </ul>

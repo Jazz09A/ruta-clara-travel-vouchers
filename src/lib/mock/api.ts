@@ -1045,6 +1045,7 @@ const publica: ApiSurface["publica"] = {
       const resultado: ResultadoConfirmar = {
         total_usd: resumen.total_usd,
         expira_en: r.expira_en,
+        version: r.version,
       };
       return resultado;
     });
@@ -1103,6 +1104,7 @@ const publica: ApiSurface["publica"] = {
         ok: true,
         hash_imagen: r.firma.hash_imagen,
         firmada_en: r.firma.firmada_en,
+        version: r.version,
       };
       return resultado;
     });
@@ -2934,6 +2936,10 @@ const admin: ApiSurface["admin"] = {
   async subirFirmaEmpresa(body) {
     const datos = db();
     datos.config.firma_empresa_fecha = ahoraIso();
+    if (body.imagen_base64) {
+      // Preview en modo demo: la data URL se guarda tal cual.
+      datos.config.firma_empresa_url = String(body.imagen_base64);
+    }
     const usuario = datos.usuarios[0] as Usuario;
     auditoria(usuario, "configuracion", "firma_empresa", "firma.subida", "—", body.nombre);
     return { ok: true, fecha: datos.config.firma_empresa_fecha };
