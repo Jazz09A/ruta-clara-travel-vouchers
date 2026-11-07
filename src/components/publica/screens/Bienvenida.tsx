@@ -9,13 +9,9 @@ import {
   Sparkles,
 } from "lucide-react";
 
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Checkbox } from "@/components/ui/checkbox";
-import { formatDate, formatTime, formatUsd } from "@/lib/format";
+import { formatDate, formatTime } from "@/lib/format";
 import { ETAPAS_RESERVA } from "@/lib/brand";
 import type { Categoria } from "@/lib/domain/types";
 import { cn } from "@/lib/utils";
@@ -27,7 +23,8 @@ export interface CategoriaConEdad {
   categoria: Categoria;
   edad_min: number;
   edad_max: number;
-  precio_usd: string;
+  /** El precio ya no viaja al cliente; se conserva opcional por compatibilidad. */
+  precio_usd?: string | undefined;
 }
 
 export interface BienvenidaProps {
@@ -141,10 +138,7 @@ export function Bienvenida({
 
       {/* Incluye / no incluye */}
       {tour && (tour.incluye.length > 0 || tour.no_incluye.length > 0) ? (
-        <SeccionDesplegable
-          titulo="Qué incluye y qué no"
-          icono={<Sparkles className="h-4 w-4" />}
-        >
+        <SeccionDesplegable titulo="Qué incluye y qué no" icono={<Sparkles className="h-4 w-4" />}>
           {tour.incluye.length > 0 ? (
             <ul className="flex flex-col gap-1.5">
               {tour.incluye.map((item) => (
@@ -171,13 +165,16 @@ export function Bienvenida({
         </SeccionDesplegable>
       ) : null}
 
-      {/* Tarifas por categoría con rango de edad */}
+      {/* Categorías por rango de edad (sin precios: el total lo fija la agencia) */}
       {categorias.length > 0 ? (
         <section className="rounded-2xl border border-border bg-card p-4">
-          <h2 className="text-base font-bold text-foreground">Precios por persona</h2>
+          <h2 className="text-base font-bold text-foreground">Categorías por edad</h2>
           <ul className="mt-3 flex flex-col divide-y divide-border">
             {categorias.map((categoria) => (
-              <li key={categoria.categoria} className="flex items-center justify-between gap-3 py-2.5">
+              <li
+                key={categoria.categoria}
+                className="flex items-center justify-between gap-3 py-2.5"
+              >
                 <span className="min-w-0">
                   <span className="block text-sm font-semibold text-foreground">
                     {categoria.categoria}
@@ -186,14 +183,12 @@ export function Bienvenida({
                     {`De ${categoria.edad_min} a ${categoria.edad_max} años`}
                   </span>
                 </span>
-                <span className="shrink-0 text-base font-extrabold tabular-nums text-foreground">
-                  {formatUsd(categoria.precio_usd)}
-                </span>
               </li>
             ))}
           </ul>
           <p className="mt-2 text-xs text-muted-foreground">
             La categoría de cada pasajero se calcula con su fecha de nacimiento al día de la salida.
+            El precio total de tu reserva te lo confirma la agencia.
           </p>
         </section>
       ) : null}
@@ -335,7 +330,10 @@ function SeccionDesplegable({
         <span className="text-muted-foreground">{icono}</span>
         <span className="flex-1">{titulo}</span>
         <ChevronDown
-          className={cn("h-4 w-4 text-muted-foreground transition-transform", abierto && "rotate-180")}
+          className={cn(
+            "h-4 w-4 text-muted-foreground transition-transform",
+            abierto && "rotate-180",
+          )}
           aria-hidden="true"
         />
       </CollapsibleTrigger>

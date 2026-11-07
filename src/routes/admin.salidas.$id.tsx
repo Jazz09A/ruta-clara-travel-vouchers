@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import {
   ArrowLeft,
@@ -12,12 +13,13 @@ import {
   Lock,
   Unlock,
 } from "lucide-react";
+import { toast } from "sonner";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { BadgeEstado } from "@/components/admin/BadgeEstado";
 import { DialogoMotivo } from "@/components/admin/ui/dialogo-motivo";
-import { Campo } from "@/components/admin/Campo";
-import { MARCA } from "@/lib/brand";
-import { toast } from "sonner";
+import { api } from "@/lib/api";
+import { formatDate, formatTime } from "@/lib/format";
+import type { EstadoReserva, Reserva } from "@/lib/domain/types";
 
 export const Route = createFileRoute("/admin/salidas/$id")({
   head: () => ({
@@ -29,66 +31,97 @@ export const Route = createFileRoute("/admin/salidas/$id")({
   component: DetalleSalida,
 });
 
-// Mock data para demo
-const salidaMock = {
-  id: "1",
-  tour: "Full Day Los Roques",
-  fecha: "Sáb 14 dic 2026",
-  hora: "5:00 a. m.",
-  cupo_total: 40,
-  vendidos: 32,
-  retenidos: 2,
-  estado: "publicada",
-  alerta: "casi_llena",
-};
-
-const reservasMock = [
-  {
-    id: "1",
-    ref_corta: "K7M2QX9A",
-    titular: "María Pérez",
-    pasajeros: 3,
-    estado: "confirmada",
-    estado_pago: "pagado",
-  },
-  {
-    id: "2",
-    ref_corta: "X3J9K2L5",
-    titular: "José Rodríguez",
-    pasajeros: 2,
-    estado: "confirmada",
-    estado_pago: "pagado",
-  },
-  {
-    id: "3",
-    ref_corta: "P4M8N3Q6",
-    titular: "Ana Gómez",
-    pasajeros: 4,
-    estado: "pendiente_pago",
-    estado_pago: "pendiente_pago",
-  },
-];
-
-const almuerzosMock = [
-  { opcion: "Pescado frito", cantidad: 15, alergias: ["María Pérez", "Ana Gómez"] },
-  { opcion: "Pollo asado", cantidad: 12, alergias: [] },
-  { opcion: "Ensalada vegetariana", cantidad: 5, alergias: ["José Rodríguez"] },
-];
+interface SalidaDetalle {
+  fecha: {
+    id: string;
+    fecha_salida: string;
+    hora_salida: string;
+    cupos_total: number;
+    cupos_vendidos: number;
+    cupos_retenidos: number;
+    estado: string;
+  };
+  tour: { id: string; nombre: string };
+  reservas_por_estado: { estado: EstadoReserva; total: number }[];
+  opciones: {
+    opcion: string;
+    campo_id: string;
+    cantidad: number;
+    agotados: number;
+    cupo: number;
+  }[];
+  manifest: Reserva[];
+}
 
 function DetalleSalida() {
   const { id } = Route.useParams();
+  const queryClient = useQueryClient();
   const [pestaña, setPestaña] = useState<"general" | "manifiesto" | "cocina">("general");
-  const [accionDialogo, setAccionDialogo] = useState<{
-    tipo: "cerrar" | "cancelar" | "sobrecupo" | null;
-  }>({ tipo: null });
 
-  const ocupacion = salidaMock.vendidos + salidaMock.retenidos;
-  const porcentaje = (ocupacion / salidaMock.cupo_total) * 100;
+  const { data, isPending, isError } = useQuery({
+    queryKey: ["admin", "salida", id],
+    queryFn: () => api.admin.salida(id) as Promise<SalidaDetalle>,
+  });
+
+  const invalidar = () => {
+    void queryClient.invalidateQueries({ queryKey: ["admin", "salida", id] });
+    void queryClient.invalidateQueries({ queryKey: ["admin", "salidas"] });
+  };
+
+  const exportar = useMutation({
+    mutationFn: (tipo: "manifest" | "cocina") =>
+      api.admin.crearExportacion(tipo, { fecha_tour_id: id }),
+    onSuccess: (_d, tipo) => {
+      toast.success(
+        `Exportación de ${tipo === "manifest" ? "manifiesto" : "cocina"} en cola. Descárgala desde Reportes.`,
+      );
+    },
+    onError: () => toast.error("No pudimos solicitar la exportación."),
+  });
+
+  if (isPending) {
+    return (
+      <AdminShell
+        titulo="Salida"
+        breadcrumb={[
+          { label: "Panel", to: "/admin" },
+          { label: "Salidas", to: "/admin/salidas" },
+        ]}
+      >
+        <p className="text-sm text-muted-foreground">Cargando salida…</p>
+      </AdminShell>
+    );
+  }
+  if (isError || !data) {
+    return (
+      <AdminShell
+        titulo="Salida"
+        breadcrumb={[
+          { label: "Panel", to: "/admin" },
+          { label: "Salidas", to: "/admin/salidas" },
+        ]}
+      >
+        <p className="text-sm text-muted-foreground">No pudimos cargar la salida.</p>
+      </AdminShell>
+    );
+  }
+
+  const { fecha, tour, reservas_por_estado, opciones, manifest } = data;
+  const ocupacion = fecha.cupos_vendidos + fecha.cupos_retenidos;
+  const porcentaje = fecha.cupos_total > 0 ? (ocupacion / fecha.cupos_total) * 100 : 0;
+  const totalDe = (estados: EstadoReserva[]) =>
+    reservas_por_estado
+      .filter((e) => estados.includes(e.estado))
+      .reduce((acc, e) => acc + e.total, 0);
 
   return (
     <AdminShell
-      titulo={salidaMock.tour}
-      breadcrumb={[{ label: "Panel", to: "/admin" }, { label: "Salidas", to: "/admin/salidas" }, { label: "Detalle" }]}
+      titulo={tour.nombre}
+      breadcrumb={[
+        { label: "Panel", to: "/admin" },
+        { label: "Salidas", to: "/admin/salidas" },
+        { label: "Detalle" },
+      ]}
     >
       <div className="flex flex-col gap-6">
         {/* Cabecera */}
@@ -102,20 +135,15 @@ function DetalleSalida() {
               Volver
             </Link>
             <div>
-              <h2 className="text-2xl font-extrabold tracking-tight md:text-3xl">
-                {salidaMock.tour}
-              </h2>
+              <h2 className="text-2xl font-extrabold tracking-tight md:text-3xl">{tour.nombre}</h2>
               <p className="text-sm text-muted-foreground">
-                {salidaMock.fecha} · {salidaMock.hora}
+                {formatDate(fecha.fecha_salida)} · {formatTime(fecha.hora_salida)}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <BadgeEstado estado={salidaMock.estado} />
-            <button className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
-              <MoreVertical className="h-5 w-5" aria-hidden="true" />
-            </button>
+            <BadgeEstado estado={fecha.estado} />
           </div>
         </div>
 
@@ -127,7 +155,7 @@ function DetalleSalida() {
               Ocupación
             </div>
             <p className="mt-2 text-2xl font-extrabold text-foreground">
-              {ocupacion}/{salidaMock.cupo_total}
+              {ocupacion}/{fecha.cupos_total}
             </p>
             <p className="text-xs text-muted-foreground">{porcentaje.toFixed(0)}% lleno</p>
           </div>
@@ -138,7 +166,7 @@ function DetalleSalida() {
               Confirmadas
             </div>
             <p className="mt-2 text-2xl font-extrabold text-foreground">
-              {reservasMock.filter((r) => r.estado === "confirmada").length}
+              {totalDe(["confirmada", "completada"])}
             </p>
             <p className="text-xs text-muted-foreground">reservas pagadas</p>
           </div>
@@ -149,18 +177,24 @@ function DetalleSalida() {
               Pendientes
             </div>
             <p className="mt-2 text-2xl font-extrabold text-foreground">
-              {reservasMock.filter((r) => r.estado === "pendiente_pago").length}
+              {totalDe([
+                "enlace_creado",
+                "en_registro",
+                "pendiente_firma",
+                "pendiente_pago",
+                "pago_en_verificacion",
+              ])}
             </p>
-            <p className="text-xs text-muted-foreground">por pagar</p>
+            <p className="text-xs text-muted-foreground">en curso</p>
           </div>
 
           <div className="rounded-xl border border-border bg-card p-4">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <UtensilsCrossed className="h-4 w-4" aria-hidden="true" />
-              Almuerzos
+              Opciones
             </div>
-            <p className="mt-2 text-2xl font-extrabold text-foreground">{almuerzosMock.length}</p>
-            <p className="text-xs text-muted-foreground">opciones</p>
+            <p className="mt-2 text-2xl font-extrabold text-foreground">{opciones.length}</p>
+            <p className="text-xs text-muted-foreground">de cupo</p>
           </div>
         </div>
 
@@ -171,9 +205,7 @@ function DetalleSalida() {
               key={p}
               onClick={() => setPestaña(p)}
               className={`whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold capitalize ${
-                pestaña === p
-                  ? "bg-secondary text-secondary-foreground"
-                  : "text-muted-foreground"
+                pestaña === p ? "bg-secondary text-secondary-foreground" : "text-muted-foreground"
               }`}
             >
               {p}
@@ -182,27 +214,76 @@ function DetalleSalida() {
         </div>
 
         {/* Contenido según pestaña */}
-        {pestaña === "general" && <General />}
-        {pestaña === "manifiesto" && <Manifiesto />}
-        {pestaña === "cocina" && <Cocina />}
-
-        {/* Diálogos de acción */}
-        {accionDialogo.tipo === "cerrar" && (
-          <DialogoCerrar onCerrar={() => setAccionDialogo({ tipo: null })} />
+        {pestaña === "general" && <General id={id} fecha={fecha} onCambio={invalidar} />}
+        {pestaña === "manifiesto" && (
+          <Manifiesto
+            manifest={manifest}
+            exportando={exportar.isPending}
+            onExportar={() => exportar.mutate("manifest")}
+          />
         )}
-        {accionDialogo.tipo === "cancelar" && (
-          <DialogoCancelar onCerrar={() => setAccionDialogo({ tipo: null })} />
-        )}
-        {accionDialogo.tipo === "sobrecupo" && (
-          <DialogoSobrecupo onCerrar={() => setAccionDialogo({ tipo: null })} />
+        {pestaña === "cocina" && (
+          <Cocina
+            opciones={opciones}
+            exportando={exportar.isPending}
+            onExportar={() => exportar.mutate("cocina")}
+          />
         )}
       </div>
     </AdminShell>
   );
 }
 
-function General() {
+function General({
+  id,
+  fecha,
+  onCambio,
+}: {
+  id: string;
+  fecha: SalidaDetalle["fecha"];
+  onCambio: () => void;
+}) {
+  const queryClient = useQueryClient();
   const [dialogo, setDialogo] = useState<"cerrar" | "cancelar" | "sobrecupo" | null>(null);
+
+  const cerrar = useMutation({
+    mutationFn: (body: { expirar_pendientes: boolean; motivo: string }) =>
+      api.admin.cerrarFecha(id, body),
+    onSuccess: () => {
+      toast.success("Fecha cerrada");
+      setDialogo(null);
+      onCambio();
+      void queryClient.invalidateQueries({ queryKey: ["admin", "salidas"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "No se pudo cerrar la fecha"),
+  });
+
+  const cancelar = useMutation({
+    mutationFn: (body: { motivo: string; confirmacion: string }) =>
+      api.admin.cancelarFecha(id, body),
+    onSuccess: () => {
+      toast.success("Fecha cancelada");
+      setDialogo(null);
+      onCambio();
+      void queryClient.invalidateQueries({ queryKey: ["admin", "salidas"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "No se pudo cancelar la fecha"),
+  });
+
+  const sobrecupo = useMutation({
+    mutationFn: (body: { cupos_extra: number; motivo: string; codigo_totp: string }) =>
+      api.admin.autorizarSobrecupo(id, body),
+    onSuccess: () => {
+      toast.success("Sobrecupo autorizado");
+      setDialogo(null);
+      onCambio();
+      void queryClient.invalidateQueries({ queryKey: ["admin", "salidas"] });
+    },
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : "No se pudo autorizar el sobrecupo"),
+  });
+
+  const disponibles = fecha.cupos_total - fecha.cupos_vendidos - fecha.cupos_retenidos;
 
   return (
     <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
@@ -211,21 +292,19 @@ function General() {
       <div className="mt-4 space-y-4">
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">Cupo total</span>
-          <span className="text-sm font-semibold text-foreground">{salidaMock.cupo_total}</span>
+          <span className="text-sm font-semibold text-foreground">{fecha.cupos_total}</span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">Vendidos</span>
-          <span className="text-sm font-semibold text-foreground">{salidaMock.vendidos}</span>
+          <span className="text-sm font-semibold text-foreground">{fecha.cupos_vendidos}</span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">Retenidos</span>
-          <span className="text-sm font-semibold text-foreground">{salidaMock.retenidos}</span>
+          <span className="text-sm font-semibold text-foreground">{fecha.cupos_retenidos}</span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">Disponibles</span>
-          <span className="text-sm font-semibold text-foreground">
-            {salidaMock.cupo_total - salidaMock.vendidos - salidaMock.retenidos}
-          </span>
+          <span className="text-sm font-semibold text-foreground">{disponibles}</span>
         </div>
       </div>
 
@@ -234,21 +313,24 @@ function General() {
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           <button
             onClick={() => setDialogo("cerrar")}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-input bg-background px-4 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-accent"
+            disabled={fecha.estado !== "publicada"}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-input bg-background px-4 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-accent disabled:opacity-50"
           >
             <Lock className="h-4 w-4" aria-hidden="true" />
             Cerrar fecha
           </button>
           <button
             onClick={() => setDialogo("cancelar")}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-destructive/50 bg-destructive/5 px-4 py-3 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/10"
+            disabled={fecha.estado === "cancelada"}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-destructive/50 bg-destructive/5 px-4 py-3 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
           >
             <XCircle className="h-4 w-4" aria-hidden="true" />
             Cancelar fecha
           </button>
           <button
             onClick={() => setDialogo("sobrecupo")}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-input bg-background px-4 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-accent"
+            disabled={fecha.estado !== "publicada"}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-input bg-background px-4 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-accent disabled:opacity-50"
           >
             <Unlock className="h-4 w-4" aria-hidden="true" />
             Autorizar sobrecupo
@@ -256,78 +338,123 @@ function General() {
         </div>
       </div>
 
-      {dialogo === "cerrar" && <DialogoCerrar onCerrar={() => setDialogo(null)} />}
-      {dialogo === "cancelar" && <DialogoCancelar onCerrar={() => setDialogo(null)} />}
-      {dialogo === "sobrecupo" && <DialogoSobrecupo onCerrar={() => setDialogo(null)} />}
+      {dialogo === "cerrar" && (
+        <DialogoCerrar
+          cargando={cerrar.isPending}
+          onConfirmar={(motivo, expirar) => cerrar.mutate({ motivo, expirar_pendientes: expirar })}
+          onCerrar={() => setDialogo(null)}
+        />
+      )}
+      {dialogo === "cancelar" && (
+        <DialogoCancelar
+          cargando={cancelar.isPending}
+          onConfirmar={(motivo, confirmacion) => cancelar.mutate({ motivo, confirmacion })}
+          onCerrar={() => setDialogo(null)}
+        />
+      )}
+      {dialogo === "sobrecupo" && (
+        <DialogoSobrecupo
+          cargando={sobrecupo.isPending}
+          onConfirmar={(motivo, cuposExtra) =>
+            sobrecupo.mutate({ cupos_extra: cuposExtra, motivo, codigo_totp: "" })
+          }
+          onCerrar={() => setDialogo(null)}
+        />
+      )}
     </div>
   );
 }
 
-function Manifiesto() {
+function Manifiesto({
+  manifest,
+  exportando,
+  onExportar,
+}: {
+  manifest: Reserva[];
+  exportando: boolean;
+  onExportar: () => void;
+}) {
   return (
     <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold">Manifiesto de pasajeros</h2>
-        <button className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90">
+        <button
+          onClick={onExportar}
+          disabled={exportando}
+          className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+        >
           <Download className="h-4 w-4" aria-hidden="true" />
-          Exportar PDF
+          {exportando ? "Solicitando…" : "Exportar XLSX"}
         </button>
       </div>
 
-      <div className="mt-4">
-        <Campo label="Incluir pendientes de pago" type="checkbox">
-          <option value="true">Mostrar también reservas sin pago confirmado</option>
-        </Campo>
-      </div>
-
       <div className="mt-4 space-y-2">
-        {reservasMock.map((reserva) => (
-          <div
+        {manifest.length === 0 && (
+          <p className="text-sm text-muted-foreground">No hay reservas activas en esta salida.</p>
+        )}
+        {manifest.map((reserva) => (
+          <Link
             key={reserva.id}
-            className="flex items-center justify-between rounded-lg border border-border bg-muted/50 p-3"
+            to="/admin/reservas/$id"
+            params={{ id: reserva.id }}
+            className="flex items-center justify-between rounded-lg border border-border bg-muted/50 p-3 transition-colors hover:border-primary/40"
           >
             <div>
-              <p className="text-sm font-semibold text-foreground">{reserva.titular}</p>
+              <p className="text-sm font-semibold text-foreground">
+                {reserva.titular_nombre || reserva.titular?.nombre || "—"}
+              </p>
               <p className="text-xs text-muted-foreground">
-                {reserva.ref_corta} · {reserva.pasajeros} pasajeros
+                {reserva.ref_corta} · {reserva.pasajeros?.length ?? 0} pasajeros
               </p>
             </div>
             <BadgeEstado estado={reserva.estado} />
-          </div>
+          </Link>
         ))}
       </div>
     </div>
   );
 }
 
-function Cocina() {
+function Cocina({
+  opciones,
+  exportando,
+  onExportar,
+}: {
+  opciones: SalidaDetalle["opciones"];
+  exportando: boolean;
+  onExportar: () => void;
+}) {
   return (
     <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold">Cocina (conteo de almuerzos)</h2>
-        <button className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90">
+        <h2 className="text-lg font-bold">Cocina (conteo de opciones)</h2>
+        <button
+          onClick={onExportar}
+          disabled={exportando}
+          className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+        >
           <Download className="h-4 w-4" aria-hidden="true" />
-          Exportar PDF
+          {exportando ? "Solicitando…" : "Exportar XLSX"}
         </button>
       </div>
 
       <div className="mt-4 space-y-3">
-        {almuerzosMock.map((almuerzo) => (
+        {opciones.length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            Esta salida no tiene opciones de cupo configuradas.
+          </p>
+        )}
+        {opciones.map((op) => (
           <div
-            key={almuerzo.opcion}
+            key={`${op.campo_id}-${op.opcion}`}
             className="rounded-lg border border-border bg-muted/50 p-4"
           >
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-foreground">{almuerzo.opcion}</p>
-              <span className="text-sm font-bold text-foreground">{almuerzo.cantidad} porciones</span>
+              <p className="text-sm font-semibold text-foreground">{op.opcion}</p>
+              <span className="text-sm font-bold text-foreground">
+                {op.agotados} reservados / {op.cupo} cupo
+              </span>
             </div>
-
-            {almuerzo.alergias.length > 0 && (
-              <div className="mt-2 rounded-lg bg-warning/10 p-2">
-                <p className="text-xs font-semibold text-warning">Alergias:</p>
-                <p className="text-xs text-muted-foreground">{almuerzo.alergias.join(", ")}</p>
-              </div>
-            )}
           </div>
         ))}
       </div>
@@ -335,8 +462,17 @@ function Cocina() {
   );
 }
 
-function DialogoCerrar({ onCerrar }: { onCerrar: () => void }) {
+function DialogoCerrar({
+  cargando,
+  onConfirmar,
+  onCerrar,
+}: {
+  cargando: boolean;
+  onConfirmar: (motivo: string, expirarPendientes: boolean) => void;
+  onCerrar: () => void;
+}) {
   const [motivo, setMotivo] = useState("");
+  const [expirar, setExpirar] = useState(true);
   return (
     <DialogoMotivo
       abierto
@@ -344,20 +480,38 @@ function DialogoCerrar({ onCerrar }: { onCerrar: () => void }) {
         if (!abierto) onCerrar();
       }}
       titulo="Cerrar fecha"
-      descripcion="Al cerrar la fecha, se dejará de aceptar nuevas reservas. ¿Quieres que las reservas pendientes de pago expiren automáticamente?"
+      descripcion="Al cerrar la fecha, se dejará de aceptar nuevas reservas."
       etiquetaConfirmar="Cerrar fecha"
       motivo={motivo}
       onMotivoChange={setMotivo}
-      onConfirmar={() => {
-        toast.success("Fecha cerrada");
-        onCerrar();
-      }}
+      cargando={cargando}
+      onConfirmar={(m) => onConfirmar(m, expirar)}
+      extra={
+        <label className="flex items-center gap-2 text-sm text-foreground">
+          <input
+            type="checkbox"
+            checked={expirar}
+            onChange={(e) => setExpirar(e.target.checked)}
+            className="h-4 w-4 rounded border-input"
+          />
+          Expirar las reservas pendientes de pago
+        </label>
+      }
     />
   );
 }
 
-function DialogoCancelar({ onCerrar }: { onCerrar: () => void }) {
+function DialogoCancelar({
+  cargando,
+  onConfirmar,
+  onCerrar,
+}: {
+  cargando: boolean;
+  onConfirmar: (motivo: string, confirmacion: string) => void;
+  onCerrar: () => void;
+}) {
   const [motivo, setMotivo] = useState("");
+  const [confirmacion, setConfirmacion] = useState("");
   return (
     <DialogoMotivo
       abierto
@@ -370,17 +524,29 @@ function DialogoCancelar({ onCerrar }: { onCerrar: () => void }) {
       destructivo
       motivo={motivo}
       onMotivoChange={setMotivo}
-      onConfirmar={() => {
-        toast.success("Fecha cancelada");
-        onCerrar();
-      }}
+      confirmacionEsperada="CANCELAR"
+      confirmacion={confirmacion}
+      onConfirmacionChange={setConfirmacion}
+      etiquetaConfirmacion="Escribe CANCELAR para confirmar"
+      cargando={cargando}
+      onConfirmar={(m) => onConfirmar(m, confirmacion.trim())}
     />
   );
 }
 
-function DialogoSobrecupo({ onCerrar }: { onCerrar: () => void }) {
+function DialogoSobrecupo({
+  cargando,
+  onConfirmar,
+  onCerrar,
+}: {
+  cargando: boolean;
+  onConfirmar: (motivo: string, cuposExtra: number) => void;
+  onCerrar: () => void;
+}) {
   const [motivo, setMotivo] = useState("");
-  const [totp, setTotp] = useState("");
+  const [cuposExtra, setCuposExtra] = useState("1");
+  const n = Number(cuposExtra);
+  const valido = Number.isInteger(n) && n > 0;
   return (
     <DialogoMotivo
       abierto
@@ -388,17 +554,27 @@ function DialogoSobrecupo({ onCerrar }: { onCerrar: () => void }) {
         if (!abierto) onCerrar();
       }}
       titulo="Autorizar sobrecupo"
-      descripcion="Especifica el nuevo cupo total. Esta acción requiere código de autenticación."
+      descripcion="Especifica cuántos cupos extra se autorizan sobre el cupo total de la fecha."
       etiquetaConfirmar="Autorizar sobrecupo"
-      requiereTotp
-      totp={totp}
-      onTotpChange={setTotp}
       motivo={motivo}
       onMotivoChange={setMotivo}
-      onConfirmar={() => {
-        toast.success("Sobrecupo autorizado");
-        onCerrar();
-      }}
+      cargando={cargando}
+      onConfirmar={(m) => valido && onConfirmar(m, n)}
+      extra={
+        <label className="flex flex-col gap-1 text-sm text-foreground">
+          <span>Cupos extra</span>
+          <input
+            type="number"
+            min={1}
+            value={cuposExtra}
+            onChange={(e) => setCuposExtra(e.target.value)}
+            className="h-10 rounded-lg border border-input bg-background px-3 text-sm"
+          />
+          {!valido ? (
+            <span className="text-xs text-destructive">Indica un número entero mayor que 0.</span>
+          ) : null}
+        </label>
+      }
     />
   );
 }

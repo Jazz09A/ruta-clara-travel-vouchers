@@ -1,25 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  BadgePercent,
-  ChevronDown,
-  CircleAlert,
-  Pencil,
-  Tag,
-  TriangleAlert,
-  Users,
-} from "lucide-react";
+import { CircleAlert, Pencil, TriangleAlert, Users } from "lucide-react";
 
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
-import type {
-  CampoDef,
-  CodigoError,
-  Respuesta,
-  ResumenReserva,
-} from "@/lib/domain/types";
+import type { CampoDef, CodigoError, Respuesta, ResumenReserva } from "@/lib/domain/types";
 import { formatBs, formatDate, formatUsd, plural } from "@/lib/format";
 
-import { BadgeEstado, BotonWhatsApp, DialogoConfirmacion, EstadoBloqueante } from "../ui";
+import { EstadoBloqueante, DialogoConfirmacion, BotonWhatsApp } from "../ui";
 import type { ContextoReserva } from "../use-reserva";
 
 export type ResultadoConfirmacion =
@@ -32,9 +18,9 @@ export type ResultadoConfirmacion =
       nuevoTotalUsd?: string | undefined;
     };
 
-export interface ResumenProps {
+export interface ConfirmacionProps {
   reserva: ContextoReserva;
-  /** Resumen que calcula el servidor (autoridad del precio). */
+  /** Resumen que calcula el servidor (solo el total; el precio lo fija la agencia). */
   resumen: ResumenReserva | null;
   /** Definición del formulario, para leer las respuestas con su etiqueta. */
   campos?: CampoDef[] | undefined;
@@ -42,15 +28,8 @@ export interface ResumenProps {
   errorResumen?: string | null | undefined;
   /** Ir a otro paso a editar. */
   onEditar: (paso: string) => void;
-  /** Aplicar un código promocional. */
-  onAplicarPromo: (codigo: string) => Promise<{ ok: boolean; mensaje?: string | undefined }>;
-  /** Quitar el código promocional aplicado. */
-  onQuitarPromo: () => Promise<void>;
-  /** Confirma el resumen. */
-  onConfirmar: (
-    totalVistoUsd: string,
-    aceptaPolitica: boolean,
-  ) => Promise<ResultadoConfirmacion>;
+  /** Confirma la reserva. */
+  onConfirmar: (totalVistoUsd: string, aceptaPolitica: boolean) => Promise<ResultadoConfirmacion>;
   registrarContinuar?: ((accion: () => void) => void) | undefined;
   confirmando?: boolean | undefined;
   /** Modo lectura: la reserva ya está confirmada. */
@@ -61,37 +40,27 @@ export interface ResumenProps {
 }
 
 /**
- * P-05 — Resumen previo al pago.
- *
- * El precio lo calcula el servidor: aquí sólo se muestra (Spec §5, P-05).
+ * Pantalla de confirmación: el precio es administrado por la agencia, así que
+ * el cliente solo revisa sus datos y ve el total a pagar (sin desglose).
  */
-export function Resumen({
+export function Confirmacion({
   reserva,
   resumen,
   campos = [],
   cargando,
   errorResumen,
   onEditar,
-  onAplicarPromo,
-  onQuitarPromo,
   onConfirmar,
   registrarContinuar,
   confirmando,
   soloLectura,
   onReabrirEdicion,
   telefonoWhatsapp,
-}: ResumenProps) {
+}: ConfirmacionProps) {
   const [aceptaPolitica, setAceptaPolitica] = useState(false);
-  const [codigoAbierto, setCodigoAbierto] = useState(false);
-  const [codigo, setCodigo] = useState("");
-  const [mensajePromo, setMensajePromo] = useState<string | null>(null);
-  const [promoError, setPromoError] = useState(false);
-  const [aplicandoPromo, setAplicandoPromo] = useState(false);
   const [dialogoPrecio, setDialogoPrecio] = useState<{ total: string } | null>(null);
   const [bloqueo, setBloqueo] = useState<{ codigo: CodigoError; mensaje: string } | null>(null);
   const [anuncio, setAnuncio] = useState("");
-
-  const promocion = reserva.promocion;
 
   const total = resumen?.total_usd ?? reserva.total_usd;
   const totalBs = resumen?.total_bs_estimado ?? null;
@@ -138,11 +107,6 @@ export function Resumen({
       setDialogoPrecio({ total: resultado.nuevoTotalUsd });
       return;
     }
-    if (resultado.codigo === "PROMO_INVALIDA") {
-      setPromoError(true);
-      setMensajePromo(resultado.mensaje);
-      return;
-    }
     setBloqueo({ codigo: resultado.codigo, mensaje: resultado.mensaje });
   };
 
@@ -153,29 +117,6 @@ export function Resumen({
   useEffect(() => {
     registrarContinuar?.(continuar);
   });
-
-  const aplicarCodigo = async () => {
-    if (!codigo.trim()) return;
-    setAplicandoPromo(true);
-    setMensajePromo(null);
-    setPromoError(false);
-    const resultado = await onAplicarPromo(codigo.trim());
-    setAplicandoPromo(false);
-    if (resultado.ok) {
-      setCodigo("");
-      setMensajePromo("Código aplicado");
-    } else {
-      setPromoError(true);
-      setMensajePromo(resultado.mensaje ?? "Ese código no se pudo aplicar");
-    }
-  };
-
-  const quitarCodigo = async () => {
-    setAplicandoPromo(true);
-    await onQuitarPromo();
-    setAplicandoPromo(false);
-    setMensajePromo("Código quitado");
-  };
 
   if (bloqueo) {
     if (bloqueo.codigo === "SIN_CUPO") {
@@ -194,7 +135,10 @@ export function Resumen({
               </p>
             </>
           }
-          accion={{ etiqueta: "Editar número de pasajeros", onClick: () => onEditar("acompanantes") }}
+          accion={{
+            etiqueta: "Editar número de pasajeros",
+            onClick: () => onEditar("acompanantes"),
+          }}
           whatsappMensaje={`Hola, mi reserva ${reserva.ref_corta} necesita más cupos para la salida. ¿Me pueden ayudar?`}
           telefonoWhatsapp={telefonoWhatsapp}
           tono="aviso"
@@ -207,9 +151,7 @@ export function Resumen({
         <EstadoBloqueante
           titulo="Una de tus opciones se agotó"
           mensaje={
-            <p>
-              {`${bloqueo.mensaje} Vuelve a las preguntas del tour y elige otra opción.`}
-            </p>
+            <p>{`${bloqueo.mensaje} Vuelve a las preguntas del tour y elige otra opción.`}</p>
           }
           accion={{ etiqueta: "Ir a las preguntas", onClick: () => onEditar("preguntas") }}
           telefonoWhatsapp={telefonoWhatsapp}
@@ -247,6 +189,15 @@ export function Resumen({
 
   return (
     <div className="flex flex-col gap-4">
+      <div>
+        <h2 className="text-xl font-extrabold tracking-tight text-foreground">
+          Revisa y confirma tu reserva
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Verifica tus datos y el total a pagar. La agencia confirma el precio final.
+        </p>
+      </div>
+
       <p aria-live="assertive" className="sr-only">
         {anuncio}
       </p>
@@ -284,46 +235,51 @@ export function Resumen({
         </div>
 
         <ul className="mt-3 flex flex-col divide-y divide-border">
-          {(resumen?.pasajeros ?? reserva.pasajeros).map((pasajero, indice) => (
-            <li key={pasajero.ref_cliente} className="py-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-bold text-foreground">
-                    {`${indice + 1}. ${pasajero.nombre || `Pasajero ${indice + 1}`}`}
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {pasajero.categoria}
-                    {pasajero.documento ? ` · ${maskDoc(pasajero.tipo_doc, pasajero.documento)}` : ""}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-2 flex flex-col gap-1">
-                {Object.entries(pasajero.respuestas ?? {}).map(([campoId, valor]) => {
-                  const campo = campos.find((c) => c.id === campoId);
-                  const texto = valorLegible(campo, valor);
-                  if (!texto) return null;
-                  const esAlergia = Boolean(campo && /alergi|condici|medic/i.test(campo.label));
-                  return (
-                    <p
-                      key={campoId}
-                      className={
-                        esAlergia
-                          ? "text-xs font-semibold text-destructive"
-                          : "text-xs text-muted-foreground"
-                      }
-                    >
-                      {`${campo?.label ?? campoId}: ${texto}`}
+          {(resumen?.pasajeros ?? reserva.pasajeros).map((pasajero, indice) => {
+            const docEnmascarado =
+              (pasajero as { documento_enmascarado?: string }).documento_enmascarado ??
+              (pasajero.documento ? maskDoc(pasajero.tipo_doc, pasajero.documento) : "");
+            return (
+              <li key={pasajero.ref_cliente} className="py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-foreground">
+                      {`${indice + 1}. ${pasajero.nombre || `Pasajero ${indice + 1}`}`}
                     </p>
-                  );
-                })}
-              </div>
-            </li>
-          ))}
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {pasajero.categoria}
+                      {docEnmascarado ? ` · ${docEnmascarado}` : ""}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-2 flex flex-col gap-1">
+                  {Object.entries(pasajero.respuestas ?? {}).map(([campoId, valor]) => {
+                    const campo = campos.find((c) => c.id === campoId);
+                    const texto = valorLegible(campo, valor);
+                    if (!texto) return null;
+                    const esAlergia = Boolean(campo && /alergi|condici|medic/i.test(campo.label));
+                    return (
+                      <p
+                        key={campoId}
+                        className={
+                          esAlergia
+                            ? "text-xs font-semibold text-destructive"
+                            : "text-xs text-muted-foreground"
+                        }
+                      >
+                        {`${campo?.label ?? campoId}: ${texto}`}
+                      </p>
+                    );
+                  })}
+                </div>
+              </li>
+            );
+          })}
         </ul>
       </section>
 
-      {/* Preguntas del tour */}
+      {/* Respuestas del tour */}
       <section className="rounded-2xl border border-border bg-card p-4">
         <div className="flex items-center gap-2">
           <h2 className="flex-1 text-base font-bold text-foreground">Respuestas del tour</h2>
@@ -358,45 +314,15 @@ export function Resumen({
         </div>
       </section>
 
-      {/* Desglose de precios */}
+      {/* Total a pagar (precio administrado por la agencia) */}
       <section className="rounded-2xl border border-border bg-card p-4">
-        <h2 className="text-base font-bold text-foreground">Detalle del precio</h2>
+        <h2 className="text-base font-bold text-foreground">Total a pagar</h2>
 
         {cargando && !resumen ? (
-          <p className="mt-3 text-sm text-muted-foreground">Calculando el precio…</p>
+          <p className="mt-3 text-sm text-muted-foreground">Calculando el total…</p>
         ) : null}
 
-        {resumen && resumen.lineas.length > 0 ? (
-          <ul className="mt-3 flex flex-col divide-y divide-border">
-            {resumen.lineas.map((linea, indice) => (
-              <li key={`${linea.concepto}-${indice}`} className="flex items-start justify-between gap-3 py-2.5">
-                <span className="min-w-0">
-                  <span className="block text-sm font-semibold text-foreground">{linea.concepto}</span>
-                  {linea.detalle ? (
-                    <span className="block text-xs text-muted-foreground">{linea.detalle}</span>
-                  ) : null}
-                </span>
-                <span className="shrink-0 text-sm font-bold tabular-nums text-foreground">
-                  {formatUsd(linea.total_usd)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-
-        {resumen && Number.parseFloat(resumen.descuento_usd) > 0 ? (
-          <div className="mt-3 flex items-center justify-between gap-3 border-t border-border pt-3">
-            <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-foreground">
-              <BadgePercent className="h-4 w-4 text-success" aria-hidden="true" />
-              {promocion ? `Descuento ${promocion.codigo}` : "Descuento"}
-            </span>
-            <span className="text-sm font-bold tabular-nums text-success">
-              {`-${formatUsd(resumen.descuento_usd)}`}
-            </span>
-          </div>
-        ) : null}
-
-        <div className="mt-3 flex items-center justify-between gap-3 border-t border-border pt-3">
+        <div className="mt-3 flex items-center justify-between gap-3">
           <span className="text-base font-extrabold text-foreground">Total</span>
           <span className="text-right">
             <span className="block text-lg font-extrabold tabular-nums text-foreground">
@@ -413,71 +339,6 @@ export function Resumen({
         {totalBs ? (
           <p className="mt-2 text-xs text-muted-foreground">
             Tasa de hoy; el monto exacto en Bs se fija al reportar tu pago.
-          </p>
-        ) : null}
-      </section>
-
-      {/* Código promocional */}
-      <section className="rounded-2xl border border-border bg-card p-4">
-        {promocion ? (
-          <div className="flex flex-wrap items-center gap-3">
-            <BadgeEstado etiqueta={`Código ${promocion.codigo}`} tono="exito" />
-            <button
-              type="button"
-              onClick={() => void quitarCodigo()}
-              disabled={aplicandoPromo || soloLectura}
-              className="min-h-11 rounded-lg px-2 text-sm font-semibold text-primary underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-            >
-              Quitar código
-            </button>
-          </div>
-        ) : (
-          <>
-            <button
-              type="button"
-              onClick={() => setCodigoAbierto((abierto) => !abierto)}
-              aria-expanded={codigoAbierto}
-              className="flex min-h-11 w-full items-center gap-2 text-left text-sm font-bold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <Tag className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-              <span className="flex-1">¿Tienes un código?</span>
-              <ChevronDown
-                className={`h-4 w-4 text-muted-foreground transition-transform ${codigoAbierto ? "rotate-180" : ""}`}
-                aria-hidden="true"
-              />
-            </button>
-
-            {codigoAbierto ? (
-              <div className="mt-3 flex flex-col gap-2">
-                <label htmlFor="codigo-promocional" className="text-sm font-semibold text-foreground">
-                  Código promocional
-                </label>
-                <Input
-                  id="codigo-promocional"
-                  autoCapitalize="characters"
-                  autoComplete="off"
-                  className="h-11 text-base uppercase"
-                  value={codigo}
-                  onChange={(evento) => setCodigo(evento.target.value)}
-                />
-                <button
-                  type="button"
-                  onClick={() => void aplicarCodigo()}
-                  disabled={aplicandoPromo}
-                  className="inline-flex min-h-11 items-center justify-center rounded-xl border border-input bg-card px-4 text-sm font-bold text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-                >
-                  {aplicandoPromo ? "Aplicando…" : "Aplicar código"}
-                </button>
-              </div>
-            ) : null}
-          </>
-        )}
-
-        {mensajePromo ? (
-          <p
-            className={`mt-2 text-xs font-medium ${promoError ? "text-destructive" : "text-success"}`}
-          >
-            {mensajePromo}
           </p>
         ) : null}
       </section>
@@ -549,9 +410,7 @@ export function Resumen({
 
           <p className="mt-2 flex items-start gap-1.5 text-xs text-muted-foreground">
             <CircleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            <span>
-              Al confirmar reservamos tu cupo por 24 horas. Todavía no pagas nada.
-            </span>
+            <span>Al confirmar reservamos tu cupo por 24 horas. Todavía no pagas nada.</span>
           </p>
         </section>
       )}
@@ -599,7 +458,9 @@ function valorLegible(campo: CampoDef | undefined, valor: Respuesta): string {
   if (typeof valor === "boolean") return valor ? "Sí" : "No";
   if (typeof valor === "number") return String(valor);
   if (Array.isArray(valor)) {
-    return valor.map((v) => (typeof v === "string" ? etiquetaOpcion(campo, v) : String(v))).join(", ");
+    return valor
+      .map((v) => (typeof v === "string" ? etiquetaOpcion(campo, v) : String(v)))
+      .join(", ");
   }
   return etiquetaOpcion(campo, valor);
 }

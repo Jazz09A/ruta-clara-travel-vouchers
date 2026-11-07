@@ -3,9 +3,11 @@ import type { Categoria } from "@/lib/domain/types";
 import {
   calcularCategorias,
   calcularPrecio,
+  calcularPrecioAdministrado,
   detectarOpcionesAgotadas,
   totalBs,
   type EntradaCalculo,
+  type EntradaCalculoAdministrado,
 } from "@/lib/domain/pricing";
 
 const tarifas = [
@@ -183,6 +185,83 @@ describe("precio — categoría por edad", () => {
   it("devuelve null si ninguna tarifa cubre la edad", () => {
     expect(calcularCategorias(tarifasEdad, "2026-12-14", "2024-01-01")).toBeNull();
     expect(calcularCategorias(tarifasEdad, "2026-12-14", "")).toBeNull();
+  });
+});
+
+describe("precio administrado — líneas y ajustes del admin", () => {
+  function entradaAdmin(): EntradaCalculoAdministrado {
+    return {
+      pasajeros: [{ categoria: "Adulto" }, { categoria: "Adulto" }, { categoria: "Niño" }],
+      tarifas,
+    };
+  }
+
+  it("sin líneas ni ajustes el total es solo la base de tarifas", () => {
+    const resultado = calcularPrecioAdministrado(entradaAdmin());
+    expect(resultado.subtotal_usd).toBe("130.00");
+    expect(resultado.total_usd).toBe("130.00");
+    expect(resultado.saldo_usd).toBe("130.00");
+  });
+
+  it("suma las líneas extra gestionadas por el admin (toldos)", () => {
+    const resultado = calcularPrecioAdministrado({
+      ...entradaAdmin(),
+      lineas: [{ concepto: "Alquiler de toldo", cantidad: 2, precio_unit_usd: "10.00" }],
+    });
+    expect(resultado.adicionales_usd).toBe("20.00");
+    expect(resultado.total_usd).toBe("150.00");
+    const toldo = resultado.lineas.find((l) => l.concepto === "Alquiler de toldo");
+    expect(toldo?.total_usd).toBe("20.00");
+  });
+
+  it("ignora líneas con cantidad cero o negativa", () => {
+    const resultado = calcularPrecioAdministrado({
+      ...entradaAdmin(),
+      lineas: [{ concepto: "Toldo", cantidad: 0, precio_unit_usd: "10.00" }],
+    });
+    expect(resultado.adicionales_usd).toBe("0.00");
+    expect(resultado.total_usd).toBe("130.00");
+  });
+
+  it("aplica descuentos y recargos manuales con motivo", () => {
+    const resultado = calcularPrecioAdministrado({
+      ...entradaAdmin(),
+      ajustes: [
+        { tipo: "descuento", monto_usd: "30.00", motivo: "Convenio familiar" },
+        { tipo: "recargo", monto_usd: "5.00", motivo: "Traslado extra" },
+      ],
+    });
+    // base 130 + recargo 5 − descuento 30 = 105
+    expect(resultado.adicionales_usd).toBe("5.00");
+    expect(resultado.descuento_usd).toBe("30.00");
+    expect(resultado.total_usd).toBe("105.00");
+  });
+
+  it("el total nunca queda negativo aunque el descuento supere la base", () => {
+    const resultado = calcularPrecioAdministrado({
+      ...entradaAdmin(),
+      ajustes: [{ tipo: "descuento", monto_usd: "500.00", motivo: "Cortesía" }],
+    });
+    expect(resultado.total_usd).toBe("0.00");
+  });
+
+  it("descuenta lo ya pagado del saldo", () => {
+    const resultado = calcularPrecioAdministrado({
+      ...entradaAdmin(),
+      lineas: [{ concepto: "Toldo", cantidad: 1, precio_unit_usd: "20.00" }],
+      saldoPrevio: "100.00",
+    });
+    expect(resultado.total_usd).toBe("150.00");
+    expect(resultado.saldo_usd).toBe("50.00");
+  });
+
+  it("avisa cuando una categoría no tiene tarifa", () => {
+    const resultado = calcularPrecioAdministrado({
+      pasajeros: [{ categoria: "Infante" }],
+      tarifas,
+    });
+    expect(resultado.advertencias).toHaveLength(1);
+    expect(resultado.total_usd).toBe("0.00");
   });
 });
 

@@ -6,7 +6,7 @@ import { Loader2, WifiOff } from "lucide-react";
 import { Toaster } from "@/components/ui/sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { esApiError } from "@/lib/domain/api";
-import type { PasoActual, ResumenReserva, Tarifa } from "@/lib/domain/types";
+import type { PasoActual, ResumenReserva } from "@/lib/domain/types";
 import { ETAPAS_RESERVA, MARCA } from "@/lib/brand";
 import { formatCountdown } from "@/lib/format";
 import { api } from "@/lib/api";
@@ -17,7 +17,10 @@ import { Bienvenida, type CategoriaConEdad } from "@/components/publica/screens/
 import { Titular } from "@/components/publica/screens/Titular";
 import { Acompanantes } from "@/components/publica/screens/Acompanantes";
 import { Preguntas } from "@/components/publica/screens/Preguntas";
-import { Resumen, type ResultadoConfirmacion } from "@/components/publica/screens/Resumen";
+import {
+  Confirmacion,
+  type ResultadoConfirmacion,
+} from "@/components/publica/screens/Confirmacion";
 import { Terminos, type AceptacionTerminos } from "@/components/publica/screens/Terminos";
 import { Firma } from "@/components/publica/screens/Firma";
 import { Pago } from "@/components/publica/screens/Pago";
@@ -192,32 +195,24 @@ function ArranquePublico({ token }: { token: string }) {
 
   const fechaSalida = reserva?.fecha?.fecha_salida;
 
-  // El resumen del servidor trae las tarifas con rango de edad (P-01, P-03).
+  // Solo la pantalla de confirmación necesita el resumen (el total lo fija
+  // la agencia); el resto del flujo no consulta precios.
   const resumenQuery = useQuery<ResumenReserva>({
     queryKey: ["resumen", token],
     queryFn: () => api.publica.resumen(token),
-    enabled: pantalla === "bienvenida" || pantalla === "acompanantes" || pantalla === "resumen",
+    enabled: pantalla === "resumen",
     staleTime: 30_000,
     retry: false,
   });
 
   const categorias: CategoriaConEdad[] = useMemo(() => {
-    const delResumen = resumenQuery.data?.categorias_aplicables;
-    if (delResumen && delResumen.length > 0) {
-      return delResumen.map((categoria) => ({
-        categoria: categoria.categoria,
-        edad_min: categoria.edad_min,
-        edad_max: categoria.edad_max,
-        precio_usd: categoria.precio_usd,
-      }));
-    }
-    return (reserva?.tarifas ?? []).map((tarifa: Tarifa) => ({
+    // El precio ya no viaja al cliente: solo la categoría y su rango de edad.
+    return (reserva?.tarifas ?? []).map((tarifa) => ({
       categoria: tarifa.categoria,
       edad_min: tarifa.edad_min,
       edad_max: tarifa.edad_max,
-      precio_usd: tarifa.precio_usd,
     }));
-  }, [reserva?.tarifas, resumenQuery.data]);
+  }, [reserva?.tarifas]);
 
   const config = reserva?.config;
   const maxPasajeros = config?.max_pasajeros_reserva ?? 10;
@@ -437,7 +432,7 @@ function ArranquePublico({ token }: { token: string }) {
 
       case "resumen":
         return (
-          <Resumen
+          <Confirmacion
             reserva={reserva}
             resumen={resumenQuery.data ?? null}
             campos={reserva.formulario?.definicion.campos ?? []}
@@ -446,23 +441,6 @@ function ArranquePublico({ token }: { token: string }) {
               errorPaso ?? (resumenQuery.error ? mensajeDeError(resumenQuery.error) : null)
             }
             onEditar={irAPaso}
-            onAplicarPromo={async (codigo) => {
-              try {
-                await api.publica.aplicarPromocion(token, codigo, version);
-                await resumenQuery.refetch();
-                return { ok: true };
-              } catch (error) {
-                return { ok: false, mensaje: mensajeDeError(error) };
-              }
-            }}
-            onQuitarPromo={async () => {
-              try {
-                await api.publica.quitarPromocion(token, version);
-                await resumenQuery.refetch();
-              } catch {
-                // El resumen se refresca igual; el error se muestra arriba.
-              }
-            }}
             onConfirmar={confirmarResumen}
             registrarContinuar={registrarContinuar}
             confirmando={continuarCargando}

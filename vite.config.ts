@@ -12,4 +12,8 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  // El node_modules local tiene ACLs que impiden crear node_modules/.nitro;
+  // se redirige el buildDir de nitro a un directorio escribible del repo.
+  // @ts-expect-error nitro buildDir no está en los tipos del wrapper
+  nitro: { buildDir: ".nitro-build" },
 });

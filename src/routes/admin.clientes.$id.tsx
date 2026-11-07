@@ -1,24 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import {
-  ArrowLeft,
-  Phone,
-  Mail,
-  FileText,
-  Calendar,
-  DollarSign,
-  Shield,
-  Download,
-  Edit2,
-  Eye,
-  EyeOff,
-} from "lucide-react";
+import { ArrowLeft, Phone, Mail, Calendar, Edit2, MapPin, Repeat } from "lucide-react";
+import { toast } from "sonner";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { BadgeEstado } from "@/components/admin/BadgeEstado";
+import { EmptyState } from "@/components/admin/EmptyState";
 import { Campo } from "@/components/admin/Campo";
-import { DialogoMotivo } from "@/components/admin/ui/dialogo-motivo";
-import { MARCA } from "@/lib/brand";
-import { toast } from "sonner";
+import { api } from "@/lib/api";
+import { formatDate } from "@/lib/format";
+import type { Reserva } from "@/lib/domain/types";
 
 export const Route = createFileRoute("/admin/clientes/$id")({
   head: () => ({
@@ -30,69 +21,81 @@ export const Route = createFileRoute("/admin/clientes/$id")({
   component: DetalleCliente,
 });
 
-// Mock data para demo
-const clienteMock = {
-  id: "1",
-  nombre: "María Pérez",
-  telefono: "+58 412 1234567",
-  correo: "maria.perez@email.com",
-  documento: "V-12345678",
-  fecha_nacimiento: "15/03/1990",
-  reservas: 3,
-  notas: "Cliente frecuente, siempre paga puntual",
-  notas_internas: "Prefiere asientos cerca de la ventana",
-};
-
-const reservasMock = [
-  {
-    id: "1",
-    ref_corta: "K7M2QX9A",
-    tour: "Full Day Los Roques",
-    fecha: "Sáb 14 dic 2026",
-    estado: "confirmada",
-    estado_pago: "pagado",
-    monto_usd: "240",
-    pasajeros: 3,
-  },
-  {
-    id: "2",
-    ref_corta: "X3J9K2L5",
-    tour: "Fin de semana Mérida",
-    fecha: "Vie 13 nov 2026",
-    estado: "completada",
-    estado_pago: "pagado",
-    monto_usd: "580",
-    pasajeros: 2,
-  },
-  {
-    id: "3",
-    ref_corta: "P4M8N3Q6",
-    tour: "Full Day Colonia Tovar",
-    fecha: "Dom 8 nov 2026",
-    estado: "cancelada",
-    estado_pago: "reembolsado",
-    monto_usd: "90",
-    pasajeros: 1,
-  },
-];
+interface ClienteDetalle {
+  id: string;
+  nombre: string;
+  tipo_doc: string;
+  documento_enmascarado: string;
+  telefono: string;
+  correo: string;
+  notas: string;
+  reservas: Reserva[];
+  viajes: {
+    total: number;
+    confirmadas: number;
+    canceladas: number;
+    tours: { tour_id: string; tour: string; veces: number }[];
+    primera_fecha: string | null;
+    ultima_fecha: string | null;
+  };
+}
 
 function DetalleCliente() {
   const { id } = Route.useParams();
+  const queryClient = useQueryClient();
   const [editandoNotas, setEditandoNotas] = useState(false);
-  const [notasInternas, setNotasInternas] = useState(clienteMock.notas_internas);
-  const [datosRevelados, setDatosRevelados] = useState(false);
-  const [accionAnonimizar, setAccionAnonimizar] = useState(false);
+  const [notasInternas, setNotasInternas] = useState("");
 
-  const toggleDatosRevelados = () => {
-    if (!datosRevelados) {
-      // TODO: En producción, esto requeriría un paso de autenticación (step-up)
-      toast.info("Datos revelados temporalmente");
-    }
-    setDatosRevelados(!datosRevelados);
+  const {
+    data: cliente,
+    isPending,
+    isError,
+  } = useQuery({
+    queryKey: ["admin", "cliente", id],
+    queryFn: () => api.admin.cliente(id) as Promise<ClienteDetalle>,
+  });
+
+  const guardarNotas = useMutation({
+    mutationFn: (notas: string) => api.admin.guardarNotaCliente(id, { notas }),
+    onSuccess: () => {
+      toast.success("Notas guardadas");
+      setEditandoNotas(false);
+      void queryClient.invalidateQueries({ queryKey: ["admin", "cliente", id] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "clientes"] });
+    },
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : "No se pudieron guardar las notas"),
+  });
+
+  if (isPending) {
+    return (
+      <AdminShell titulo="Cliente">
+        <p className="text-sm text-muted-foreground">Cargando cliente…</p>
+      </AdminShell>
+    );
+  }
+  if (isError || !cliente) {
+    return (
+      <AdminShell titulo="Cliente">
+        <EmptyState
+          titulo="No encontramos este cliente"
+          descripcion="Es posible que el enlace esté desactualizado."
+        />
+      </AdminShell>
+    );
+  }
+
+  const iniciarEdicion = () => {
+    setNotasInternas(cliente.notas ?? "");
+    setEditandoNotas(true);
   };
 
+  const reservasOrdenadas = [...cliente.reservas].sort((a, b) =>
+    String(b.fecha_salida ?? "").localeCompare(String(a.fecha_salida ?? "")),
+  );
+
   return (
-    <AdminShell titulo={clienteMock.nombre}>
+    <AdminShell titulo={cliente.nombre}>
       <div className="flex flex-col gap-6">
         {/* Cabecera */}
         <div className="flex flex-wrap items-center justify-between gap-4">
@@ -106,22 +109,12 @@ function DetalleCliente() {
             </Link>
             <div>
               <h2 className="text-2xl font-extrabold tracking-tight md:text-3xl">
-                {clienteMock.nombre}
+                {cliente.nombre}
               </h2>
               <p className="text-sm text-muted-foreground">
-                {clienteMock.reservas || reservasMock.length} reservas
+                {cliente.viajes.total} reserva{cliente.viajes.total !== 1 ? "s" : ""}
               </p>
             </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setAccionAnonimizar(true)}
-              className="inline-flex items-center gap-2 rounded-xl border border-destructive/50 bg-destructive/5 px-4 py-2.5 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/10"
-            >
-              <Shield className="h-4 w-4" aria-hidden="true" />
-              Anonimizar
-            </button>
           </div>
         </div>
 
@@ -132,59 +125,95 @@ function DetalleCliente() {
               <h2 className="text-sm font-bold text-foreground">Datos de contacto</h2>
 
               <div className="mt-4 space-y-3">
-                <div>
-                  <label className="mb-1 block text-xs text-muted-foreground">Teléfono</label>
-                  <div className="flex items-center gap-2 text-sm text-foreground">
-                    <Phone className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-                    {clienteMock.telefono}
+                {cliente.telefono && (
+                  <div>
+                    <label className="mb-1 block text-xs text-muted-foreground">Teléfono</label>
+                    <div className="flex items-center gap-2 text-sm text-foreground">
+                      <Phone className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                      {cliente.telefono}
+                    </div>
                   </div>
-                </div>
+                )}
 
-                <div>
-                  <label className="mb-1 block text-xs text-muted-foreground">Correo</label>
-                  <div className="flex items-center gap-2 text-sm text-foreground">
-                    <Mail className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-                    {clienteMock.correo}
+                {cliente.correo && (
+                  <div>
+                    <label className="mb-1 block text-xs text-muted-foreground">Correo</label>
+                    <div className="flex items-center gap-2 text-sm text-foreground">
+                      <Mail className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                      {cliente.correo}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div>
                   <label className="mb-1 block text-xs text-muted-foreground">Documento</label>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-foreground">
-                      {datosRevelados ? clienteMock.documento : "V-****5678"}
-                    </span>
-                    <button
-                      onClick={toggleDatosRevelados}
-                      className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                      title={datosRevelados ? "Ocultar" : "Revelar"}
-                    >
-                      {datosRevelados ? (
-                        <EyeOff className="h-4 w-4" aria-hidden="true" />
-                      ) : (
-                        <Eye className="h-4 w-4" aria-hidden="true" />
-                      )}
-                    </button>
-                  </div>
+                  <p className="text-sm text-foreground">{cliente.documento_enmascarado || "—"}</p>
                 </div>
-
-                {datosRevelados && (
-                  <div>
-                    <label className="mb-1 block text-xs text-muted-foreground">
-                      Fecha de nacimiento
-                    </label>
-                    <p className="text-sm text-foreground">{clienteMock.fecha_nacimiento}</p>
-                  </div>
-                )}
               </div>
+            </div>
+
+            {/* Resumen de viajes */}
+            <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
+              <h2 className="text-sm font-bold text-foreground">Resumen de viajes</h2>
+              <div className="mt-4 grid grid-cols-3 gap-3 text-center">
+                <div>
+                  <p className="text-xl font-extrabold text-foreground">{cliente.viajes.total}</p>
+                  <p className="text-xs text-muted-foreground">viajes</p>
+                </div>
+                <div>
+                  <p className="text-xl font-extrabold text-foreground">
+                    {cliente.viajes.confirmadas}
+                  </p>
+                  <p className="text-xs text-muted-foreground">confirmadas</p>
+                </div>
+                <div>
+                  <p className="text-xl font-extrabold text-foreground">
+                    {cliente.viajes.canceladas}
+                  </p>
+                  <p className="text-xs text-muted-foreground">canceladas</p>
+                </div>
+              </div>
+              {(cliente.viajes.primera_fecha || cliente.viajes.ultima_fecha) && (
+                <div className="mt-4 space-y-1 border-t border-border pt-3 text-xs text-muted-foreground">
+                  {cliente.viajes.primera_fecha && (
+                    <p>Primera salida: {formatDate(cliente.viajes.primera_fecha)}</p>
+                  )}
+                  {cliente.viajes.ultima_fecha && (
+                    <p>Última salida: {formatDate(cliente.viajes.ultima_fecha)}</p>
+                  )}
+                </div>
+              )}
+
+              {cliente.viajes.tours.length > 0 && (
+                <div className="mt-4 border-t border-border pt-3">
+                  <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                    <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
+                    Destinos
+                  </p>
+                  <ul className="space-y-1.5">
+                    {cliente.viajes.tours.map((t) => (
+                      <li
+                        key={t.tour_id || t.tour}
+                        className="flex items-center justify-between text-sm"
+                      >
+                        <span className="truncate text-foreground">{t.tour || "Tour"}</span>
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Repeat className="h-3 w-3" aria-hidden="true" />×{t.veces}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
 
             <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-bold text-foreground">Notas internas</h2>
                 <button
-                  onClick={() => setEditandoNotas(!editandoNotas)}
+                  onClick={editandoNotas ? () => setEditandoNotas(false) : iniciarEdicion}
                   className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  title={editandoNotas ? "Cancelar" : "Editar"}
                 >
                   <Edit2 className="h-4 w-4" aria-hidden="true" />
                 </button>
@@ -201,19 +230,14 @@ function DetalleCliente() {
                   />
                   <div className="mt-2 flex gap-2">
                     <button
-                      onClick={() => {
-                        toast.success("Notas guardadas");
-                        setEditandoNotas(false);
-                      }}
-                      className="flex-1 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                      onClick={() => guardarNotas.mutate(notasInternas)}
+                      disabled={guardarNotas.isPending}
+                      className="flex-1 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
                     >
-                      Guardar
+                      {guardarNotas.isPending ? "Guardando…" : "Guardar"}
                     </button>
                     <button
-                      onClick={() => {
-                        setNotasInternas(clienteMock.notas_internas);
-                        setEditandoNotas(false);
-                      }}
+                      onClick={() => setEditandoNotas(false)}
                       className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-accent"
                     >
                       Cancelar
@@ -222,7 +246,7 @@ function DetalleCliente() {
                 </div>
               ) : (
                 <p className="mt-3 text-sm text-muted-foreground">
-                  {notasInternas || "Sin notas internas"}
+                  {cliente.notas || "Sin notas internas"}
                 </p>
               )}
             </div>
@@ -231,16 +255,15 @@ function DetalleCliente() {
           {/* Columna derecha: historial de reservas */}
           <div className="lg:col-span-2">
             <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-bold text-foreground">Historial de reservas</h2>
-                <button className="inline-flex items-center gap-2 rounded-lg border border-input bg-background px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-accent">
-                  <Download className="h-3.5 w-3.5" aria-hidden="true" />
-                  Exportar
-                </button>
-              </div>
+              <h2 className="text-sm font-bold text-foreground">Historial de reservas</h2>
 
               <div className="mt-4 space-y-3">
-                {reservasMock.map((reserva) => (
+                {reservasOrdenadas.length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    Este cliente aún no tiene reservas.
+                  </p>
+                )}
+                {reservasOrdenadas.map((reserva) => (
                   <Link
                     key={reserva.id}
                     to="/admin/reservas/$id"
@@ -255,12 +278,21 @@ function DetalleCliente() {
                           </span>
                           <BadgeEstado estado={reserva.estado} />
                         </div>
-                        <p className="mt-1 text-sm font-semibold text-foreground">{reserva.tour}</p>
-                        <p className="mt-0.5 text-xs text-muted-foreground">{reserva.fecha}</p>
+                        <p className="mt-1 text-sm font-semibold text-foreground">
+                          {reserva.tour_nombre || "Tour"}
+                        </p>
+                        {reserva.fecha_salida && (
+                          <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                            <Calendar className="h-3 w-3" aria-hidden="true" />
+                            {formatDate(reserva.fecha_salida)}
+                          </p>
+                        )}
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-bold text-foreground">${reserva.monto_usd}</p>
-                        <p className="text-xs text-muted-foreground">{reserva.pasajeros} pax</p>
+                        <p className="text-sm font-bold text-foreground">${reserva.total_usd}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {reserva.pasajeros?.length ?? 0} pax
+                        </p>
                       </div>
                     </div>
                   </Link>
@@ -269,34 +301,7 @@ function DetalleCliente() {
             </div>
           </div>
         </div>
-
-        {/* Diálogo de anonimización */}
-        {accionAnonimizar && (
-          <DialogoAnonimizar onCerrar={() => setAccionAnonimizar(false)} />
-        )}
       </div>
     </AdminShell>
-  );
-}
-
-function DialogoAnonimizar({ onCerrar }: { onCerrar: () => void }) {
-  const [motivo, setMotivo] = useState("");
-  return (
-    <DialogoMotivo
-      abierto
-      onAbiertoChange={(abierto) => {
-        if (!abierto) onCerrar();
-      }}
-      titulo="Anonimizar cliente"
-      descripcion="Esta acción eliminará todos los datos personales del cliente de forma permanente. Solo se conservará el historial de reservas con datos enmascarados. Esta acción no se puede deshacer."
-      etiquetaConfirmar="Anonimizar"
-      destructivo
-      motivo={motivo}
-      onMotivoChange={setMotivo}
-      onConfirmar={() => {
-        toast.success("Cliente anonimizado");
-        onCerrar();
-      }}
-    />
   );
 }

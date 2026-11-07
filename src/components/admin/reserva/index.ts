@@ -9,20 +9,14 @@ export {
   TEXTO_ESTADO_PASO,
   type ProgresoReservaProps,
 } from "./ProgresoReserva";
-export {
-  PanelPasajeros,
-  type PanelPasajerosProps,
-} from "./PanelPasajeros";
+export { PanelPasajeros, type PanelPasajerosProps } from "./PanelPasajeros";
 export {
   TarjetaPasajero,
   type CampoRevelable,
   type SeleccionMostrada,
   type TarjetaPasajeroProps,
 } from "./TarjetaPasajero";
-export {
-  PanelPagosReserva,
-  type PanelPagosReservaProps,
-} from "./PanelPagosReserva";
+export { PanelPagosReserva, type PanelPagosReservaProps } from "./PanelPagosReserva";
 export { PanelFirma, type PanelFirmaProps } from "./PanelFirma";
 export { PanelVoucher, type PanelVoucherProps } from "./PanelVoucher";
 export {
@@ -67,8 +61,5 @@ export {
   type DatosExtenderHold,
   type DialogoExtenderHoldProps,
 } from "./DialogoExtenderHold";
-export {
-  useReveloTemporal,
-  type ControlRevelo,
-  type DatoRevelado,
-} from "./use-revelo-temporal";
+export { useReveloTemporal, type ControlRevelo, type DatoRevelado } from "./use-revelo-temporal";
+export { PanelPrecio, type DatosPrecio, type PanelPrecioProps } from "./PanelPrecio";

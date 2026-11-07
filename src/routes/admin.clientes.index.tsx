@@ -1,12 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
-import { Search, Users, Phone, Mail, MoreVertical, Download, Shield } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useDeferredValue, useState } from "react";
+import { Search, Users, Phone, Mail, Download } from "lucide-react";
+import { toast } from "sonner";
 import { EmptyState } from "@/components/admin/EmptyState";
 import { AdminShell } from "@/components/admin/AdminShell";
-import { Campo } from "@/components/admin/Campo";
-import { DialogoMotivo } from "@/components/admin/ui/dialogo-motivo";
-import { MARCA } from "@/lib/brand";
-import { toast } from "sonner";
+import { api } from "@/lib/api";
+import { formatDate } from "@/lib/format";
 
 export const Route = createFileRoute("/admin/clientes/")({
   head: () => ({
@@ -18,65 +18,57 @@ export const Route = createFileRoute("/admin/clientes/")({
   component: Clientes,
 });
 
-// Mock data para demo
-const clientesMock = [
-  {
-    id: "1",
-    nombre: "María Pérez",
-    telefono: "+58 412 1234567",
-    correo: "maria.perez@email.com",
-    documento: "V-12345678",
-    reservas: 3,
-    ultima_reserva: "Sáb 14 dic 2026",
-    notas: "Cliente frecuente, siempre paga puntual",
-  },
-  {
-    id: "2",
-    nombre: "José Rodríguez",
-    telefono: "+58 414 9876543",
-    correo: "jose.rodriguez@email.com",
-    documento: "E-87654321",
-    reservas: 1,
-    ultima_reserva: "Vie 13 nov 2026",
-    notas: "",
-  },
-  {
-    id: "3",
-    nombre: "Ana Gómez",
-    telefono: "+58 416 5555555",
-    correo: "ana.gomez@email.com",
-    documento: "V-11112222",
-    reservas: 2,
-    ultima_reserva: "Dom 8 nov 2026",
-    notas: "Alérgica a mariscos",
-  },
-];
+interface ClienteItem {
+  id: string;
+  nombre: string;
+  documento_enmascarado: string;
+  telefono: string;
+  correo: string;
+  reservas: number;
+  ultima_reserva: string | null;
+  notas: string;
+}
 
 function Clientes() {
   const [busqueda, setBusqueda] = useState("");
-  const [accionAnonimizar, setAccionAnonimizar] = useState<string | null>(null);
+  const busquedaDebounced = useDeferredValue(busqueda);
+  const queryClient = useQueryClient();
 
-  const clientesFiltrados = clientesMock.filter(
-    (c) =>
-      c.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-      c.telefono.includes(busqueda) ||
-      c.documento.toLowerCase().includes(busqueda.toLowerCase()) ||
-      c.correo.toLowerCase().includes(busqueda.toLowerCase()),
-  );
+  const { data, isPending, isError } = useQuery({
+    queryKey: ["admin", "clientes", busquedaDebounced],
+    queryFn: () => api.admin.clientes({ busqueda: busquedaDebounced || undefined }),
+  });
+
+  const exportar = useMutation({
+    mutationFn: () => api.admin.crearExportacion("clientes"),
+    onSuccess: () => {
+      toast.success("Exportación de clientes en cola. Descárgala desde Reportes.");
+      void queryClient.invalidateQueries({ queryKey: ["exportaciones"] });
+    },
+    onError: () => toast.error("No pudimos solicitar la exportación."),
+  });
+
+  const clientes = (data?.items ?? []) as ClienteItem[];
 
   return (
     <AdminShell
       titulo="Clientes"
       breadcrumb={[{ label: "Panel", to: "/admin" }, { label: "Clientes" }]}
       acciones={
-        <button className="inline-flex items-center gap-2 rounded-xl border border-input bg-background px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent">
+        <button
+          onClick={() => exportar.mutate()}
+          disabled={exportar.isPending}
+          className="inline-flex items-center gap-2 rounded-xl border border-input bg-background px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent disabled:opacity-60"
+        >
           <Download className="h-4 w-4" aria-hidden="true" />
-          Exportar datos
+          {exportar.isPending ? "Solicitando…" : "Exportar datos"}
         </button>
       }
     >
       <div className="flex flex-col gap-6">
-        <p className="text-sm text-muted-foreground">{clientesMock.length} clientes en total</p>
+        <p className="text-sm text-muted-foreground">
+          {isPending ? "Cargando…" : `${clientes.length} clientes`}
+        </p>
 
         {/* Barra de búsqueda */}
         <div className="relative">
@@ -91,69 +83,43 @@ function Clientes() {
         </div>
 
         {/* Lista de clientes */}
-        {clientesFiltrados.length === 0 ? (
+        {isError ? (
+          <EmptyState
+            titulo="No pudimos cargar los clientes"
+            descripcion="Revisa tu conexión e inténtalo de nuevo."
+          />
+        ) : clientes.length === 0 && !isPending ? (
           <EmptyState
             titulo="No hay clientes"
-            descripcion="No encontramos clientes con la búsqueda actual."
+            descripcion={
+              busqueda
+                ? "No encontramos clientes con la búsqueda actual."
+                : "Aún no hay clientes registrados."
+            }
             accion={
-            <button
-              onClick={() => setBusqueda("")}
-              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-            >
-              Limpiar búsqueda
-            </button>
-          }
+              busqueda ? (
+                <button
+                  onClick={() => setBusqueda("")}
+                  className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                >
+                  Limpiar búsqueda
+                </button>
+              ) : undefined
+            }
           />
         ) : (
           <div className="space-y-3">
-            {clientesFiltrados.map((cliente) => (
-              <TarjetaCliente
-                key={cliente.id}
-                cliente={cliente}
-                onAnonimizar={() => setAccionAnonimizar(cliente.id)}
-              />
+            {clientes.map((cliente) => (
+              <TarjetaCliente key={cliente.id} cliente={cliente} />
             ))}
           </div>
-        )}
-
-        {/* Diálogo de anonimización */}
-        {accionAnonimizar && (
-          <DialogoAnonimizar onCerrar={() => setAccionAnonimizar(null)} />
         )}
       </div>
     </AdminShell>
   );
 }
 
-function DialogoAnonimizar({ onCerrar }: { onCerrar: () => void }) {
-  const [motivo, setMotivo] = useState("");
-  return (
-    <DialogoMotivo
-      abierto
-      onAbiertoChange={(abierto) => {
-        if (!abierto) onCerrar();
-      }}
-      titulo="Anonimizar cliente"
-      descripcion="Esta acción eliminará todos los datos personales del cliente de forma permanente. Solo se conservará el historial de reservas con datos enmascarados. Esta acción no se puede deshacer."
-      etiquetaConfirmar="Anonimizar"
-      destructivo
-      motivo={motivo}
-      onMotivoChange={setMotivo}
-      onConfirmar={() => {
-        toast.success("Cliente anonimizado");
-        onCerrar();
-      }}
-    />
-  );
-}
-
-function TarjetaCliente({
-  cliente,
-  onAnonimizar,
-}: {
-  cliente: (typeof clientesMock)[0];
-  onAnonimizar: () => void;
-}) {
+function TarjetaCliente({ cliente }: { cliente: ClienteItem }) {
   return (
     <Link
       to="/admin/clientes/$id"
@@ -172,14 +138,18 @@ function TarjetaCliente({
           </div>
 
           <div className="mt-2 space-y-1">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Phone className="h-3.5 w-3.5" aria-hidden="true" />
-              <span className="truncate">{cliente.telefono}</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Mail className="h-3.5 w-3.5" aria-hidden="true" />
-              <span className="truncate">{cliente.correo}</span>
-            </div>
+            {cliente.telefono && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Phone className="h-3.5 w-3.5" aria-hidden="true" />
+                <span className="truncate">{cliente.telefono}</span>
+              </div>
+            )}
+            {cliente.correo && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Mail className="h-3.5 w-3.5" aria-hidden="true" />
+                <span className="truncate">{cliente.correo}</span>
+              </div>
+            )}
           </div>
 
           <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
@@ -187,21 +157,14 @@ function TarjetaCliente({
               <Users className="h-3 w-3" aria-hidden="true" />
               {cliente.reservas} reserva{cliente.reservas !== 1 ? "s" : ""}
             </span>
-            <span>·</span>
-            <span>Última: {cliente.ultima_reserva}</span>
+            {cliente.ultima_reserva && (
+              <>
+                <span>·</span>
+                <span>Última: {formatDate(cliente.ultima_reserva)}</span>
+              </>
+            )}
           </div>
         </div>
-
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            onAnonimizar();
-          }}
-          className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-          title="Anonimizar cliente"
-        >
-          <Shield className="h-4 w-4" aria-hidden="true" />
-        </button>
       </div>
     </Link>
   );

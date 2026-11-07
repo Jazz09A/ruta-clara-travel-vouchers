@@ -165,12 +165,135 @@ export function calcularPrecio(entrada: EntradaCalculo): ResultadoCalculo {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Pricing administrado (precio gestionado por la agencia)
+// ---------------------------------------------------------------------------
+
+export interface LineaAdminCalculo {
+  concepto: string;
+  cantidad: number;
+  precio_unit_usd: string;
+}
+
+export interface AjusteAdminCalculo {
+  tipo: "descuento" | "recargo";
+  monto_usd: string;
+  motivo?: string | undefined;
+}
+
+export interface EntradaCalculoAdministrado {
+  pasajeros: { categoria: Categoria }[];
+  tarifas: { categoria: Categoria; precio_usd: string }[];
+  /** Cargos extra gestionados por el admin (toldos y demás). */
+  lineas?: LineaAdminCalculo[] | undefined;
+  /** Ajustes manuales del admin (descuentos/recargos con motivo). */
+  ajustes?: AjusteAdminCalculo[] | undefined;
+  saldoPrevio?: string | undefined;
+}
+
+/**
+ * Espejo de `calcularPrecioAdministrado` del backend: la base de tarifas se
+ * calcula con los pasajeros reales y el admin solo gestiona deltas (líneas
+ * extra y ajustes). El cliente nunca ve este desglose.
+ */
+export function calcularPrecioAdministrado(entrada: EntradaCalculoAdministrado): ResultadoCalculo {
+  const advertencias: string[] = [];
+  const lineas: LineaPrecio[] = [];
+
+  const porCategoria = new Map<Categoria, number>();
+  for (const pasajero of entrada.pasajeros) {
+    porCategoria.set(pasajero.categoria, (porCategoria.get(pasajero.categoria) ?? 0) + 1);
+  }
+
+  let subtotal = "0.00";
+  for (const [categoria, cantidad] of porCategoria) {
+    const tarifa = entrada.tarifas.find((t) => t.categoria === categoria);
+    if (!tarifa) {
+      advertencias.push(
+        `No tenemos tarifa para la categoría ${categoria}. Contacta a la agencia para regularizar el pago.`,
+      );
+      continue;
+    }
+    const unitario = toDecimalString(tarifa.precio_usd);
+    const total = multiplyDecimal(unitario, cantidad);
+    lineas.push({
+      concepto: categoria,
+      detalle: `${plural(cantidad, "pasajero", "pasajeros")} x $${unitario}`,
+      cantidad,
+      precio_usd: unitario,
+      total_usd: total,
+    });
+    subtotal = addDecimals(subtotal, total);
+  }
+
+  let adicionales = "0.00";
+  for (const linea of entrada.lineas ?? []) {
+    const cantidad = Math.max(0, Math.floor(linea.cantidad));
+    if (cantidad <= 0) continue;
+    const unitario = toDecimalString(linea.precio_unit_usd);
+    const total = multiplyDecimal(unitario, cantidad);
+    lineas.push({
+      concepto: linea.concepto,
+      detalle: `${plural(cantidad, "unidad", "unidades")} x $${unitario}`,
+      cantidad,
+      precio_usd: unitario,
+      total_usd: total,
+    });
+    adicionales = addDecimals(adicionales, total);
+  }
+
+  let descuentos = "0.00";
+  for (const ajuste of entrada.ajustes ?? []) {
+    const monto = toDecimalString(ajuste.monto_usd);
+    const concepto =
+      ajuste.motivo?.trim() || (ajuste.tipo === "descuento" ? "Descuento" : "Recargo");
+    if (ajuste.tipo === "descuento") {
+      descuentos = addDecimals(descuentos, monto);
+      lineas.push({
+        concepto,
+        detalle: "Descuento administrativo",
+        cantidad: 1,
+        precio_usd: `-${monto}`,
+        total_usd: `-${monto}`,
+      });
+    } else {
+      lineas.push({
+        concepto,
+        detalle: "Recargo administrativo",
+        cantidad: 1,
+        precio_usd: monto,
+        total_usd: monto,
+      });
+      adicionales = addDecimals(adicionales, monto);
+    }
+  }
+
+  const base = addDecimals(subtotal, adicionales);
+  const total = noNegativo(subtractDecimals(base, descuentos));
+  const saldo = noNegativo(subtractDecimals(total, entrada.saldoPrevio ?? "0.00"));
+
+  return {
+    lineas,
+    subtotal_usd: subtotal,
+    adicionales_usd: adicionales,
+    descuento_usd: toDecimalString(descuentos),
+    total_usd: total,
+    saldo_usd: saldo,
+    advertencias,
+  };
+}
+
 /**
  * Categoría que corresponde a una edad en la fecha de salida.
  * Devuelve `null` si ninguna tarifa cubre esa edad.
  */
 export function calcularCategorias(
-  tarifas: { categoria: Categoria; edad_min: number; edad_max: number; precio_usd: string }[],
+  tarifas: {
+    categoria: Categoria;
+    edad_min: number;
+    edad_max: number;
+    precio_usd?: string | undefined;
+  }[],
   fechaSalida: string,
   fechaNacimiento: string,
 ): Categoria | null {

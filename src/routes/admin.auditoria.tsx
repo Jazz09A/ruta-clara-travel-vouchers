@@ -1,21 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
-import {
-  Search,
-  Filter,
-  Shield,
-  Clock,
-  User,
-  FileText,
-  ArrowRight,
-  CheckCircle2,
-  AlertTriangle,
-} from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { useDeferredValue, useState } from "react";
+import { Search, Filter, User, ArrowRight, CheckCircle2, AlertTriangle } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
-import { BadgeEstado } from "@/components/admin/BadgeEstado";
+import { EmptyState } from "@/components/admin/EmptyState";
 import { SheetBottom } from "@/components/admin/SheetBottom";
 import { Campo } from "@/components/admin/Campo";
-import { MARCA } from "@/lib/brand";
+import { api } from "@/lib/api";
+import { formatDateTime, formatRelative } from "@/lib/format";
+import type { Auditoria } from "@/lib/domain/types";
 
 export const Route = createFileRoute("/admin/auditoria")({
   head: () => ({
@@ -24,90 +17,44 @@ export const Route = createFileRoute("/admin/auditoria")({
       { name: "description", content: "Historial de cambios y acciones del sistema." },
     ],
   }),
-  component: Auditoria,
+  component: AuditoriaPage,
 });
 
-// Mock data para demo
-const auditoriaMock = [
-  {
-    id: "1",
-    usuario: "Manuel (SA)",
-    accion: "Actualizar tasa",
-    entidad: "Configuración",
-    entidad_id: null,
-    fecha: "Hace 2 horas",
-    valor_anterior: "Bs. 35,50",
-    valor_nuevo: "Bs. 36,00",
-    motivo: "Ajuste por mercado",
-    integridad: "ok",
-  },
-  {
-    id: "2",
-    usuario: "Carlos (OP)",
-    accion: "Cancelar reserva",
-    entidad: "Reserva",
-    entidad_id: "K7M2QX9A",
-    fecha: "Hace 5 horas",
-    valor_anterior: "confirmada",
-    valor_nuevo: "cancelada",
-    motivo: "Cliente solicitó reembolso",
-    integridad: "ok",
-  },
-  {
-    id: "3",
-    usuario: "Sistema",
-    accion: "Generar voucher",
-    entidad: "Reserva",
-    entidad_id: "X3J9K2L5",
-    fecha: "Hace 1 día",
-    valor_anterior: null,
-    valor_nuevo: "voucher_generado",
-    motivo: null,
-    integridad: "ok",
-  },
-  {
-    id: "4",
-    usuario: "Ana (VAL)",
-    accion: "Aprobar pago",
-    entidad: "Pago",
-    entidad_id: "PAG-123",
-    fecha: "Hace 1 día",
-    valor_anterior: "en_verificacion",
-    valor_nuevo: "aprobado",
-    motivo: "Comprobante válido",
-    integridad: "ok",
-  },
-  {
-    id: "5",
-    usuario: "Manuel (SA)",
-    accion: "Desactivar usuario",
-    entidad: "Usuario",
-    entidad_id: "USR-456",
-    fecha: "Hace 2 días",
-    valor_anterior: "activo",
-    valor_nuevo: "inactivo",
-    motivo: "Salida del equipo",
-    integridad: "ok",
-  },
+const ENTIDADES_FILTRO = [
+  { id: "", label: "Todas las entidades" },
+  { id: "reserva", label: "Reserva" },
+  { id: "pago", label: "Pago" },
+  { id: "cliente", label: "Cliente" },
+  { id: "tour", label: "Tour" },
+  { id: "fecha_tour", label: "Fecha de salida" },
+  { id: "usuario", label: "Usuario" },
+  { id: "configuracion", label: "Configuración" },
+  { id: "tasa_cambio", label: "Tasa de cambio" },
 ];
 
-function Auditoria() {
+function AuditoriaPage() {
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
   const [busqueda, setBusqueda] = useState("");
-  const [usuarioSeleccionado, setUsuarioSeleccionado] = useState("");
+  const [entidadSeleccionada, setEntidadSeleccionada] = useState("");
   const [accionSeleccionada, setAccionSeleccionada] = useState("");
 
-  const auditoriaFiltrada = auditoriaMock.filter((registro) => {
-    if (busqueda && !registro.usuario.toLowerCase().includes(busqueda.toLowerCase())) {
-      return false;
-    }
-    if (usuarioSeleccionado && !registro.usuario.includes(usuarioSeleccionado)) {
-      return false;
-    }
-    if (accionSeleccionada && !registro.accion.includes(accionSeleccionada)) {
-      return false;
-    }
-    return true;
+  const busquedaDebounced = useDeferredValue(busqueda);
+
+  const { data, isPending, isError } = useQuery({
+    queryKey: ["admin", "auditoria", entidadSeleccionada, accionSeleccionada],
+    queryFn: () =>
+      api.admin.auditoria({
+        entidad: entidadSeleccionada || undefined,
+        accion: accionSeleccionada || undefined,
+      }),
+  });
+
+  const registros = (data ?? []).filter((r) => {
+    if (!busquedaDebounced) return true;
+    const q = busquedaDebounced.toLowerCase();
+    return [r.usuario_nombre, r.accion, r.entidad, r.entidad_id]
+      .filter(Boolean)
+      .some((v) => String(v).toLowerCase().includes(q));
   });
 
   return (
@@ -162,7 +109,28 @@ function Auditoria() {
                 </tr>
               </thead>
               <tbody>
-                {auditoriaFiltrada.map((registro) => (
+                {isPending && (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-6 text-center text-sm text-muted-foreground">
+                      Cargando auditoría…
+                    </td>
+                  </tr>
+                )}
+                {isError && (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-6 text-center text-sm text-muted-foreground">
+                      No pudimos cargar la auditoría.
+                    </td>
+                  </tr>
+                )}
+                {!isPending && !isError && registros.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-6 text-center text-sm text-muted-foreground">
+                      No hay registros con los filtros actuales.
+                    </td>
+                  </tr>
+                )}
+                {registros.map((registro) => (
                   <FilaAuditoria key={registro.id} registro={registro} />
                 ))}
               </tbody>
@@ -179,20 +147,25 @@ function Auditoria() {
           }}
         >
           <div className="space-y-4 p-4">
-                        <Campo label="Usuario" type="select" value={usuarioSeleccionado} onChange={(e) => setUsuarioSeleccionado(e.target.value)}>
-              <option value="">Todos los usuarios</option>
-              <option value="Manuel">Manuel (SA)</option>
-              <option value="Carlos">Carlos (OP)</option>
-              <option value="Ana">Ana (VAL)</option>
-              <option value="Sistema">Sistema</option>
+            <Campo
+              label="Entidad"
+              type="select"
+              value={entidadSeleccionada}
+              onChange={(e) => setEntidadSeleccionada(e.target.value)}
+            >
+              {ENTIDADES_FILTRO.map((en) => (
+                <option key={en.id} value={en.id}>
+                  {en.label}
+                </option>
+              ))}
             </Campo>
-            <Campo label="Acción" type="select" value={accionSeleccionada} onChange={(e) => setAccionSeleccionada(e.target.value)}>
-              <option value="">Todas las acciones</option>
-              <option value="Actualizar">Actualizar</option>
-              <option value="Cancelar">Cancelar</option>
-              <option value="Aprobar">Aprobar</option>
-              <option value="Desactivar">Desactivar</option>
-            </Campo>
+            <Campo
+              label="Acción (texto)"
+              type="text"
+              value={accionSeleccionada}
+              onChange={(e) => setAccionSeleccionada(e.target.value)}
+              placeholder="Ej. reserva.cancelada"
+            />
             <button
               onClick={() => setFiltrosAbiertos(false)}
               className="w-full rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
@@ -206,69 +179,89 @@ function Auditoria() {
   );
 }
 
-function FilaAuditoria({ registro }: { registro: (typeof auditoriaMock)[0] }) {
+const ETIQUETA_ENTIDAD: Record<string, string> = {
+  reserva: "Reserva",
+  pago: "Pago",
+  cliente: "Cliente",
+  tour: "Tour",
+  fecha_tour: "Salida",
+  usuario: "Usuario",
+  configuracion: "Configuración",
+  tasa_cambio: "Tasa",
+};
+
+function FilaAuditoria({ registro }: { registro: Auditoria }) {
+  const entidadLabel = ETIQUETA_ENTIDAD[registro.entidad] ?? registro.entidad;
+  const valorAnterior =
+    registro.valor_anterior && registro.valor_anterior !== "—" ? registro.valor_anterior : null;
+  const valorNuevo =
+    registro.valor_nuevo && registro.valor_nuevo !== "—" ? registro.valor_nuevo : null;
+
   return (
     <tr className="border-b border-border hover:bg-muted/30">
-      <td className="px-4 py-3 text-muted-foreground">{registro.fecha}</td>
+      <td className="px-4 py-3 text-muted-foreground" title={formatDateTime(registro.fecha)}>
+        {formatRelative(registro.fecha)}
+      </td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
           <User className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-          <span className="font-medium text-foreground">{registro.usuario}</span>
+          <span className="font-medium text-foreground">
+            {registro.usuario_nombre || "Sistema"}
+          </span>
         </div>
       </td>
       <td className="px-4 py-3 font-medium text-foreground">{registro.accion}</td>
       <td className="px-4 py-3">
-        {registro.entidad === "Reserva" && registro.entidad_id ? (
+        {registro.entidad === "reserva" && registro.entidad_id ? (
           <Link
             to="/admin/reservas/$id"
             params={{ id: registro.entidad_id }}
             className="inline-flex items-center gap-1 text-primary hover:underline"
           >
-            {registro.entidad_id}
+            {entidadLabel}
             <ArrowRight className="h-3 w-3" aria-hidden="true" />
           </Link>
-        ) : registro.entidad === "Pago" && registro.entidad_id ? (
+        ) : registro.entidad === "pago" && registro.entidad_id ? (
           <Link
             to="/admin/pagos/$id"
             params={{ id: registro.entidad_id }}
             className="inline-flex items-center gap-1 text-primary hover:underline"
           >
-            {registro.entidad_id}
+            {entidadLabel}
             <ArrowRight className="h-3 w-3" aria-hidden="true" />
           </Link>
-        ) : registro.entidad_id ? (
-          <span className="inline-flex items-center gap-1 text-muted-foreground">
-            {registro.entidad_id}
-          </span>
         ) : (
-          <span className="text-muted-foreground">—</span>
+          <span className="text-muted-foreground">{entidadLabel}</span>
         )}
       </td>
       <td className="px-4 py-3">
         <div className="space-y-1">
-          {registro.valor_anterior && (
+          {valorAnterior && (
             <div className="text-xs text-muted-foreground">
-              Antes: <span className="font-mono">{registro.valor_anterior}</span>
+              Antes: <span className="font-mono">{valorAnterior}</span>
             </div>
           )}
-          {registro.valor_nuevo && (
+          {valorNuevo && (
             <div className="text-xs text-foreground">
-              Después: <span className="font-mono">{registro.valor_nuevo}</span>
+              Después: <span className="font-mono">{valorNuevo}</span>
             </div>
+          )}
+          {!valorAnterior && !valorNuevo && (
+            <span className="text-xs text-muted-foreground">—</span>
           )}
         </div>
       </td>
       <td className="px-4 py-3 text-muted-foreground">{registro.motivo || "—"}</td>
       <td className="px-4 py-3">
-        {registro.integridad === "ok" ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-2 py-0.5 text-xs font-semibold text-success">
-            <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
-            OK
-          </span>
-        ) : (
+        {registro.cadena === "rota" ? (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-warning/10 px-2 py-0.5 text-xs font-semibold text-warning">
             <AlertTriangle className="h-3 w-3" aria-hidden="true" />
             Alerta
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-2 py-0.5 text-xs font-semibold text-success">
+            <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+            OK
           </span>
         )}
       </td>

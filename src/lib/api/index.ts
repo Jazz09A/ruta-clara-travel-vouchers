@@ -76,7 +76,11 @@ interface Opciones {
   sinRefresh?: boolean;
 }
 
-async function peticion<T>(path: string, opts: Opciones = {}, params?: Record<string, string | number | boolean | undefined>): Promise<T> {
+async function peticion<T>(
+  path: string,
+  opts: Opciones = {},
+  params?: Record<string, string | number | boolean | undefined>,
+): Promise<T> {
   const headers: Record<string, string> = { ...(opts.headers ?? {}) };
   if (opts.body !== undefined) headers["content-type"] = "application/json";
   if (opts.token) headers["X-Enlace-Token"] = opts.token;
@@ -215,12 +219,6 @@ const publica: ApiPublica = {
 
   resumen: (token) => peticion("/public/reserva/resumen", { token }),
 
-  aplicarPromocion: (token, codigo, version) =>
-    peticion("/public/reserva/promocion", { metodo: "POST", token, body: { codigo, version } }),
-
-  quitarPromocion: (token, version) =>
-    peticion("/public/reserva/promocion", { metodo: "DELETE", token }, { version }),
-
   confirmarResumen: (token, body, idempotencyKey) =>
     peticion("/public/reserva/resumen/confirmar", {
       metodo: "POST",
@@ -269,8 +267,17 @@ const publica: ApiPublica = {
 
 const admin = {
   async login(body: { correo: string; password: string }) {
-    const res = await peticion<{ access_token: string; refresh_token: string; usuario: UsuarioBackend }>("/auth/login", { metodo: "POST", body });
-    if (!("access_token" in res)) throw new ApiError(500, { codigo: "ERROR_INTERNO" as never, mensaje: "Respuesta de login inválida", request_id: "" });
+    const res = await peticion<{
+      access_token: string;
+      refresh_token: string;
+      usuario: UsuarioBackend;
+    }>("/auth/login", { metodo: "POST", body });
+    if (!("access_token" in res))
+      throw new ApiError(500, {
+        codigo: "ERROR_INTERNO" as never,
+        mensaje: "Respuesta de login inválida",
+        request_id: "",
+      });
     accessToken = res.access_token;
   },
 
@@ -295,6 +302,13 @@ const admin = {
 
   async notificaciones() {
     return peticion<Notificacion[]>("/adminfx/notificaciones", { admin: true });
+  },
+
+  async marcarNotificacionLeida(id: string) {
+    return peticion<{ ok: boolean }>(`/adminfx/notificaciones/${id}/leer`, {
+      metodo: "POST",
+      admin: true,
+    });
   },
 
   async dashboard() {
@@ -328,6 +342,15 @@ const admin = {
   editarReserva: (id: string, body: { motivo: string; cambios: Record<string, unknown> }) =>
     peticion(`/adminfx/reservas/${id}/editar`, { metodo: "POST", admin: true, body }),
 
+  guardarPrecio: (
+    id: string,
+    body: {
+      motivo: string;
+      lineas: { id?: string; concepto: string; cantidad: number; precio_unit_usd: string }[];
+      ajustes: { id?: string; tipo: "descuento" | "recargo"; monto_usd: string; motivo: string }[];
+    },
+  ) => peticion(`/adminfx/reservas/${id}/precio`, { metodo: "PUT", admin: true, body }),
+
   revelar: (id: string, body: { campo: string; pasajero_ref?: string; motivo: string }) =>
     peticion(`/adminfx/reservas/${id}/revelar`, { metodo: "POST", admin: true, body }),
 
@@ -339,22 +362,27 @@ const admin = {
     body: { origen: string; motivo: string; monto_reembolso?: string; forzar?: boolean },
   ) => peticion(`/adminfx/reservas/${id}/cancelar`, { metodo: "POST", admin: true, body }),
 
-  reprogramar: (id: string, body: { fecha_tour_id: string; motivo: string; diferencia_usd?: string }) =>
-    peticion(`/adminfx/reservas/${id}/reprogramar`, { metodo: "POST", admin: true, body }),
+  reprogramar: (
+    id: string,
+    body: { fecha_tour_id: string; motivo: string; diferencia_usd?: string },
+  ) => peticion(`/adminfx/reservas/${id}/reprogramar`, { metodo: "POST", admin: true, body }),
 
   reactivar: (id: string, body: { motivo: string }) =>
     peticion(`/adminfx/reservas/${id}/reactivar`, { metodo: "POST", admin: true, body }),
 
   // ── pagos ──────────────────────────────────────────────────────────
-  pagos: (filtros: FiltroPagos) => peticion("/adminfx/pagos", { admin: true }, queryParams({ ...filtros })),
+  pagos: (filtros: FiltroPagos) =>
+    peticion("/adminfx/pagos", { admin: true }, queryParams({ ...filtros })),
 
   pago: (id: string) => peticion(`/adminfx/pagos/${id}`, { admin: true }),
 
   validarPago: (id: string, body: AccionValidacion) =>
     peticion(`/adminfx/pagos/${id}/validar`, { metodo: "POST", admin: true, body }),
 
-  registrarPagoEfectivo: (id: string, body: { monto: string; referencia?: string; nota?: string }) =>
-    peticion(`/adminfx/pagos/${id}/efectivo`, { metodo: "POST", admin: true, body }),
+  registrarPagoEfectivo: (
+    id: string,
+    body: { monto: string; referencia?: string; nota?: string },
+  ) => peticion(`/adminfx/pagos/${id}/efectivo`, { metodo: "POST", admin: true, body }),
 
   reembolsar: (id: string, body: { monto: string; metodo: string; motivo: string }) =>
     peticion(`/adminfx/pagos/${id}/reembolso`, { metodo: "POST", admin: true, body }),
@@ -390,22 +418,30 @@ const admin = {
   progresoCancelacion: (tarea_id: string) =>
     peticion(`/adminfx/fechas-cancelacion/${tarea_id}`, { admin: true }),
 
-  autorizarSobrecupo: (id: string, body: { cupos_extra: number; motivo: string; codigo_totp: string }) =>
-    peticion(`/adminfx/fechas/${id}/sobrecupo`, { metodo: "POST", admin: true, body }),
+  autorizarSobrecupo: (
+    id: string,
+    body: { cupos_extra: number; motivo: string; codigo_totp: string },
+  ) => peticion(`/adminfx/fechas/${id}/sobrecupo`, { metodo: "POST", admin: true, body }),
 
   guardarTarifa: (body: Partial<Tarifa> & { id?: string }) =>
     peticion("/adminfx/tarifas", { metodo: "POST", admin: true, body }),
 
-  eliminarTarifa: (id: string) => peticion(`/adminfx/tarifas/${id}`, { metodo: "DELETE", admin: true }),
+  eliminarTarifa: (id: string) =>
+    peticion(`/adminfx/tarifas/${id}`, { metodo: "DELETE", admin: true }),
 
-  formulario: (tour_id: string) => peticion(`/adminfx/tours/${tour_id}/formulario`, { admin: true }),
+  formulario: (tour_id: string) =>
+    peticion(`/adminfx/tours/${tour_id}/formulario`, { admin: true }),
 
   guardarFormulario: (tour_id: string, body: { definicion: { campos: CampoDef[] } }) =>
     peticion(`/adminfx/tours/${tour_id}/formulario`, { metodo: "POST", admin: true, body }),
 
   // ── salidas ────────────────────────────────────────────────────────
   salidas: (params?: { mes?: string; tour_id?: string }) =>
-    peticion("/adminfx/salidas", { admin: true }, queryParams({ mes: params?.mes, tour_id: params?.tour_id })),
+    peticion(
+      "/adminfx/salidas",
+      { admin: true },
+      queryParams({ mes: params?.mes, tour_id: params?.tour_id }),
+    ),
 
   salida: (id: string) => peticion(`/adminfx/salidas/${id}`, { admin: true }),
 
@@ -430,8 +466,7 @@ const admin = {
 
   exportacion: (id: string) => peticion(`/exportaciones/${id}`, { admin: true }),
 
-  descargarExportacion: (id: string) =>
-    peticion(`/exportaciones/${id}/descarga`, { admin: true }),
+  descargarExportacion: (id: string) => peticion(`/exportaciones/${id}/descarga`, { admin: true }),
 
   // ── configuración ──────────────────────────────────────────────────
   configuracion: () => peticion("/adminfx/configuracion", { admin: true }),
@@ -439,7 +474,8 @@ const admin = {
   guardarConfiguracion: (body: Partial<Configuracion>) =>
     peticion("/adminfx/configuracion", { metodo: "PUT", admin: true, body }),
 
-  registrarTasa: (body: { valor: string }) => peticion("/adminfx/tasas", { metodo: "POST", admin: true, body }),
+  registrarTasa: (body: { valor: string }) =>
+    peticion("/adminfx/tasas", { metodo: "POST", admin: true, body }),
 
   guardarMetodoPago: (body: Partial<MetodoPago> & { id?: string }) =>
     peticion("/adminfx/metodos-pago", { metodo: "POST", admin: true, body }),
@@ -464,11 +500,49 @@ const admin = {
 
   auditoria: (params?: { entidad?: string; usuario_id?: string; accion?: string }) =>
     peticion("/adminfx/auditoria", { admin: true }, queryParams({ ...params })),
+
+  // ── vouchers (admin) ───────────────────────────────────────────────
+  vouchers: async (reservaId: string) => {
+    const rows = await peticion<Record<string, unknown>[]>(`/reservas/${reservaId}/vouchers`, {
+      admin: true,
+    });
+    return rows.map((v) => {
+      const estado = String(v["estado"] ?? "generando");
+      return {
+        id: String(v["id"]),
+        version: Number(v["version"] ?? 0),
+        estado: (estado === "listo" || estado === "error" ? estado : "generando") as
+          "generando" | "listo" | "error",
+        vigente: Boolean(v["vigente"]),
+        generado_en: String(v["generado_en"] ?? v["creado_en"] ?? new Date().toISOString()),
+        verif_token: "",
+      };
+    });
+  },
+
+  regenerarVoucher: (reservaId: string, body: { motivo: string }) =>
+    peticion(`/reservas/${reservaId}/vouchers/regenerar`, {
+      metodo: "POST",
+      admin: true,
+      body,
+    }),
+
+  voucherDescarga: (voucherId: string) =>
+    peticion(`/vouchers/${voucherId}/descarga`, { admin: true }),
 };
 
 export const api: ApiSurface = { publica, admin: admin as ApiSurface["admin"] };
 
 const API_ORIGIN = BASE_URL.replace(/\/api\/v\d+\/?$/, "");
+
+/** URL del WebSocket de notificaciones (`ws(s)://host/ws`). */
+export const WS_URL = `${API_ORIGIN.replace(/^http/, "ws")}/ws`;
+
+/** Access token vigente para autenticar el handshake del WebSocket. */
+export async function tokenAcceso(forzarRefresh = false): Promise<string | null> {
+  if (forzarRefresh || !accessToken) await refrescarSesion();
+  return accessToken;
+}
 
 /** Convierte una ruta relativa del backend (`/api/v1/...`) en URL absoluta. */
 export function apiAbsUrl(path: string): string {

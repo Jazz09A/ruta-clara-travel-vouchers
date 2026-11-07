@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
+import { api, apiAbsUrl } from "@/lib/api";
 import {
   ArrowLeft,
   Ban,
@@ -33,6 +34,7 @@ import {
   PanelNotas,
   PanelPagosReserva,
   PanelPasajeros,
+  PanelPrecio,
   PanelVoucher,
   ProgresoReserva,
   useReveloTemporal,
@@ -58,7 +60,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { api } from "@/lib/api";
 import { formatRelative, formatUsd } from "@/lib/format";
 import { TRANSICIONES } from "@/lib/domain/state-machine";
 import type { FechaTour, Pago } from "@/lib/domain/types";
@@ -92,7 +93,8 @@ type DialogoActivo =
   | "editar"
   | "efectivo"
   | "reembolso"
-  | "revelar";
+  | "revelar"
+  | "voucher";
 
 /** Campos que el panel de passengers puede editar. */
 const TIPOS_EDITABLES = new Set(["select", "text", "textarea"]);
@@ -158,8 +160,8 @@ function DetalleReserva() {
   }, [consultaCliente.data]);
 
   const camposEditables: CampoEditable[] = React.useMemo(() => {
-    const definicion = consultaTour.data?.form_versiones.find(
-      (version) => version.id === reserva?.form_version_id,
+    const definicion = (consultaTour.data?.form_versiones ?? []).find(
+      (version) => version.id === reserva?.formulario_id,
     );
     if (!definicion) return [];
     return definicion.definicion.campos
@@ -174,7 +176,7 @@ function DetalleReserva() {
         })),
         alcance: campo.alcance,
       }));
-  }, [consultaTour.data, reserva?.form_version_id]);
+  }, [consultaTour.data, reserva?.formulario_id]);
 
   const refrescar = React.useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ["admin", "reserva", id] });
@@ -344,26 +346,61 @@ function DetalleReserva() {
     />
   );
 
+  const panelPrecio = (
+    <PanelPrecio
+      reserva={reserva}
+      puedeEditar={puedeEditar}
+      abierta={abierta}
+      guardando={accionEnCurso === "precio"}
+      onGuardar={async (datos) => {
+        setAccionEnCurso("precio");
+        setMensaje(null);
+        try {
+          const resultado = await api.admin.guardarPrecio(id, datos);
+          const texto = resultado.advertencia
+            ? `Precio actualizado. ${resultado.advertencia}`
+            : "Precio actualizado.";
+          setMensaje({ texto, error: false });
+          toast.success("Precio actualizado.");
+          await refrescar();
+        } catch (error) {
+          const texto = mensajeDeError(error, "No pudimos guardar el precio.");
+          setMensaje({ texto, error: true });
+          toast.error(texto);
+          // El panel conserva el borrador para reintentar.
+          throw error;
+        } finally {
+          setAccionEnCurso(null);
+        }
+      }}
+    />
+  );
+
   const panelFirma = <PanelFirma firma={reserva.firma} />;
+
+  const puedeGenerarVoucher = ["pago_en_verificacion", "confirmada", "completada"].includes(estado);
 
   const panelVoucher = (
     <PanelVoucher
       voucher={reserva.voucher}
       regenerando={accionEnCurso === "voucher"}
-      puedeRegenerar={hayTokenEnlace}
+      puedeRegenerar={puedeGenerarVoucher}
       motivoBloqueo={
-        hayTokenEnlace
+        puedeGenerarVoucher
           ? "La regeneración crea una versión nueva del voucher y deja la anterior como reemplazada."
-          : "Esta reserva no conserva el token del enlace, así que el panel no puede generar el voucher."
+          : "El voucher se genera cuando el pago queda aprobado."
       }
-      onRegenerar={() => {
-        void ejecutar("voucher", async () => {
-          const token = reserva.link_token;
-          if (!token) throw new Error("No hay token del enlace para regenerar el voucher.");
-          await api.publica.voucher(token);
-          return "Voucher regenerado.";
+      descargando={accionEnCurso === "voucher-descarga"}
+      onDescargar={() => {
+        void ejecutar("voucher-descarga", async () => {
+          const voucher = reserva.voucher;
+          if (!voucher) throw new Error("Esta reserva no tiene voucher.");
+          const { url } = await api.admin.voucherDescarga(voucher.id);
+          window.open(apiAbsUrl(url), "_blank", "noopener,noreferrer");
+          return "Voucher listo para descargar.";
         });
       }}
+      onRegenerar={() => setDialogo("voucher")}
     />
   );
 
@@ -377,7 +414,8 @@ function DetalleReserva() {
         const documento = titular?.documento ?? "";
         if (!documento) {
           setMensaje({
-            texto: "El titular todavía no tiene documento, así que no hay ficha de cliente donde guardar la nota.",
+            texto:
+              "El titular todavía no tiene documento, así que no hay ficha de cliente donde guardar la nota.",
             error: true,
           });
           return;
@@ -404,10 +442,7 @@ function DetalleReserva() {
   return (
     <AdminShell
       titulo="Detalle de reserva"
-      breadcrumb={[
-        { label: "Reservas", to: "/admin/reservas" },
-        { label: reserva.codigo },
-      ]}
+      breadcrumb={[{ label: "Reservas", to: "/admin/reservas" }, { label: reserva.codigo }]}
       acciones={
         <div className="flex flex-wrap items-center gap-2">
           {puedeEditar && abierta ? (
@@ -622,6 +657,7 @@ function DetalleReserva() {
               {panelCabecera}
               {panelProgreso}
               {panelPasajeros}
+              {panelPrecio}
               {panelPagos}
             </div>
             <div className="flex flex-col gap-4">
@@ -650,6 +686,7 @@ function DetalleReserva() {
               {panelPasajeros}
             </TabsContent>
             <TabsContent value="pagos" className="flex flex-col gap-4">
+              {panelPrecio}
               {panelPagos}
               {panelFirma}
               {panelVoucher}
@@ -764,6 +801,27 @@ function DetalleReserva() {
             if (!token) throw new Error("No hay token del enlace para reabrir la edición.");
             await api.publica.reabrirEdicion(token, motivo.trim());
             return "Edición reabierta para el titular.";
+          }).then(() => {
+            cerrarDialogo();
+          });
+        }}
+      />
+
+      <DialogoMotivo
+        abierto={dialogo === "voucher"}
+        onAbiertoChange={(abierto) => {
+          if (!abierto) cerrarDialogo();
+        }}
+        titulo="Regenerar el voucher"
+        descripcion="Se crea una versión nueva del voucher y la anterior queda como reemplazada. El motivo queda registrado en la auditoría."
+        textoConfirmar="Regenerar voucher"
+        motivo={motivo}
+        onMotivoChange={setMotivo}
+        cargando={accionEnCurso === "voucher"}
+        onConfirmar={() => {
+          void ejecutar("voucher", async () => {
+            await api.admin.regenerarVoucher(id, { motivo: motivo.trim() });
+            return "Voucher en generación. Vuelve a consultar en unos segundos.";
           }).then(() => {
             cerrarDialogo();
           });
@@ -936,7 +994,9 @@ function DetalleReserva() {
 
       <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <Ticket className="h-3.5 w-3.5" aria-hidden="true" />
-        <span>El servidor es la autoridad: los importes y los estados se muestran, no se calculan.</span>
+        <span>
+          El servidor es la autoridad: los importes y los estados se muestran, no se calculan.
+        </span>
       </p>
     </AdminShell>
   );

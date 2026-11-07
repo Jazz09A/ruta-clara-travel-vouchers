@@ -15,7 +15,11 @@ import {
   type ResultadoVoucher,
   type SesionAdmin,
 } from "@/lib/domain/api";
-import { calcularPrecio, type EntradaCalculo } from "@/lib/domain/pricing";
+import {
+  calcularPrecioAdministrado,
+  type AjusteAdminCalculo,
+  type LineaAdminCalculo,
+} from "@/lib/domain/pricing";
 import { puedeTransicionar } from "@/lib/domain/state-machine";
 import {
   validarCorreo,
@@ -23,7 +27,7 @@ import {
   validarNombre,
   validarTelefono,
 } from "@/lib/domain/validators";
-import { edadEn, toDecimalString } from "@/lib/format";
+import { addDecimals, edadEn, multiplyDecimal, toDecimalString } from "@/lib/format";
 import type {
   Auditoria,
   CampoDef,
@@ -46,6 +50,7 @@ import type {
   ResumenReserva,
   Respuesta,
   Tarifa,
+  TarifaPublica,
   TasaCambio,
   Tour,
   Usuario,
@@ -266,37 +271,89 @@ function tarifaDe(fechaId: string, categoria: string) {
   return db().tarifas.find((t) => t.fecha_tour_id === fechaId && t.categoria === categoria);
 }
 
-function construirResumen(r: Reserva): ResumenReserva {
-  const fecha = db().fechas.find((f) => f.id === r.fecha_tour_id);
-  const formulario = formularioDe(r);
-  const campos = formulario?.definicion.campos ?? [];
+function aCantidad(valor: Respuesta | undefined): number | null {
+  if (typeof valor === "number" && Number.isFinite(valor)) return valor;
+  if (typeof valor === "string" && valor.trim() !== "") {
+    const n = Number.parseFloat(valor);
+    if (!Number.isNaN(n)) return n;
+  }
+  return null;
+}
 
-  const tarifas = db()
-    .tarifas.filter((t) => t.fecha_tour_id === r.fecha_tour_id)
+/** Cantidad contratada de un extra legado (valor global o suma por pasajero). */
+function cantidadRespuestas(id: string, r: Reserva): number {
+  const global = aCantidad(r.respuestas_globales[id]);
+  if (global !== null) return global;
+  let total = 0;
+  for (const pasajero of r.pasajeros) {
+    const valor = aCantidad(pasajero.respuestas[id]);
+    if (valor !== null) total += valor;
+  }
+  return total;
+}
+
+/**
+ * Precio administrado del mock: tarifas por categoría real + líneas extra que
+ * captura el admin (`precio_lineas`) + extras legados que queden en las
+ * respuestas + ajustes manuales (`precio_ajustes`) + promo como descuento.
+ */
+function calculoAdministrado(r: Reserva) {
+  const datos = db();
+  const tarifas = datos.tarifas
+    .filter((t) => t.fecha_tour_id === r.fecha_tour_id)
     .map((t) => ({ categoria: t.categoria, precio_usd: t.precio_usd }));
+  const pasajeros = r.pasajeros.map((p) => ({ categoria: p.categoria }));
 
-  const entrada: EntradaCalculo = {
-    pasajeros: r.pasajeros.map((p) => ({ categoria: p.categoria, respuestas: p.respuestas })),
-    tarifas,
-    camposExtra: camposExtraDe(r),
-    respuestasGlobales: r.respuestas_globales,
-    ...(fecha ? { cuposOpcion: fecha.opciones_cupo } : {}),
-    ...(r.promocion ? { promocion: { tipo: r.promocion.tipo, valor: r.promocion.valor } } : {}),
-    saldoPrevio: totalPagado(r),
-  };
+  const lineas: LineaAdminCalculo[] = [
+    ...camposExtraDe(r).flatMap((campo) => {
+      const cantidad = cantidadRespuestas(campo.id, r);
+      return cantidad > 0
+        ? [{ concepto: campo.label, cantidad, precio_unit_usd: campo.precio_usd }]
+        : [];
+    }),
+    ...(r.precio_lineas ?? []).map((l) => ({
+      concepto: l.concepto,
+      cantidad: l.cantidad,
+      precio_unit_usd: l.precio_unit_usd,
+    })),
+  ];
 
-  const calculo = calcularPrecio(entrada);
+  const ajustes: AjusteAdminCalculo[] = (r.precio_ajustes ?? []).map((a) => ({
+    tipo: a.tipo,
+    monto_usd: a.monto_usd,
+    motivo: a.motivo,
+  }));
+
+  const saldoPrevio = totalPagado(r);
+  let calculo = calcularPrecioAdministrado({ pasajeros, tarifas, lineas, ajustes, saldoPrevio });
+
+  // La promo se resuelve a monto fijo sobre la base (subtotal + adicionales).
+  if (r.promocion) {
+    const base = addDecimals(calculo.subtotal_usd, calculo.adicionales_usd);
+    let monto =
+      r.promocion.tipo === "porcentaje"
+        ? multiplyDecimal(base, r.promocion.valor / 100)
+        : toDecimalString(r.promocion.valor);
+    if (Number.parseFloat(monto) > Number.parseFloat(base)) monto = base;
+    calculo = calcularPrecioAdministrado({
+      pasajeros,
+      tarifas,
+      lineas,
+      ajustes: [
+        ...ajustes,
+        { tipo: "descuento", monto_usd: monto, motivo: `Código ${r.promocion.codigo}` },
+      ],
+      saldoPrevio,
+    });
+  }
+
+  return calculo;
+}
+
+function construirResumen(r: Reserva): ResumenReserva {
+  const calculo = calculoAdministrado(r);
   const tasaVigente = db().tasa.find((t) => t.vigente)?.valor ?? null;
-
-  const categorias = db()
-    .tarifas.filter((t) => t.fecha_tour_id === r.fecha_tour_id)
-    .map((t) => ({
-      categoria: t.categoria,
-      edad_min: t.edad_min,
-      edad_max: t.edad_max,
-      precio_usd: t.precio_usd,
-    }));
-
+  const fecha = db().fechas.find((f) => f.id === r.fecha_tour_id);
   const cuposRestantes = fecha
     ? Math.max(0, fecha.cupos_total - fecha.cupos_vendidos - fecha.cupos_retenidos)
     : 0;
@@ -307,19 +364,14 @@ function construirResumen(r: Reserva): ResumenReserva {
       documento_enmascarado: `${p.tipo_doc}-****${p.documento.slice(-4)}`,
     })),
     respuestas_globales: r.respuestas_globales,
-    lineas: calculo.lineas,
-    subtotal_usd: calculo.subtotal_usd,
-    adicionales_usd: calculo.adicionales_usd,
-    descuento_usd: calculo.descuento_usd,
     total_usd: calculo.total_usd,
     total_bs_estimado: tasaVigente
-      ? (Number.parseFloat(calculo.total_usd) * Number.parseFloat(tasaVigente)).toFixed(2)
+      ? multiplyDecimal(calculo.total_usd, Number.parseFloat(tasaVigente))
       : null,
     tasa_vigente: tasaVigente,
     saldo_usd: calculo.saldo_usd,
     estado_pago: r.estado_pago,
     ...(r.requiere_accion ? { requiere_accion: r.requiere_accion } : {}),
-    categorias_aplicables: categorias,
     cupos_restantes: cuposRestantes,
   };
 }
@@ -348,7 +400,7 @@ function opcionesAgotadas(r: Reserva): Record<string, boolean> {
 function contextoDeSalida(r: Reserva): {
   tour?: Tour;
   fecha?: FechaTour;
-  tarifas?: Tarifa[];
+  tarifas?: TarifaPublica[];
   politica_cancelacion?: PoliticaCancelacion;
   config?: Configuracion;
   formulario?: Formulario;
@@ -362,13 +414,43 @@ function contextoDeSalida(r: Reserva): {
     ? datos.politicas.find((p) => p.id === tour.politica_cancelacion_id)
     : undefined;
 
+  // El cliente nunca ve precios unitarios ni campos `extra` (toldos): el
+  // precio lo fija la agencia y el cliente solo ve el total.
+  const tarifas = datos.tarifas
+    .filter((t) => t.fecha_tour_id === r.fecha_tour_id)
+    .map(({ precio_usd: _precio, ...t }) => t);
+  const formularioPublico = formulario
+    ? {
+        ...formulario,
+        definicion: {
+          ...formulario.definicion,
+          campos: formulario.definicion.campos
+            .filter((c) => c.tipo !== "extra")
+            .map((c) => {
+              const { precio_usd: _p, ...resto } = c;
+              return {
+                ...resto,
+                ...(c.opciones
+                  ? {
+                      opciones: c.opciones.map((o) => {
+                        const { extra_usd: _eo, ...opcion } = o;
+                        return opcion;
+                      }),
+                    }
+                  : {}),
+              };
+            }),
+        },
+      }
+    : undefined;
+
   return {
     ...(tour ? { tour } : {}),
     ...(fecha ? { fecha } : {}),
-    tarifas: datos.tarifas.filter((t) => t.fecha_tour_id === r.fecha_tour_id),
+    tarifas,
     ...(politica ? { politica_cancelacion: politica } : {}),
     config: datos.config,
-    ...(formulario ? { formulario } : {}),
+    ...(formularioPublico ? { formulario: formularioPublico } : {}),
     opciones_agotadas: opcionesAgotadas(r),
   };
 }
@@ -910,40 +992,6 @@ const publica: ApiSurface["publica"] = {
     return construirResumen(r);
   },
 
-  async aplicarPromocion(token, codigo, version) {
-    const r = buscarReservaPorToken(token);
-    if (!r) throw err(404, "ENLACE_INVALIDO", "Este enlace no es válido.");
-    validarVersion(r, version);
-    const promo = db().promos.find(
-      (p) => p.codigo.toUpperCase() === codigo.trim().toUpperCase() && p.activo,
-    );
-    if (!promo) {
-      throw err(409, "PROMO_INVALIDA", "Ese código no es válido o ya no está disponible.");
-    }
-    if (promo.usos >= promo.usos_max) {
-      throw err(409, "PROMO_INVALIDA", "Ese código ya alcanzó su límite de usos.");
-    }
-    r.promocion = {
-      codigo: promo.codigo,
-      tipo: promo.tipo,
-      valor: promo.valor,
-      descuento_usd: "0.00",
-    };
-    const resumen = construirResumen(r);
-    r.promocion.descuento_usd = resumen.descuento_usd;
-    tocar(r);
-    return { version: r.version, descuento_usd: resumen.descuento_usd };
-  },
-
-  async quitarPromocion(token, version) {
-    const r = buscarReservaPorToken(token);
-    if (!r) throw err(404, "ENLACE_INVALIDO", "Este enlace no es válido.");
-    validarVersion(r, version);
-    delete r.promocion;
-    tocar(r);
-    return { version: r.version, descuento_usd: "0.00" };
-  },
-
   async confirmarResumen(token, body, idempotencyKey) {
     return conIdempotencia(idempotencyKey, async () => {
       const r = buscarReservaPorToken(token);
@@ -981,6 +1029,11 @@ const publica: ApiSurface["publica"] = {
       r.expira_en = r.expira_en ?? horasDesde(db().config.hold_horas ?? 24);
       r.total_usd = resumen.total_usd;
       r.saldo_usd = resumen.saldo_usd;
+      const calculo = calculoAdministrado(r);
+      r.subtotal_usd = calculo.subtotal_usd;
+      r.adicionales_usd = calculo.adicionales_usd;
+      r.descuentos_usd = calculo.descuento_usd;
+      r.desglose = { origen: "administrado", ...calculo };
 
       // Retener cupos al confirmar el resumen (hold)
       if (fecha && r.pasajeros.length > 0) {
@@ -1291,6 +1344,12 @@ const admin: ApiSurface["admin"] = {
     return db().notificaciones;
   },
 
+  async marcarNotificacionLeida(id: string) {
+    const n = db().notificaciones.find((x) => x.id === id);
+    if (n) n.leida = true;
+    return { ok: true };
+  },
+
   async dashboard() {
     const datos = db();
     const porEstado = new Map<EstadoReserva, number>();
@@ -1389,6 +1448,7 @@ const admin: ApiSurface["admin"] = {
       pagos_por_verificar: [{ total: pendientes.length, mas_antiguo_min: masAntiguo }],
       ingresos_mes_usd: (ingresos / 100).toFixed(2),
       requiere_atencion: requiereAtencion,
+      ventas_por_mes: ventasPorMes(datos),
     };
   },
 
@@ -1473,8 +1533,20 @@ const admin: ApiSurface["admin"] = {
     const pagos = datos.pagos.filter((p) => p.reserva_id === r.id);
     const terminos = datos.terminos.find((t) => t.id === r.terminos_version_id) ?? null;
     const auditoriaDe = datos.auditoria.filter((a) => a.entidad_id === r.id);
+    // La promo sembrada se expone como ajuste origen "promo" (igual que el
+    // backend, que la deriva de reserva_ajuste).
+    const precioAjustes = [...(r.precio_ajustes ?? [])];
+    if (r.promocion && !precioAjustes.some((a) => a.origen === "promo")) {
+      precioAjustes.push({
+        tipo: "descuento",
+        monto_usd: r.promocion.descuento_usd,
+        motivo: `Código ${r.promocion.codigo}`,
+        origen: "promo",
+      });
+    }
     return {
       ...r,
+      precio_ajustes: precioAjustes,
       tour: (tour ?? {}) as Tour,
       fecha: (fecha ?? {}) as FechaTour,
       pagos,
@@ -1615,6 +1687,100 @@ const admin: ApiSurface["admin"] = {
     if (cambios.respuestas_globales) r.respuestas_globales = cambios.respuestas_globales;
     auditoria(usuario, "reserva", id, "reserva.editada", "—", "datos actualizados", body.motivo);
     return { ok: true };
+  },
+
+  async guardarPrecio(id, body) {
+    const r = buscarReserva(id);
+    if (["cancelada", "expirada", "completada"].includes(r.estado)) {
+      throw err(409, "TRANSICION_INVALIDA", "No se puede editar el precio de una reserva cerrada.");
+    }
+    const motivo = body.motivo?.trim() ?? "";
+    if (!motivo) {
+      throw err(422, "VALIDACION", "El motivo del cambio de precio es obligatorio.", {
+        detalles: [{ campo: "motivo", mensaje: "Escribe el motivo del ajuste." }],
+      });
+    }
+
+    const lineasIn = body.lineas ?? [];
+    const ajustesIn = body.ajustes ?? [];
+    for (const [i, l] of lineasIn.entries()) {
+      if (!l.concepto?.trim()) {
+        throw err(422, "VALIDACION", `La línea ${i + 1} necesita un concepto.`, {
+          detalles: [{ campo: `lineas.${i}.concepto`, mensaje: "Escribe el concepto." }],
+        });
+      }
+      if (!Number.isFinite(l.cantidad) || Math.floor(l.cantidad) <= 0) {
+        throw err(422, "VALIDACION", `La línea ${i + 1} necesita una cantidad válida.`, {
+          detalles: [{ campo: `lineas.${i}.cantidad`, mensaje: "Cantidad inválida." }],
+        });
+      }
+      if (!Number.isFinite(Number(l.precio_unit_usd)) || Number(l.precio_unit_usd) < 0) {
+        throw err(422, "VALIDACION", `La línea ${i + 1} necesita un precio válido.`, {
+          detalles: [{ campo: `lineas.${i}.precio_unit_usd`, mensaje: "Precio inválido." }],
+        });
+      }
+    }
+    for (const [i, a] of ajustesIn.entries()) {
+      if (a.tipo !== "descuento" && a.tipo !== "recargo") {
+        throw err(422, "VALIDACION", `El ajuste ${i + 1} tiene un tipo inválido.`, {
+          detalles: [{ campo: `ajustes.${i}.tipo`, mensaje: "Tipo inválido." }],
+        });
+      }
+      if (!Number.isFinite(Number(a.monto_usd)) || Number(a.monto_usd) <= 0) {
+        throw err(422, "VALIDACION", `El ajuste ${i + 1} necesita un monto válido.`, {
+          detalles: [{ campo: `ajustes.${i}.monto_usd`, mensaje: "Monto inválido." }],
+        });
+      }
+      if (!a.motivo?.trim()) {
+        throw err(422, "VALIDACION", `El ajuste ${i + 1} necesita un motivo.`, {
+          detalles: [{ campo: `ajustes.${i}.motivo`, mensaje: "Escribe el motivo." }],
+        });
+      }
+    }
+
+    const anterior = r.total_usd;
+    r.precio_lineas = lineasIn.map((l) => {
+      const cantidad = Math.floor(l.cantidad);
+      const precio = toDecimalString(l.precio_unit_usd);
+      return {
+        concepto: l.concepto.trim(),
+        cantidad,
+        precio_unit_usd: precio,
+        subtotal_usd: multiplyDecimal(precio, cantidad),
+      };
+    });
+    r.precio_ajustes = ajustesIn.map((a) => ({
+      tipo: a.tipo,
+      monto_usd: toDecimalString(a.monto_usd),
+      motivo: a.motivo.trim(),
+      origen: "manual" as const,
+    }));
+
+    const calculo = calculoAdministrado(r);
+    r.subtotal_usd = calculo.subtotal_usd;
+    r.adicionales_usd = calculo.adicionales_usd;
+    r.descuentos_usd = calculo.descuento_usd;
+    r.total_usd = calculo.total_usd;
+    r.saldo_usd = calculo.saldo_usd;
+    r.desglose = { origen: "administrado", ...calculo };
+
+    const usuario = db().usuarios[0] as Usuario;
+    auditoria(usuario, "reserva", id, "reserva.precio_editado", anterior, r.total_usd, motivo);
+    tocar(r);
+
+    const neto = Number.parseFloat(totalPagado(r));
+    return {
+      ok: true as const,
+      total_usd: r.total_usd,
+      saldo_usd: r.saldo_usd,
+      advertencias: calculo.advertencias,
+      ...(neto > 0
+        ? {
+            advertencia:
+              "La reserva ya tiene pagos aprobados; el nuevo total puede dejar saldo a favor o pendiente.",
+          }
+        : {}),
+    };
   },
 
   async revelar(id, body) {
@@ -2286,7 +2452,7 @@ const admin: ApiSurface["admin"] = {
       const campo = datos.formularios
         .find((f) => f.id === tour?.formulario_id)
         ?.definicion.campos.find((c) => c.id === o.campo_id);
-      const etiqueta = campo?.opciones?.find((op: any) => op.valor === o.opcion)?.label ?? o.opcion;
+      const etiqueta = campo?.opciones?.find((op) => op.valor === o.opcion)?.label ?? o.opcion;
       const cantidad = manifest.reduce((acc, r) => {
         const v = r.respuestas_globales[o.campo_id];
         if (v === o.opcion) return acc + 1;
@@ -2356,6 +2522,24 @@ const admin: ApiSurface["admin"] = {
     );
     const t = reservas[0]?.pasajeros.find((p) => p.es_titular);
     if (!t) throw err(404, "NO_ENCONTRADO", "No encontramos ese cliente.");
+
+    const porTour = new Map<string, { tour_id: string; tour: string; veces: number }>();
+    const fechasSalida: string[] = [];
+    for (const r of reservas) {
+      const f = datos.fechas.find((x) => x.id === r.fecha_tour_id);
+      const tour = datos.tours.find((x) => x.id === f?.tour_id);
+      const key = tour?.id ?? "sin_tour";
+      const actual = porTour.get(key) ?? {
+        tour_id: tour?.id ?? "",
+        tour: tour?.nombre ?? "Sin tour",
+        veces: 0,
+      };
+      actual.veces += 1;
+      porTour.set(key, actual);
+      if (f?.fecha_salida) fechasSalida.push(f.fecha_salida);
+    }
+    fechasSalida.sort();
+
     return {
       id,
       nombre: t.nombre,
@@ -2365,6 +2549,14 @@ const admin: ApiSurface["admin"] = {
       correo: "",
       notas: notasCliente.get(id) ?? "",
       reservas,
+      viajes: {
+        total: reservas.length,
+        confirmadas: reservas.filter((r) => r.estado === "confirmada").length,
+        canceladas: reservas.filter((r) => r.estado === "cancelada").length,
+        tours: [...porTour.values()],
+        primera_fecha: fechasSalida[0] ?? null,
+        ultima_fecha: fechasSalida[fechasSalida.length - 1] ?? null,
+      },
     };
   },
 
@@ -2373,6 +2565,59 @@ const admin: ApiSurface["admin"] = {
     const usuario = db().usuarios[0] as Usuario;
     auditoria(usuario, "cliente", id, "cliente.nota", "—", body.notas.slice(0, 60));
     return { ok: true };
+  },
+
+  async vouchers(reservaId) {
+    const r = db().reservas.find((x) => x.id === reservaId);
+    if (!r) throw err(404, "NO_ENCONTRADO", "No encontramos esa reserva.");
+    if (!r.voucher) {
+      r.voucher = {
+        id: `vou_${r.id}`,
+        version: 1,
+        estado: "listo",
+        vigente: true,
+        generado_en: ahoraIso(),
+        url_descarga: `/descarga/voucher?t=${r.ref_corta}`,
+        verif_token: `qr_${r.id}`,
+      };
+      guardarReserva(r);
+    }
+    return [r.voucher];
+  },
+
+  async regenerarVoucher(reservaId, body) {
+    const r = db().reservas.find((x) => x.id === reservaId);
+    if (!r) throw err(404, "NO_ENCONTRADO", "No encontramos esa reserva.");
+    const version = (r.voucher?.version ?? 0) + 1;
+    r.voucher = {
+      id: `vou_${r.id}_v${version}`,
+      version,
+      estado: "listo",
+      vigente: true,
+      generado_en: ahoraIso(),
+      url_descarga: `/descarga/voucher?t=${r.ref_corta}`,
+      verif_token: `qr_${r.id}`,
+    };
+    guardarReserva(r);
+    const usuario = db().usuarios[0] as Usuario;
+    auditoria(
+      usuario,
+      "reserva",
+      r.id,
+      "voucher.regenerar",
+      `v${version - 1}`,
+      body.motivo.slice(0, 60),
+    );
+    return r.voucher;
+  },
+
+  async voucherDescarga(voucherId) {
+    const r = db().reservas.find((x) => x.voucher?.id === voucherId);
+    if (!r?.voucher) throw err(404, "NO_ENCONTRADO", "No encontramos ese voucher.");
+    return {
+      url: `https://api.demo.local${r.voucher.url_descarga ?? `/descarga/voucher?t=${r.ref_corta}`}`,
+      expira_en: new Date(Date.now() + 15 * 60_000).toISOString(),
+    };
   },
 
   async reportes(params) {
@@ -2720,6 +2965,28 @@ const CREDENCIALES: (Credencial & { rol: string })[] = [
 // ---------------------------------------------------------------------------
 
 export const api: ApiSurface = { publica, admin };
+
+/** Ventas aprobadas agrupadas por mes (últimos 12 meses). */
+function ventasPorMes(datos: ReturnType<typeof db>) {
+  const meses = new Map<string, { total: number; reservas: number }>();
+  for (const p of datos.pagos) {
+    if (p.estado !== "aprobado" || !p.fecha_pago) continue;
+    const mes = p.fecha_pago.slice(0, 7);
+    const actual = meses.get(mes) ?? { total: 0, reservas: 0 };
+    actual.total += Math.round(Number.parseFloat(p.monto) * 100);
+    actual.reservas += 1;
+    meses.set(mes, actual);
+  }
+  const ahora = new Date();
+  const resultado: { mes: string; total_usd: string; reservas: number }[] = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(ahora.getFullYear(), ahora.getMonth() - i, 1);
+    const mes = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const v = meses.get(mes) ?? { total: 0, reservas: 0 };
+    resultado.push({ mes, total_usd: (v.total / 100).toFixed(2), reservas: v.reservas });
+  }
+  return resultado;
+}
 
 /** Reinicia la base en memoria (útil para la demo y para pruebas). */
 export function reiniciarDemo(): void {

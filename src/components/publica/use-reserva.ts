@@ -16,7 +16,7 @@ import type {
   PoliticaCancelacion,
   Progreso,
   Reserva,
-  Tarifa,
+  TarifaPublica,
   Tour,
   FechaTour,
 } from "@/lib/domain/types";
@@ -33,7 +33,7 @@ import type { EstadoGuardado } from "./ui/EstadoConexion";
 export interface ContextoReserva extends Reserva {
   tour?: Tour | undefined;
   fecha?: FechaTour | undefined;
-  tarifas?: Tarifa[] | undefined;
+  tarifas?: TarifaPublica[] | undefined;
   politica_cancelacion?: PoliticaCancelacion | undefined;
   config?: Configuracion | undefined;
   formulario?: Formulario | undefined;

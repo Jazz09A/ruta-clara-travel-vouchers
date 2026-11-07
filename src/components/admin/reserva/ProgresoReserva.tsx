@@ -23,6 +23,7 @@ const FLUJO: { id: string; etiqueta: string }[] = [
   { id: "acompanantes", etiqueta: "Acompañantes" },
   { id: "preguntas", etiqueta: "Preguntas" },
   { id: "resumen", etiqueta: "Resumen" },
+  { id: "terminos", etiqueta: "Términos" },
   { id: "firma", etiqueta: "Firma" },
   { id: "pago", etiqueta: "Pago" },
   { id: "verificacion", etiqueta: "Verificación" },
@@ -34,10 +35,11 @@ const INDICE_POR_PASO: Record<PasoActual, number> = {
   acompanantes: 1,
   preguntas: 2,
   resumen: 3,
-  firma: 4,
-  pago: 5,
-  verificacion: 6,
-  confirmada: 7,
+  terminos: 4,
+  firma: 5,
+  pago: 6,
+  verificacion: 7,
+  confirmada: 8,
   cerrada: -1,
 };
 
@@ -102,7 +104,10 @@ export function ProgresoReserva({
   return (
     <section
       aria-label="Progreso de la reserva"
-      className={cn("flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 shadow-card", className)}
+      className={cn(
+        "flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 shadow-card",
+        className,
+      )}
     >
       <header className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-sm font-bold text-foreground">Progreso</h2>
@@ -126,7 +131,8 @@ export function ProgresoReserva({
               <span
                 className={cn(
                   "grid h-7 w-7 shrink-0 place-items-center rounded-full border text-xs font-bold",
-                  paso.estado === "completo" && "border-emerald-600/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+                  paso.estado === "completo" &&
+                    "border-emerald-600/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
                   paso.estado === "actual" && "border-primary bg-primary text-primary-foreground",
                   paso.estado === "pendiente" && "border-border bg-muted text-muted-foreground",
                   paso.estado === "bloqueado" && "border-border bg-muted text-muted-foreground",

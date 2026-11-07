@@ -9,7 +9,7 @@ import { dibujarFirma } from "./helpers/firma";
  * Un VPN viaje continuo en una sola pestaña:
  *   1. Admin: login + 2FA → crea el enlace de reserva (tour + fecha publicada).
  *   2. Cliente abre el enlace y completa Bienvenida → Titular → Acompañantes →
- *      Preguntas → Resumen → Términos → Firma.
+ *      Preguntas → Confirmación (total administrado) → Términos → Firma.
  *   3. Cliente reporta el pago (Zelle, total, comprobante).
  *   4. Admin valida el pago en la cola y lo aprueba → reserva confirmada.
  *   5. Cliente ve el voucher confirmado.
@@ -155,16 +155,12 @@ test("flujo completo: enlace → registro → pago → validación → voucher",
   });
 
   // -----------------------------------------------------------------------
-  // 6. CLIENTE: preguntas y resumen
+  // 6. CLIENTE: preguntas y confirmación
   // -----------------------------------------------------------------------
-  await test.step("preguntas del tour y resumen del total", async () => {
-    // La pantalla de Resumen lee su consulta ["resumen"] con staleness de 30 s:
-    // si montamos antes de que envejezca, muestra datos de la era Bienvenida
-    // (placeholder «Pasajero 1», un solo adulto). Un cliente humano tarda
-    // más de 30 s en los pasos anteriores; el test espera esa ventana para
-    // que el resumen refresque al montarse. Sin tocar código de la app.
+  await test.step("preguntas del tour y confirmación del total", async () => {
+    // La consulta ["resumen"] solo se monta en la pantalla de confirmación,
+    // así que llega fresca del "servidor" (mock) al aparecer el total.
     await expect(page.getByRole("heading", { name: "Preguntas del tour" })).toBeVisible();
-    await page.waitForTimeout(31_000);
 
     // Punto de abordaje: respuesta única para toda la reserva.
     await page
@@ -190,8 +186,10 @@ test("flujo completo: enlace → registro → pago → validación → voucher",
 
     await page.getByRole("button", { name: "Continuar" }).click();
 
-    await expect(page.getByRole("heading", { name: "Resumen de tu reserva" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Revisa y confirma tu reserva" })).toBeVisible();
+    // El cliente solo ve el total administrado: sin desglose ni promo.
     await expect(page.getByText("$90,00").first()).toBeVisible();
+    await expect(page.getByLabel("Código promocional")).toHaveCount(0);
     await page.locator("#acepta-politica").click();
     await page.getByRole("button", { name: "Confirmar y continuar" }).click();
 
@@ -299,7 +297,10 @@ test("flujo completo: enlace → registro → pago → validación → voucher",
     await expect(page.getByText("Aprobado").first()).toBeVisible({ timeout: 20_000 });
 
     // El detalle del pago ya muestra el código VJ- asignado en la confirmación.
-    const textoCodigo = await page.getByText(/VJ-2026-\d+/).first().textContent();
+    const textoCodigo = await page
+      .getByText(/VJ-2026-\d+/)
+      .first()
+      .textContent();
     codigoReserva = textoCodigo?.match(/VJ-2026-\d+/)?.[0] ?? "";
     expect(codigoReserva).toMatch(/^VJ-2026-/);
   });

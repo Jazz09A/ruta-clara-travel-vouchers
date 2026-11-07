@@ -25,6 +25,9 @@ export interface PanelVoucherProps {
   puedeRegenerar: boolean;
   /** Motivo por el que no se puede regenerar. */
   motivoBloqueo: string | undefined;
+  /** Descarga admin (endpoint con URL firmada). Si falta, usa `url_descarga`. */
+  onDescargar?: (() => void) | undefined;
+  descargando?: boolean | undefined;
   className?: string | undefined;
 }
 
@@ -34,13 +37,18 @@ export function PanelVoucher({
   onRegenerar,
   puedeRegenerar,
   motivoBloqueo,
+  onDescargar,
+  descargando = false,
   className,
 }: PanelVoucherProps) {
   if (!voucher) {
     return (
       <section
         aria-label="Voucher de la reserva"
-        className={cn("flex flex-col gap-2 rounded-2xl border border-border bg-card p-4 shadow-card", className)}
+        className={cn(
+          "flex flex-col gap-2 rounded-2xl border border-border bg-card p-4 shadow-card",
+          className,
+        )}
       >
         <h2 className="text-sm font-bold text-foreground">Voucher</h2>
         <p className="text-sm text-muted-foreground">
@@ -55,7 +63,10 @@ export function PanelVoucher({
   return (
     <section
       aria-label="Voucher de la reserva"
-      className={cn("flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-card", className)}
+      className={cn(
+        "flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-card",
+        className,
+      )}
     >
       <header className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-sm font-bold text-foreground">Voucher</h2>
@@ -90,7 +101,24 @@ export function PanelVoucher({
       ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
-        {voucher.url_descarga ? (
+        {onDescargar ? (
+          <Button
+            type="button"
+            variant="default"
+            size="sm"
+            className="min-h-11"
+            onClick={onDescargar}
+            disabled={descargando || voucher.estado !== "listo"}
+            aria-busy={descargando || undefined}
+          >
+            {descargando ? (
+              <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Download className="h-4 w-4" aria-hidden="true" />
+            )}
+            <span>{descargando ? "Preparando…" : "Descargar voucher"}</span>
+          </Button>
+        ) : voucher.url_descarga ? (
           <a
             href={voucher.url_descarga}
             target="_blank"
@@ -120,9 +148,7 @@ export function PanelVoucher({
         </Button>
       </div>
 
-      {motivoBloqueo ? (
-        <p className="text-xs text-muted-foreground">{motivoBloqueo}</p>
-      ) : null}
+      {motivoBloqueo ? <p className="text-xs text-muted-foreground">{motivoBloqueo}</p> : null}
 
       <p className="font-mono text-[11px] text-muted-foreground">
         {`token de verificación ${voucher.verif_token}`}

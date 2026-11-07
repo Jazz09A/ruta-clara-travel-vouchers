@@ -89,7 +89,14 @@ export const PERMISOS_POR_ROL: Record<Rol, Permiso[]> = {
     "clientes.ver",
     "reportes.ver",
   ],
-  VAL: ["reservas.ver", "pagos.ver", "pagos.validar", "salidas.ver", "salidas.manifiesto", "tours.ver"],
+  VAL: [
+    "reservas.ver",
+    "pagos.ver",
+    "pagos.validar",
+    "salidas.ver",
+    "salidas.manifiesto",
+    "tours.ver",
+  ],
   GU: ["reservas.ver", "salidas.ver", "salidas.manifiesto", "tours.ver", "clientes.ver"],
 };
 
@@ -170,19 +177,15 @@ export interface Tarifa {
   precio_usd: string;
 }
 
+/** Tarifa tal como la ve el cliente: sin precio (el total lo fija la agencia). */
+export type TarifaPublica = Omit<Tarifa, "precio_usd">;
+
 // ---------------------------------------------------------------------------
 // Motor de formularios dinámicos
 // ---------------------------------------------------------------------------
 
 export type TipoCampo =
-  | "text"
-  | "textarea"
-  | "select"
-  | "multiselect"
-  | "checkbox"
-  | "number"
-  | "date"
-  | "extra";
+  "text" | "textarea" | "select" | "multiselect" | "checkbox" | "number" | "date" | "extra";
 
 export type AlcanceCampo = "por_pasajero" | "por_reserva";
 
@@ -254,7 +257,8 @@ export type EstadoReserva =
   | "cancelada"
   | "expirada";
 
-export type EstadoPago = "sin_pago" | "reportado" | "parcial" | "pagado" | "rechazado" | "reembolsado";
+export type EstadoPago =
+  "sin_pago" | "reportado" | "parcial" | "pagado" | "rechazado" | "reembolsado";
 
 export type PasoActual =
   | "paso_registro"
@@ -290,7 +294,8 @@ export interface Pasajero {
   contacto_emergencia_telefono?: string | undefined;
 }
 
-export type MotivoCierre = "cliente" | "agencia" | "fuerza_mayor" | "expiracion" | "fecha_cancelada";
+export type MotivoCierre =
+  "cliente" | "agencia" | "fuerza_mayor" | "expiracion" | "fecha_cancelada";
 
 export interface Firma {
   id: string;
@@ -334,6 +339,13 @@ export interface Reserva {
   respuestas_globales: Record<string, Respuesta>;
   total_usd: string;
   saldo_usd: string;
+  /** Desglose del precio administrado (solo admin). */
+  subtotal_usd?: string | undefined;
+  adicionales_usd?: string | undefined;
+  descuentos_usd?: string | undefined;
+  precio_lineas?: LineaPrecioAdmin[] | undefined;
+  precio_ajustes?: AjustePrecioAdmin[] | undefined;
+  desglose?: Record<string, unknown> | null | undefined;
   tasa_aplicada: string | null;
   expira_en: string | null;
   version: number;
@@ -344,9 +356,16 @@ export interface Reserva {
   terminos_version_id?: string | undefined;
   firma?: Firma | undefined;
   voucher?: Voucher | undefined;
-  promocion?: { codigo: string; tipo: "porcentaje" | "monto"; valor: number; descuento_usd: string } | undefined;
+  promocion?:
+    | { codigo: string; tipo: "porcentaje" | "monto"; valor: number; descuento_usd: string }
+    | undefined;
   creado_en: string;
   ultima_actividad_en: string;
+  /** Campos de listado que devuelve el backend (admin). */
+  tour_nombre?: string | undefined;
+  fecha_salida?: string | null | undefined;
+  hora_salida?: string | null | undefined;
+  titular_nombre?: string | undefined;
   /** Token del enlace; solo se devuelve al crearlo (D-08). */
   link_token?: string | undefined;
   duplications?: string[] | undefined;
@@ -382,21 +401,39 @@ export interface LineaPrecio {
   total_usd: string;
 }
 
+/** Resumen público: el precio lo fija la agencia; el cliente solo ve el total. */
 export interface ResumenReserva {
   pasajeros: (Pasajero & { documento_enmascarado: string })[];
   respuestas_globales: Record<string, Respuesta>;
-  lineas: LineaPrecio[];
-  subtotal_usd: string;
-  adicionales_usd: string;
-  descuento_usd: string;
   total_usd: string;
   total_bs_estimado: string | null;
   tasa_vigente: string | null;
   saldo_usd: string;
   estado_pago: EstadoPago;
   requiere_accion?: string | undefined;
-  categorias_aplicables: { categoria: Categoria; edad_min: number; edad_max: number; precio_usd: string }[];
   cupos_restantes: number;
+}
+
+// ---------------------------------------------------------------------------
+// Precio administrado (admin)
+// ---------------------------------------------------------------------------
+
+/** Línea extra con costo gestionada por la agencia (toldos y demás cargos). */
+export interface LineaPrecioAdmin {
+  id?: string | undefined;
+  concepto: string;
+  cantidad: number;
+  precio_unit_usd: string;
+  subtotal_usd?: string | undefined;
+}
+
+/** Ajuste manual del admin sobre el precio de la reserva. */
+export interface AjustePrecioAdmin {
+  id?: string | undefined;
+  tipo: "descuento" | "recargo";
+  monto_usd: string;
+  motivo: string;
+  origen?: "manual" | "promo" | undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -418,7 +455,8 @@ export interface MetodoPago {
   instrucciones?: string | undefined;
 }
 
-export type EstadoPagoRegistro = "reportado" | "aprobado" | "rechazado" | "correccion_solicitada" | "anulado";
+export type EstadoPagoRegistro =
+  "reportado" | "aprobado" | "rechazado" | "correccion_solicitada" | "anulado";
 
 export interface Pago {
   id: string;
@@ -562,6 +600,7 @@ export interface DashboardData {
   }[];
   pagos_por_verificar: { total: number; mas_antiguo_min: number }[];
   ingresos_mes_usd: string;
+  ventas_por_mes: { mes: string; total_usd: string; reservas: number }[];
   requiere_atencion: {
     id: string;
     tipo: string;
@@ -577,13 +616,7 @@ export interface DashboardData {
 // ---------------------------------------------------------------------------
 
 export type TipoExportacion =
-  | "reservas"
-  | "tours"
-  | "pasajeros_tour"
-  | "clientes"
-  | "pagos"
-  | "manifest"
-  | "cocina";
+  "reservas" | "tours" | "pasajeros_tour" | "clientes" | "pagos" | "manifest" | "cocina";
 
 export type EstadoExportacion = "en_cola" | "procesando" | "lista" | "error" | "expirada";
 

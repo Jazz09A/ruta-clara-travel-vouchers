@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/select";
 import type { Categoria, Pasajero, TipoDocumento } from "@/lib/domain/types";
 import { calcularCategorias } from "@/lib/domain/pricing";
-import { formatUsd } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 import { BadgeEstado, BirthDateInput, Campo, DialogoConfirmacion } from "../ui";
@@ -101,7 +100,10 @@ export function Acompanantes({
   );
 
   const completo = useMemo(
-    () => pasajeros.map((pasajero) => estaCompleto(pasajero, categorias, fechaSalida, documentoMenores)),
+    () =>
+      pasajeros.map((pasajero) =>
+        estaCompleto(pasajero, categorias, fechaSalida, documentoMenores),
+      ),
     [pasajeros, categorias, fechaSalida, documentoMenores],
   );
 
@@ -166,9 +168,7 @@ export function Acompanantes({
     }
 
     const documentoExigido =
-      categoria === "Niño"
-        ? documentoMenores === "obligatorio"
-        : categoria !== null;
+      categoria === "Niño" ? documentoMenores === "obligatorio" : categoria !== null;
 
     if (documentoExigido && !pasajero.documento.trim()) {
       resultado.documento =
@@ -310,7 +310,9 @@ export function Acompanantes({
               >
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-bold text-foreground">
-                    {esTitular ? `${pasajero.nombre || "Titular"} (tú)` : pasajero.nombre || `Pasajero ${indice + 1}`}
+                    {esTitular
+                      ? `${pasajero.nombre || "Titular"} (tú)`
+                      : pasajero.nombre || `Pasajero ${indice + 1}`}
                   </span>
                   <span className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
                     <span>{categoria ?? "Por definir"}</span>
@@ -400,18 +402,15 @@ export function Acompanantes({
                   </div>
                   {categoria && categorias.length > 0 ? (
                     <p className="-mt-2 text-xs text-muted-foreground">
-                      {`Se calcula por la edad a la fecha de salida. ${
-                        categorias.find((c) => c.categoria === categoria)?.precio_usd
-                          ? `Tarifa ${formatUsd(
-                              categorias.find((c) => c.categoria === categoria)?.precio_usd ?? "0",
-                            )} por persona.`
-                          : ""
-                      }`}
+                      {"Se calcula por la edad a la fecha de salida."}
                     </p>
                   ) : null}
 
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <Campo id={`pasajero-${pasajero.ref_cliente}-tipo-doc`} etiqueta="Tipo de documento">
+                    <Campo
+                      id={`pasajero-${pasajero.ref_cliente}-tipo-doc`}
+                      etiqueta="Tipo de documento"
+                    >
                       {(aria) => (
                         <Select
                           value={pasajero.tipo_doc}
@@ -511,7 +510,9 @@ export function Acompanantes({
                         className="mt-2 inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-input bg-card px-4 text-sm font-semibold text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         <Plus className="h-4 w-4" aria-hidden="true" />
-                        {autorizaciones[pasajero.ref_cliente] ? "Cambiar archivo" : "Adjuntar autorización"}
+                        {autorizaciones[pasajero.ref_cliente]
+                          ? "Cambiar archivo"
+                          : "Adjuntar autorización"}
                       </label>
                     </div>
                   ) : null}
@@ -582,12 +583,12 @@ export function Acompanantes({
           </summary>
           <ul className="mt-2 flex flex-col divide-y divide-border">
             {categorias.map((categoria) => (
-              <li key={categoria.categoria} className="flex items-center justify-between gap-3 py-2">
+              <li
+                key={categoria.categoria}
+                className="flex items-center justify-between gap-3 py-2"
+              >
                 <span className="text-sm text-foreground">
                   {`${categoria.categoria} (${categoria.edad_min} a ${categoria.edad_max} años)`}
-                </span>
-                <span className="text-sm font-bold tabular-nums text-foreground">
-                  {formatUsd(categoria.precio_usd)}
                 </span>
               </li>
             ))}
@@ -636,7 +637,8 @@ function estaCompleto(
   if (!pasajero.nombre.trim()) return false;
   if (!pasajero.fecha_nacimiento) return false;
   const categoria = categoriaDe(pasajero, categorias, fechaSalida);
-  const documentoExigido = categoria === "Niño" ? documentoMenores === "obligatorio" : categoria !== null;
+  const documentoExigido =
+    categoria === "Niño" ? documentoMenores === "obligatorio" : categoria !== null;
   if (documentoExigido && !pasajero.documento.trim()) return false;
   return true;
 }
