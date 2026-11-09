@@ -44,6 +44,13 @@ export function PanelFirma({ firma, className }: PanelFirmaProps) {
   }
 
   const alterada = firma.integridad !== "ok";
+  // Prioridad: URL firmada del storage (detalle admin) y, si no, la miniatura
+  // en base64 que pudiera traer el serializer.
+  const fuenteImagen = firma.imagen_url
+    ? firma.imagen_url
+    : firma.preview
+      ? `data:image/png;base64,${firma.preview}`
+      : "";
 
   return (
     <section
@@ -133,15 +140,20 @@ export function PanelFirma({ firma, className }: PanelFirmaProps) {
           </DialogHeader>
 
           <div className="flex min-h-40 items-center justify-center rounded-2xl border border-border bg-muted/60 p-4">
-            {firma.preview ? (
+            {fuenteImagen ? (
               <img
-                src={`data:image/png;base64,${firma.preview}`}
+                src={fuenteImagen}
                 alt={`Firma de la reserva ${firma.id}`}
                 className="max-h-72 w-auto max-w-full object-contain"
               />
+            ) : firma.imagen_disponible === false ? (
+              <p className="text-sm font-medium text-muted-foreground">
+                El archivo de la firma ya no está disponible en el almacenamiento. Pide una firma
+                nueva al titular antes de emitir el voucher.
+              </p>
             ) : (
               <p className="text-sm text-muted-foreground">
-                No hay una imagen de la firma disponible en esta demostración.
+                No hay una imagen de la firma disponible.
               </p>
             )}
           </div>

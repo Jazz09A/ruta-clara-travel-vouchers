@@ -141,7 +141,10 @@ export function Firma({
           case "VALIDACION": {
             // Casi siempre: el cliente no llegó al final de los términos.
             setErrorFirma(error.mensajeMostrable);
-            setRedireccion("terminos");
+            // Si los términos ya se aceptaron en esta sesión no se rebota a
+            // esa pantalla: cambiar de pantalla descartaría el dibujo sin
+            // resolver nada (y el backend ya tiene esa aceptación registrada).
+            if (!scrollCompleto) setRedireccion("terminos");
             break;
           }
           case "CONTENIDO_CAMBIO": {

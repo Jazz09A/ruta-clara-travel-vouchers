@@ -297,14 +297,17 @@ function ArranquePublico({ token }: { token: string }) {
     if (anterior) irAPaso(anterior);
   };
 
-  const avanzar = async (paso: string, payload: Record<string, unknown> = {}) => {
+  /** Completa un paso en el servidor. Devuelve `true` si lo aceptó. */
+  const avanzar = async (paso: string, payload: Record<string, unknown> = {}): Promise<boolean> => {
     setContinuarCargando(true);
     setErrorPaso(null);
     try {
       await completarPaso(paso, payload);
       setPasoForzado(null);
+      return true;
     } catch (error) {
       setErrorPaso(mensajeDeError(error));
+      return false;
     } finally {
       setContinuarCargando(false);
     }
@@ -461,13 +464,15 @@ function ArranquePublico({ token }: { token: string }) {
           <Terminos
             token={token}
             onAceptar={async (aceptacion) => {
-              setAceptacionTerminos(aceptacion);
+              // La aceptación sólo se adopta si el servidor la guardó: si
+              // falla, la pantalla de términos se queda abierta con el error.
               // El servidor espera snake_case en `scroll_completo`; la UI
               // maneja `scrollCompleto` (AceptacionTerminos).
-              await avanzar("terminos", {
+              const ok = await avanzar("terminos", {
                 scroll_completo: aceptacion.scrollCompleto,
                 versionTerminosId: aceptacion.versionTerminosId,
               });
+              if (ok) setAceptacionTerminos(aceptacion);
             }}
             onAtras={() => irAPaso("resumen")}
             errorServidor={errorPaso ?? undefined}
@@ -476,7 +481,38 @@ function ArranquePublico({ token }: { token: string }) {
           />
         );
 
-      case "firma":
+      case "firma": {
+        // P-07 (leer y aceptar los términos) es previo a P-08 (firmar), pero
+        // el servidor pasa directo de «resumen» a «firma»: sin este paso la
+        // primera firma salía siempre con `scroll_completo=false` y el backend
+        // la rechazaba con 422, devolviendo al cliente a los términos y
+        // perdiendo el dibujo.
+        //
+        // Si los términos ya se aceptaron en una sesión anterior, la reserva
+        // trae `terminos_version_id` y se firma directo (el backend acepta esa
+        // evidencia registrada).
+        const terminosAceptados =
+          Boolean(aceptacionTerminos) || Boolean(reserva.terminos_version_id);
+
+        if (!terminosAceptados) {
+          return (
+            <Terminos
+              token={token}
+              onAceptar={async (aceptacion) => {
+                const ok = await avanzar("terminos", {
+                  scroll_completo: aceptacion.scrollCompleto,
+                  versionTerminosId: aceptacion.versionTerminosId,
+                });
+                if (ok) setAceptacionTerminos(aceptacion);
+              }}
+              onAtras={() => irAPaso("resumen")}
+              errorServidor={errorPaso ?? undefined}
+              refCorta={reserva.ref_corta}
+              nombreTour={reserva.tour?.nombre}
+            />
+          );
+        }
+
         return (
           <Firma
             token={token}
@@ -494,6 +530,7 @@ function ArranquePublico({ token }: { token: string }) {
             nombreTour={reserva.tour?.nombre}
           />
         );
+      }
 
       case "pago":
         return (

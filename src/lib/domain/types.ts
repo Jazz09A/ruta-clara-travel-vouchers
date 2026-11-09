@@ -311,6 +311,10 @@ export interface Firma {
   integridad: "ok" | "alterada";
   /** Miniatura en base64 (solo en la demo en memoria). */
   preview?: string | undefined;
+  /** URL firmada de la imagen de la firma (detalle admin; '' si no hay). */
+  imagen_url?: string | undefined;
+  /** `false` si el archivo de la firma ya no está en el storage. */
+  imagen_disponible?: boolean | undefined;
 }
 
 export type EstadoVoucher = "generando" | "listo" | "error";
