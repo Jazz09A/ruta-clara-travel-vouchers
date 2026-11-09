@@ -6,6 +6,7 @@ import type {
   CodigoError,
   Configuracion,
   DashboardData,
+  DatosAgencia,
   DetalleError,
   EstadoReserva,
   Exportacion,
@@ -170,6 +171,8 @@ export interface ContextoReservaPublica {
 }
 
 export interface ApiPublica {
+  /** Datos de la agencia (nombre y contacto) para personalizar la interfaz. */
+  agencia(): Promise<DatosAgencia>;
   /** Arranque: resuelve el estado y decide la pantalla. */
   reserva(token: string): Promise<ContextoReservaPublica>;
   iniciar(
@@ -526,9 +529,34 @@ export interface ApiAdmin {
 // Superficie completa
 // ---------------------------------------------------------------------------
 
+/**
+ * Onboarding del primer arranque (rutas públicas del API).
+ *
+ * Sólo sirven mientras no exista un administrador: después, `iniciar` responde
+ * 409 (`SETUP_YA_COMPLETADO`).
+ */
+export interface ApiSetup {
+  /** `true` mientras la instalación no tenga administrador. */
+  estado(): Promise<{ requiere_onboarding: boolean }>;
+  /** Crea el primer administrador y deja la sesión iniciada. */
+  iniciar(body: {
+    nombre: string;
+    correo: string;
+    password: string;
+    agencia: {
+      nombre: string;
+      email?: string | undefined;
+      whatsapp?: string | undefined;
+      direccion?: string | undefined;
+      zona_horaria?: string | undefined;
+    };
+  }): Promise<{ usuario: Usuario }>;
+}
+
 export interface ApiSurface {
   publica: ApiPublica;
   admin: ApiAdmin;
+  setup: ApiSetup;
 }
 
 export type { Categoria, Rol };

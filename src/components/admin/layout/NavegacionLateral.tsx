@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { MARCA } from "@/lib/brand";
+import { useAgencia } from "@/lib/agencia";
 import { cn } from "@/lib/utils";
 import {
   ETIQUETA_GRUPO,
@@ -32,6 +32,7 @@ export function NavegacionLateral({
   rutaActual,
 }: NavegacionLateralProps) {
   const { usuario } = useSesion();
+  const agencia = useAgencia();
   const items = menuDelRol(usuario?.rol ?? null);
 
   return (
@@ -52,9 +53,9 @@ export function NavegacionLateral({
           <span className="h-3.5 w-3.5 rounded-full bg-white/90" aria-hidden="true" />
         </span>
         {!colapsada ? (
-          <span className="truncate text-base font-extrabold tracking-tight">{MARCA.nombre}</span>
+          <span className="truncate text-base font-extrabold tracking-tight">{agencia.nombre}</span>
         ) : (
-          <span className="sr-only">{MARCA.nombre}</span>
+          <span className="sr-only">{agencia.nombre}</span>
         )}
       </div>
 

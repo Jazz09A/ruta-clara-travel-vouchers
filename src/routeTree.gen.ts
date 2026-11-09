@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as InstalarRouteImport } from './routes/instalar'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminAuditoriaRouteImport } from './routes/admin.auditoria'
 import { Route as AdminClientesRouteImport } from './routes/admin.clientes'
@@ -51,6 +52,11 @@ import { Route as AdminToursIdFormularioRouteImport } from './routes/admin.tours
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InstalarRoute = InstalarRouteImport.update({
+  id: '/instalar',
+  path: '/instalar',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
@@ -248,6 +254,7 @@ const AdminToursIdFormularioRoute = AdminToursIdFormularioRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/instalar': typeof InstalarRoute
   '/admin/auditoria': typeof AdminAuditoriaRoute
   '/admin/clientes': typeof AdminClientesRouteWithChildren
   '/admin/configuracion': typeof AdminConfiguracionRouteWithChildren
@@ -288,6 +295,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/instalar': typeof InstalarRoute
   '/admin/auditoria': typeof AdminAuditoriaRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/recuperar': typeof AdminRecuperarRoute
@@ -323,6 +331,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/instalar': typeof InstalarRoute
   '/admin/auditoria': typeof AdminAuditoriaRoute
   '/admin/clientes': typeof AdminClientesRouteWithChildren
   '/admin/configuracion': typeof AdminConfiguracionRouteWithChildren
@@ -365,6 +374,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/instalar'
     | '/admin/auditoria'
     | '/admin/clientes'
     | '/admin/configuracion'
@@ -405,6 +415,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/instalar'
     | '/admin/auditoria'
     | '/admin/login'
     | '/admin/recuperar'
@@ -439,6 +450,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/instalar'
     | '/admin/auditoria'
     | '/admin/clientes'
     | '/admin/configuracion'
@@ -480,6 +492,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  InstalarRoute: typeof InstalarRoute
   AdminAuditoriaRoute: typeof AdminAuditoriaRoute
   AdminClientesRoute: typeof AdminClientesRouteWithChildren
   AdminConfiguracionRoute: typeof AdminConfiguracionRouteWithChildren
@@ -504,6 +517,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/instalar': {
+      id: '/instalar'
+      path: '/instalar'
+      fullPath: '/instalar'
+      preLoaderRoute: typeof InstalarRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -883,6 +903,7 @@ const AdminToursRouteWithChildren = AdminToursRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  InstalarRoute: InstalarRoute,
   AdminAuditoriaRoute: AdminAuditoriaRoute,
   AdminClientesRoute: AdminClientesRouteWithChildren,
   AdminConfiguracionRoute: AdminConfiguracionRouteWithChildren,

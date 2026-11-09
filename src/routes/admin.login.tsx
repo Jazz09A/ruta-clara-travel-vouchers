@@ -8,6 +8,8 @@ import { Field } from "@/components/admin/Field";
 import { ProveedorSesion, useNavegarAdmin, useSesion } from "@/components/admin/auth/sesion";
 import { Input } from "@/components/ui/input";
 import { ApiError } from "@/lib/domain/api";
+import { useAgencia } from "@/lib/agencia";
+import { useSetupRequerido } from "@/lib/hooks/use-setup";
 import { MARCA } from "@/lib/brand";
 
 /**
@@ -54,6 +56,8 @@ function PantallaLogin() {
 function FormularioLogin() {
   const { login, rutaPendiente, motivoCierre, limpiarMotivoCierre, setRutaPendiente } = useSesion();
   const navegar = useNavegarAdmin();
+  const agencia = useAgencia();
+  const { requiereOnboarding, cargando: cargandoSetup } = useSetupRequerido();
 
   const [correo, setCorreo] = useState("");
   const [password, setPassword] = useState("");
@@ -81,6 +85,12 @@ function FormularioLogin() {
   }, [esperaHasta]);
 
   const bloqueado = restante > 0;
+
+  // Instalación sin administrador: el login no aplica, va al onboarding.
+  useEffect(() => {
+    if (cargandoSetup || !requiereOnboarding) return;
+    navegar("/instalar", { reemplazar: true });
+  }, [cargandoSetup, requiereOnboarding, navegar]);
 
   async function enviar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
@@ -133,7 +143,7 @@ function FormularioLogin() {
           <div>
             <h1 className="text-2xl font-extrabold tracking-tight">Entrar al panel</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              {MARCA.nombre} · gestión de reservas, pagos y salidas
+              {agencia.nombre} · gestión de reservas, pagos y salidas
             </p>
           </div>
         </header>

@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
 
 import { ProveedorSesion, useSesion, useNavegarAdmin } from "@/components/admin/auth/sesion";
+import { useSetupRequerido } from "@/lib/hooks/use-setup";
 import { MARCA } from "@/lib/brand";
 
 export const Route = createFileRoute("/")({
@@ -10,7 +11,8 @@ export const Route = createFileRoute("/")({
       { title: `${MARCA.nombre} · Panel administrativo` },
       {
         name: "description",
-        content: "Panel administrativo de Ruta Clara Viajes: gestión de reservas, pagos, salidas y tours.",
+        content:
+          "Panel administrativo de Ruta Clara Viajes: gestión de reservas, pagos, salidas y tours.",
       },
     ],
   }),
@@ -27,16 +29,22 @@ function EntradaAdmin() {
 
 function RedirigirSegunSesion() {
   const { cargando, autenticado } = useSesion();
+  const { requiereOnboarding, cargando: cargandoSetup } = useSetupRequerido();
   const navegar = useNavegarAdmin();
 
   useEffect(() => {
-    if (cargando) return;
+    if (cargando || cargandoSetup) return;
+    // Instalación nueva: primero se crea el administrador.
+    if (requiereOnboarding) {
+      navegar("/instalar", { reemplazar: true });
+      return;
+    }
     if (autenticado) {
       navegar("/admin");
     } else {
       navegar("/admin/login");
     }
-  }, [cargando, autenticado, navegar]);
+  }, [cargando, cargandoSetup, requiereOnboarding, autenticado, navegar]);
 
   // Estado neutro mientras se verifica la sesión
   return (

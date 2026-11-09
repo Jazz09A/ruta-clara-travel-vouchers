@@ -514,6 +514,16 @@ function fechaSalidaDe(r: Reserva): string {
 // ---------------------------------------------------------------------------
 
 const publica: ApiSurface["publica"] = {
+  async agencia() {
+    return {
+      nombre: "Ruta Clara Viajes",
+      email: "hola@rutaclara.ve",
+      telefono: "+584121234567",
+      direccion: "Av. Libertador, Caracas",
+      zona_horaria: "America/Caracas",
+    };
+  },
+
   async reserva(token: string) {
     const datos = db();
     let id = datos.enlaces[token];
@@ -2975,7 +2985,24 @@ const CREDENCIALES: (Credencial & { rol: string })[] = [
 // Superficie pública
 // ---------------------------------------------------------------------------
 
-export const api: ApiSurface = { publica, admin };
+export const api: ApiSurface = {
+  publica,
+  admin,
+  // La demo local ya tiene administrador: el onboarding no aplica.
+  setup: {
+    async estado() {
+      return { requiere_onboarding: false };
+    },
+    async iniciar(body) {
+      const datos = db();
+      const usuario = datos.usuarios.find((u) => u.correo === body.correo.toLowerCase());
+      if (!usuario) {
+        throw err(422, "VALIDACION", "La demo local no crea usuarios nuevos.");
+      }
+      return { usuario: usuario as Usuario };
+    },
+  },
+};
 
 /** Ventas aprobadas agrupadas por mes (últimos 12 meses). */
 function ventasPorMes(datos: ReturnType<typeof db>) {

@@ -3,7 +3,7 @@ import { ExternalLink, LogOut, Plus } from "lucide-react";
 
 import { SheetBottom } from "@/components/admin/SheetBottom";
 import { Button } from "@/components/ui/button";
-import { MARCA } from "@/lib/brand";
+import { useAgencia } from "@/lib/agencia";
 import { cn } from "@/lib/utils";
 import {
   ETIQUETA_GRUPO,
@@ -31,6 +31,7 @@ export interface MenuMasProps {
 
 export function MenuMas({ abierto, onAbiertoCambia, rutaActual }: MenuMasProps) {
   const { usuario, cerrarSesion } = useSesion();
+  const agencia = useAgencia();
   const puedeCrearReserva = usuario ? tienePermiso(usuario.rol, "reservas.crear") : false;
   const items = menuDelRol(usuario?.rol ?? null).filter((item) => !item.barraInferior);
   const grupos = ORDEN_GRUPOS.map((grupo) => ({
@@ -126,7 +127,7 @@ export function MenuMas({ abierto, onAbiertoCambia, rutaActual }: MenuMasProps) 
       </div>
 
       <p className="mt-4 px-3 text-xs text-muted-foreground">
-        {MARCA.nombre} · {MARCA.nombreCompleto}
+        {agencia.nombre} · {agencia.nombreCompleto}
       </p>
     </SheetBottom>
   );

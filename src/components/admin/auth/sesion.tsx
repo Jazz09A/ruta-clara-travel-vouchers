@@ -51,6 +51,13 @@ export interface EstadoSesion {
   autenticado: boolean;
   /** Inicia sesión. */
   login(correo: string, password: string): Promise<void>;
+  /**
+   * Abre sesión con un usuario ya autenticado por el servidor.
+   *
+   * Lo usa el onboarding: `POST /setup/iniciar` deja la sesión lista, así que
+   * no hace falta volver a enviar correo y contraseña.
+   */
+  iniciarSesion(usuario: Usuario): void;
   /** Cierra sesión y limpia la caché de datos. */
   cerrarSesion(): void;
   /** Ruta a la que volver tras el login (validada contra rutas internas). */
@@ -294,6 +301,28 @@ export function cerrarSesion(motivo?: string): void {
   navegarA?.("/admin/login", { reemplazar: true });
 }
 
+/**
+ * Abre sesión con un usuario que el servidor ya autenticó (onboarding).
+ *
+ * Incrementa la época: cualquier restauración de sesión que esté en vuelo
+ * descarta su resultado, así que no puede pisar la sesión recién creada.
+ */
+export function iniciarSesion(usuario: Usuario): void {
+  epocaSesion += 1;
+  avisoMostrado = false;
+  limpiarTemporizadores();
+  fijarEstado({
+    usuario,
+    autenticado: true,
+    cargando: false,
+    rutaPendiente: null,
+    motivoCierre: null,
+    avisoInactividad: false,
+  });
+  guardarRutaPendiente(null);
+  programarInactividad();
+}
+
 export async function refrescarUsuario(): Promise<void> {
   try {
     const { usuario } = await api.admin.yo();
@@ -395,6 +424,7 @@ export function useSesion(): EstadoSesion {
       cargando: foto.cargando,
       autenticado: foto.autenticado,
       login,
+      iniciarSesion,
       cerrarSesion: () => cerrarSesion(),
       setRutaPendiente,
       rutaPendiente: foto.rutaPendiente,
@@ -546,6 +576,7 @@ export function ProveedorSesion({ children }: ProveedorSesionProps): React.JSX.E
       cargando: foto.cargando,
       autenticado: foto.autenticado,
       login,
+      iniciarSesion,
       cerrarSesion: () => cerrarSesion(),
       setRutaPendiente,
       rutaPendiente: foto.rutaPendiente,

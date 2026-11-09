@@ -13,6 +13,20 @@
 
 export type Rol = "SA" | "OP" | "VAL" | "GU";
 
+/**
+ * Datos públicos de la agencia (los fija el onboarding del primer arranque).
+ *
+ * Vienen de `GET /public/agencia`: sin datos sensibles, sólo lo que la
+ * interfaz necesita para presentarse con el nombre real de la agencia.
+ */
+export interface DatosAgencia {
+  nombre: string;
+  email: string | null;
+  telefono: string | null;
+  direccion: string | null;
+  zona_horaria: string;
+}
+
 export interface Usuario {
   id: string;
   nombre: string;
@@ -668,6 +682,8 @@ export type CodigoError =
   | "ARCHIVO_GRANDE"
   | "ARCHIVO_TIPO_INVALIDO"
   | "VALIDACION"
+  | "SETUP_YA_COMPLETADO"
+  | "DEMASIADAS_SOLICITUDES"
   | "EDAD_NO_COINCIDE_CATEGORIA"
   | "DOCUMENTO_DUPLICADO"
   | "TITULAR_MENOR_DE_EDAD"

@@ -27,6 +27,7 @@ import type {
   CampoDef,
   Configuracion,
   DashboardData,
+  DatosAgencia,
   EstadoReserva,
   FechaTour,
   Formulario,
@@ -197,6 +198,8 @@ function queryParams<T extends Record<string, string | number | boolean | undefi
 // ---------------------------------------------------------------------------
 
 const publica: ApiPublica = {
+  agencia: () => peticion<DatosAgencia>("/public/agencia"),
+
   reserva: (token) => peticion("/public/reserva", { token }),
 
   iniciar: (token, body, _idem) =>
@@ -562,7 +565,34 @@ const admin = {
     peticion(`/vouchers/${voucherId}/descarga`, { admin: true }),
 };
 
-export const api: ApiSurface = { publica, admin: admin as ApiSurface["admin"] };
+export const api: ApiSurface = {
+  publica,
+  admin: admin as ApiSurface["admin"],
+  setup: {
+    async estado() {
+      return peticion<{ requiere_onboarding: boolean }>("/setup/estado");
+    },
+
+    async iniciar(body) {
+      const res = await peticion<{
+        access_token: string;
+        refresh_token: string;
+        usuario: UsuarioBackend;
+      }>("/setup/iniciar", { metodo: "POST", body });
+      if (!("access_token" in res)) {
+        throw new ApiError(500, {
+          codigo: "ERROR_INTERNO" as never,
+          mensaje: "Respuesta de instalación inválida",
+          request_id: "",
+        });
+      }
+      // El alta deja la sesión lista: el access token vive en memoria, igual
+      // que en el login (SEG-03).
+      accessToken = res.access_token;
+      return { usuario: usuarioFe(res.usuario) };
+    },
+  },
+};
 
 const API_ORIGIN = BASE_URL.replace(/\/api\/v\d+\/?$/, "");
 

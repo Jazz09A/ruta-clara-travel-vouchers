@@ -14,6 +14,7 @@ import { TriangleAlert, RotateCcw } from "lucide-react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "../components/ui/sonner";
+import { ProveedorAgencia } from "../lib/agencia";
 import { MARCA } from "../lib/brand";
 
 function NotFoundComponent() {
@@ -96,7 +97,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: `${MARCA.nombreCompleto} · Reservas` },
       {
         name: "description",
-        content: "Reservas de Full Days y Fines de Semana: registro, preguntas del tour, firma, pago y voucher.",
+        content:
+          "Reservas de Full Days y Fines de Semana: registro, preguntas del tour, firma, pago y voucher.",
       },
       { name: "author", content: MARCA.nombreCompleto },
       // Las rutas con datos personales y el panel no se indexan (SEG-16).
@@ -104,7 +106,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:title", content: `${MARCA.nombreCompleto} · Reservas` },
       {
         property: "og:description",
-        content: "Reservas de Full Days y Fines de Semana: registro, preguntas del tour, firma, pago y voucher.",
+        content:
+          "Reservas de Full Days y Fines de Semana: registro, preguntas del tour, firma, pago y voucher.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -148,8 +151,11 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      {/* Nombre y contacto reales de la agencia (los fija el onboarding). */}
+      <ProveedorAgencia>
+        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+        <Outlet />
+      </ProveedorAgencia>
     </QueryClientProvider>
   );
 }
