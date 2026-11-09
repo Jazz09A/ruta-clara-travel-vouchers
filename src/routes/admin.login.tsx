@@ -124,7 +124,7 @@ function FormularioLogin() {
   }
 
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center bg-background px-4 py-10">
+    <main className="flex min-h-dvh flex-col items-center justify-center bg-background px-4 py-8 sm:py-10">
       <div className="w-full max-w-md space-y-6">
         <header className="flex flex-col items-center gap-3 text-center">
           <span className="grid h-12 w-12 place-items-center rounded-2xl bg-brand">
@@ -164,29 +164,35 @@ function FormularioLogin() {
             />
           </Field>
 
-          <Field id="password" etiqueta="Contraseña" obligatorio>
+          <Field
+            id="password"
+            etiqueta="Contraseña"
+            obligatorio
+            trailing={
+              <button
+                type="button"
+                onClick={() => setVerPassword((v) => !v)}
+                aria-pressed={verPassword}
+                aria-label={verPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                className="grid h-9 w-9 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                {verPassword ? (
+                  <EyeOff className="h-4 w-4" aria-hidden="true" />
+                ) : (
+                  <Eye className="h-4 w-4" aria-hidden="true" />
+                )}
+              </button>
+            }
+          >
             <Input
               type={verPassword ? "text" : "password"}
               autoComplete="current-password"
               placeholder="••••••••"
               value={password}
               onChange={(evento) => setPassword(evento.target.value)}
-              className="h-11"
+              className="h-11 pr-12"
             />
           </Field>
-          <button
-            type="button"
-            onClick={() => setVerPassword((v) => !v)}
-            aria-pressed={verPassword}
-            className="inline-flex min-h-11 items-center gap-2 rounded text-sm font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-          >
-            {verPassword ? (
-              <EyeOff className="h-4 w-4" aria-hidden="true" />
-            ) : (
-              <Eye className="h-4 w-4" aria-hidden="true" />
-            )}
-            {verPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-          </button>
 
           {error ? (
             <div
@@ -213,16 +219,18 @@ function FormularioLogin() {
             Entrar
           </BotonCargar>
 
-          <div className="flex flex-wrap items-center justify-end gap-2 text-sm">
-            <Link
-              to="/r/$token"
-              params={{ token: "demo" }}
-              className="inline-flex min-h-11 items-center gap-2 rounded font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-            >
-              <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-              Ver el formulario del cliente
-            </Link>
-          </div>
+          {ES_DEV ? (
+            <div className="flex flex-wrap items-center justify-end gap-2 text-sm">
+              <Link
+                to="/r/$token"
+                params={{ token: "demo" }}
+                className="inline-flex min-h-11 items-center gap-2 rounded font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+              >
+                <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+                Ver el formulario del cliente
+              </Link>
+            </div>
+          ) : null}
         </form>
 
         {ES_DEV ? (

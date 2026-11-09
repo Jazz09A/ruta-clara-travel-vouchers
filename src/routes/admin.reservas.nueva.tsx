@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { ArrowLeft, CheckCircle2, Copy, Share2, AlertTriangle, Loader2 } from "lucide-react";
 import { Campo } from "@/components/admin/Campo";
+import { AdminShell } from "@/components/admin/AdminShell";
 import { BotonCargar } from "@/components/admin/BotonCargar";
 import { BotonCopiar } from "@/components/admin/BotonCopiar";
 import { BotonWhatsApp } from "@/components/admin/BotonWhatsApp";
@@ -94,10 +95,14 @@ function CrearEnlace() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-2xl">
+    <AdminShell
+      titulo="Nueva reserva"
+      breadcrumb={[{ label: "Reservas", to: "/admin/reservas" }, { label: "Nueva reserva" }]}
+    >
+      <div className="mx-auto w-full max-w-2xl">
         <Link
           to="/admin/reservas"
-          className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
+          className="mb-4 inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           Volver a reservas
@@ -105,9 +110,9 @@ function CrearEnlace() {
 
         {paso === "form" ? (
           <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
-            <h1 className="text-xl font-extrabold tracking-tight text-foreground">
+            <h2 className="text-xl font-extrabold tracking-tight text-foreground">
               Crear nuevo enlace
-            </h1>
+            </h2>
             <p className="mt-2 text-sm text-muted-foreground">
               Genera un enlace único para que el cliente complete su reserva.
             </p>
@@ -197,6 +202,7 @@ function CrearEnlace() {
           resultado && <ResultadoEnlace resultado={resultado} onCrearOtra={handleCrearOtra} />
         )}
       </div>
+    </AdminShell>
   );
 }
 
@@ -218,9 +224,9 @@ function ResultadoEnlace({
       <div className="flex items-center gap-3">
         <CheckCircle2 className="h-8 w-8 text-success" aria-hidden="true" />
         <div>
-          <h1 className="text-xl font-extrabold tracking-tight text-foreground">
+          <h2 className="text-xl font-extrabold tracking-tight text-foreground">
             Enlace generado
-          </h1>
+          </h2>
           <p className="text-sm text-muted-foreground">
             Este enlace se muestra una sola vez. Cópialo ahora.
           </p>

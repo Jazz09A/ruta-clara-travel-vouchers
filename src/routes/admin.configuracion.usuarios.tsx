@@ -100,23 +100,19 @@ function UsuariosPermisos() {
       <div className="mx-auto w-full max-w-5xl">
         <Link
           to="/admin/configuracion"
-          className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
+          className="mb-4 inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           Volver a configuración
         </Link>
 
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-foreground">
-              Usuarios y permisos
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Gestiona el equipo, roles y accesos al sistema
-            </p>
-          </div>
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">
+            Gestiona el equipo, roles y accesos al sistema
+          </p>
           <Button
             type="button"
+            className="min-h-11 w-full sm:w-auto"
             onClick={() => setEditando({
               id: "",
               nombre: "",

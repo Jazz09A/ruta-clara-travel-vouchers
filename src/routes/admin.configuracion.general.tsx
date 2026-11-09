@@ -42,7 +42,7 @@ function ConfiguracionGeneral() {
       <div className="mx-auto w-full max-w-2xl">
         <Link
           to="/admin/configuracion"
-          className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
+          className="mb-4 inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           Volver a configuración

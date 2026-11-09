@@ -22,6 +22,8 @@ export interface FieldProps {
   obligatorio?: boolean;
   /** El control. Se le inyectan `id`, `aria-invalid` y `aria-describedby`. */
   children: React.ReactElement;
+  /** Contenido alineado a la derecha dentro del campo (p. ej. ver contraseña). */
+  trailing?: React.ReactNode;
   className?: string;
 }
 
@@ -38,6 +40,7 @@ export function Field({
   error,
   obligatorio = false,
   children,
+  trailing,
   className,
 }: FieldProps) {
   const idAyuda = ayuda ? `${id}-ayuda` : null;
@@ -62,7 +65,12 @@ export function Field({
           <span className="ml-1 font-normal text-muted-foreground">(opcional)</span>
         )}
       </label>
-      {hijo}
+      <div className="relative">
+        {hijo}
+        {trailing ? (
+          <div className="absolute inset-y-0 right-0 flex items-center pr-1">{trailing}</div>
+        ) : null}
+      </div>
       {ayuda ? (
         <p id={idAyuda ?? undefined} className="text-xs text-muted-foreground">
           {ayuda}

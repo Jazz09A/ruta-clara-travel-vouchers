@@ -606,13 +606,13 @@ function DetalleReserva() {
           </span>
         </div>
 
-        <h1
+        <h2
           ref={tituloRef}
           tabIndex={-1}
           className="text-2xl font-extrabold tracking-tight text-foreground focus:outline-none"
         >
           {`Reserva ${reserva.codigo}`}
-        </h1>
+        </h2>
 
         <div role="status" aria-live="polite" className="sr-only">
           {mensaje?.texto ?? ""}

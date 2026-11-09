@@ -133,10 +133,6 @@ function ColaPagos() {
       }
     >
       <div className="flex flex-col gap-4">
-        <h1 className="text-2xl font-extrabold tracking-tight text-foreground">
-          Cola del validador
-        </h1>
-
         <p className="text-sm text-muted-foreground">
           Los pagos se muestran del más antiguo al más reciente. Revisa el comprobante, contrasta el
           monto y aprueba o rechaza.

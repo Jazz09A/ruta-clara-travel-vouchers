@@ -9,9 +9,8 @@ import {
   Tag,
   PenTool,
   Users,
-  History,
 } from "lucide-react";
-import { MARCA } from "@/lib/brand";
+import { AdminShell } from "@/components/admin/AdminShell";
 
 export const Route = createFileRoute("/admin/configuracion/")({
   head: () => ({
@@ -91,22 +90,23 @@ const seccionesConfig = [
 
 function Configuracion() {
   return (
-    <div className="flex flex-col gap-6">
-      {/* Cabecera */}
-      <div>
-        <h1 className="text-2xl font-extrabold tracking-tight md:text-3xl">Configuración</h1>
+    <AdminShell
+      titulo="Configuración"
+      breadcrumb={[{ label: "Panel", to: "/admin" }, { label: "Configuración" }]}
+    >
+      <div className="flex flex-col gap-5">
         <p className="text-sm text-muted-foreground">
-          Ajustes generales del sistema, métodos de pago y usuarios
+          Ajustes generales del sistema, métodos de pago y usuarios.
         </p>
-      </div>
 
-      {/* Grid de secciones */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {seccionesConfig.map((seccion) => (
-          <TarjetaSeccion key={seccion.id} seccion={seccion} />
-        ))}
+        {/* Grid de secciones */}
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {seccionesConfig.map((seccion) => (
+            <TarjetaSeccion key={seccion.id} seccion={seccion} />
+          ))}
+        </div>
       </div>
-    </div>
+    </AdminShell>
   );
 }
 
@@ -116,7 +116,7 @@ function TarjetaSeccion({ seccion }: { seccion: (typeof seccionesConfig)[0] }) {
   return (
     <Link
       to={seccion.ruta}
-      className="block rounded-xl border border-border bg-card p-5 shadow-sm transition-colors hover:border-primary/40 hover:bg-accent/40"
+      className="block rounded-xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/40 hover:bg-accent/40 sm:p-5"
     >
       <div className="flex items-start gap-3">
         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">

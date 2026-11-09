@@ -37,13 +37,16 @@ export const Route = createFileRoute("/admin/")({
 type Seg = { label: string; value: number; color: string; dot: string };
 
 function Gauge({ segs, icon: Icon }: { segs: Seg[]; icon: typeof Bus }) {
-  const total = segs.reduce((a, s) => a + s.value, 0);
+  const total = Math.max(
+    1,
+    segs.reduce((a, s) => a + s.value, 0),
+  );
   const r = 52,
     c = Math.PI * r,
     gap = 3;
   let acc = 0;
   return (
-    <div className="relative h-[80px] w-[140px] shrink-0">
+    <div className="relative h-[68px] w-[120px] shrink-0 sm:h-[80px] sm:w-[140px]">
       <svg viewBox="0 0 140 80" className="h-full w-full">
         {segs.map((s) => {
           const len = (s.value / total) * c;
@@ -194,18 +197,20 @@ function Dashboard() {
         </Link>
       }
     >
-      <p className="mb-6 text-sm font-semibold text-foreground">
-        {usuario?.nombre ? `Bienvenido, ${usuario.nombre.split(" ")[0]}` : "Bienvenido"}
-      </p>
-      <p className="-mt-4 mb-6 text-sm text-muted-foreground">
-        Resumen de reservas y actividad de la agencia
-      </p>
-      <div className="mb-4 flex items-center gap-1 rounded-xl border border-border bg-card p-1 text-sm lg:hidden">
+      <div className="mb-5">
+        <p className="text-sm font-semibold text-foreground">
+          {usuario?.nombre ? `Bienvenido, ${usuario.nombre.split(" ")[0]}` : "Bienvenido"}
+        </p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Resumen de reservas y actividad de la agencia
+        </p>
+      </div>
+      <div className="mb-4 grid grid-cols-4 gap-1 rounded-xl border border-border bg-card p-1 text-xs sm:text-sm lg:hidden">
         {["12 meses", "30 días", "7 días", "Hoy"].map((r) => (
           <button
             key={r}
             onClick={() => setRange(r)}
-            className={`rounded-lg px-3 py-1.5 font-semibold ${range === r ? "bg-secondary text-secondary-foreground" : "text-muted-foreground"}`}
+            className={`rounded-lg px-1 py-1.5 text-center font-semibold ${range === r ? "bg-secondary text-secondary-foreground" : "text-muted-foreground"}`}
           >
             {r}
           </button>
@@ -220,17 +225,19 @@ function Dashboard() {
         <>
           <div className="grid gap-4 md:grid-cols-2">
             {kpis.map((k) => (
-              <div key={k.title} className="rounded-2xl bg-card p-5 shadow-card">
-                <div className="flex items-start gap-5">
+              <div key={k.title} className="min-w-0 rounded-2xl bg-card p-4 shadow-card sm:p-5">
+                <div className="flex items-start gap-3 sm:gap-5">
                   <Gauge segs={k.segs} icon={k.icon} />
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <p className="font-semibold">{k.title}</p>
-                      <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="truncate font-semibold">{k.title}</p>
+                      <MoreVertical className="h-4 w-4 shrink-0 text-muted-foreground" />
                     </div>
-                    <div className="mt-1 flex items-baseline gap-3">
-                      <span className="text-3xl font-extrabold text-primary">{k.value}</span>
-                      <span className="flex items-center gap-1 text-sm font-semibold text-success">
+                    <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                      <span className="text-2xl font-extrabold text-primary sm:text-3xl">
+                        {k.value}
+                      </span>
+                      <span className="flex items-center gap-1 text-xs font-semibold text-success sm:text-sm">
                         <TrendingUp className="h-4 w-4" /> {k.delta}
                       </span>
                     </div>
@@ -240,7 +247,7 @@ function Dashboard() {
                   {k.segs.map((s) => (
                     <span
                       key={s.label}
-                      className="flex items-center gap-1.5 rounded-lg bg-muted px-2 py-1 text-xs font-semibold"
+                      className="flex items-center gap-1.5 rounded-lg bg-muted px-2 py-1 text-[11px] font-semibold sm:text-xs"
                     >
                       <span className={`h-2 w-2 rounded-full ${s.dot}`} /> {s.label}
                       <span className="text-muted-foreground">{s.value.toLocaleString("es")}</span>
@@ -252,15 +259,15 @@ function Dashboard() {
           </div>
 
           <div className="mt-4 grid gap-4 xl:grid-cols-3">
-            <div className="rounded-2xl bg-card p-5 shadow-card xl:col-span-2">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="font-bold">Estadísticas de reservas</h2>
-                <span className="text-xs text-muted-foreground">Últimos 12 meses</span>
+            <div className="min-w-0 rounded-2xl bg-card p-4 shadow-card sm:p-5 xl:col-span-2">
+              <div className="mb-4 flex items-center justify-between gap-2">
+                <h2 className="min-w-0 truncate font-bold">Estadísticas de reservas</h2>
+                <span className="shrink-0 text-xs text-muted-foreground">Últimos 12 meses</span>
               </div>
               <VentasPorMes datos={dashboardData?.ventas_por_mes ?? []} />
             </div>
 
-            <div className="rounded-2xl bg-card p-5 shadow-card">
+            <div className="min-w-0 rounded-2xl bg-card p-4 shadow-card sm:p-5">
               <h2 className="mb-4 font-bold">Requiere atención</h2>
               <div className="flex flex-col gap-3">
                 {atencion.length === 0 ? (
@@ -333,7 +340,7 @@ function Dashboard() {
                       style={{ width: `${(s.pax / s.cupo) * 100}%` }}
                     />
                   </div>
-                  <div className="mt-3 flex gap-2 text-xs font-semibold text-primary">
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-primary">
                     <span className="flex items-center gap-1 rounded-md bg-card px-2 py-1">
                       <Users className="h-3 w-3" />
                       {s.pax}/{s.cupo}
@@ -365,14 +372,14 @@ function VentasPorMes({
 }) {
   const maximo = Math.max(1, ...datos.map((d) => Number(d.total_usd)));
   return (
-    <div className="flex h-56 items-end gap-2">
+    <div className="flex h-48 min-w-0 items-end gap-1 sm:h-56 sm:gap-2">
       {datos.map((d) => {
         const pct = Math.max((Number(d.total_usd) / maximo) * 100, 4);
         const mesLabel = MESES_CORTOS[Number(d.mes.slice(5, 7)) - 1] ?? d.mes;
         return (
           <div
             key={d.mes}
-            className="group relative flex h-full flex-1 flex-col justify-end"
+            className="group relative flex h-full min-w-0 flex-1 flex-col justify-end"
             title={`${d.mes}: $${Number(d.total_usd).toLocaleString("es-VE")} · ${d.reservas} reservas`}
           >
             <div

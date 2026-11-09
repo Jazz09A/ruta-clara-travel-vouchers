@@ -52,9 +52,7 @@ export function NavegacionLateral({
           <span className="h-3.5 w-3.5 rounded-full bg-white/90" aria-hidden="true" />
         </span>
         {!colapsada ? (
-          <span className="truncate text-base font-extrabold tracking-tight">
-            {MARCA.nombre}
-          </span>
+          <span className="truncate text-base font-extrabold tracking-tight">{MARCA.nombre}</span>
         ) : (
           <span className="sr-only">{MARCA.nombre}</span>
         )}
@@ -79,6 +77,7 @@ export function NavegacionLateral({
                     <li key={item.id}>
                       <Link
                         to={item.ruta}
+                        activeOptions={{ exact: item.ruta === "/admin" }}
                         aria-current={activo ? "page" : undefined}
                         title={colapsada ? item.etiqueta : undefined}
                         className={cn(
@@ -93,7 +92,11 @@ export function NavegacionLateral({
                           className={cn("h-4.5 w-4.5 shrink-0", activo ? "text-primary" : "")}
                           aria-hidden="true"
                         />
-                        {colapsada ? <span className="sr-only">{item.etiqueta}</span> : item.etiqueta}
+                        {colapsada ? (
+                          <span className="sr-only">{item.etiqueta}</span>
+                        ) : (
+                          item.etiqueta
+                        )}
                       </Link>
                     </li>
                   );

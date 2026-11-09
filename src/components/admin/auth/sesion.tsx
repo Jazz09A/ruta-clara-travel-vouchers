@@ -102,6 +102,12 @@ export function esRutaInternaValida(ruta: string): boolean {
   if (ruta.includes("\\")) return false;
   const base = ruta.split("?")[0] ?? "";
   const limpia = base.length > 1 ? base.replace(/\/+$/, "") : base;
+  // Nunca se guarda como destino pendiente una pantalla de acceso: volver a
+  // ella después de entrar deja al usuario atrapado en el login.
+  const RUTAS_AUTH = ["/admin/login", "/admin/recuperar", "/admin/restablecer"];
+  if (RUTAS_AUTH.some((rutaAuth) => limpia === rutaAuth || limpia.startsWith(`${rutaAuth}/`))) {
+    return false;
+  }
   return RUTAS_INTERNAS.some(
     (permitida) => limpia === permitida || limpia.startsWith(`${permitida}/`),
   );

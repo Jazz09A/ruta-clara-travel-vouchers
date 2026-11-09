@@ -104,22 +104,15 @@ function MetodosPago() {
       <div className="mx-auto w-full max-w-4xl">
         <Link
           to="/admin/configuracion"
-          className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
+          className="mb-4 inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           Volver a configuración
         </Link>
 
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-foreground">
-              Métodos de pago
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Configura las cuentas bancarias, Zelle y Pago Móvil que aceptas
-            </p>
-          </div>
-        </div>
+        <p className="mb-6 text-sm text-muted-foreground">
+          Configura las cuentas bancarias, Zelle y Pago Móvil que aceptas
+        </p>
 
         {/* Lista de métodos */}
         <div className="space-y-4">
@@ -140,11 +133,11 @@ function MetodosPago() {
             metodos.map((metodo) => (
               <div
                 key={metodo.id}
-                className="rounded-2xl border border-border bg-card p-6 shadow-card"
+                className="rounded-2xl border border-border bg-card p-4 shadow-card sm:p-6"
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
                       <h3 className="text-lg font-bold text-foreground">{metodo.nombre}</h3>
                       <Badge variant={metodo.activo ? "default" : "secondary"}>
                         {metodo.activo ? "Activo" : "Inactivo"}
@@ -154,17 +147,24 @@ function MetodosPago() {
 
                     <div className="mt-4 space-y-2">
                       {metodo.datos.map((dato, idx) => (
-                        <div key={idx} className="flex items-center justify-between rounded-lg bg-muted/30 p-3">
-                          <div>
-                            <p className="text-xs font-semibold text-muted-foreground">{dato.etiqueta}</p>
-                            <p className="text-sm font-medium text-foreground">{dato.valor}</p>
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between gap-2 rounded-lg bg-muted/30 p-3"
+                        >
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-muted-foreground">
+                              {dato.etiqueta}
+                            </p>
+                            <p className="break-words text-sm font-medium text-foreground">
+                              {dato.valor}
+                            </p>
                           </div>
                           {dato.copiable && (
                             <Button
                               type="button"
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8"
+                              className="h-8 w-8 shrink-0"
                               onClick={() => copiarAlPortapapeles(dato.valor)}
                             >
                               <Copy className="h-4 w-4" aria-hidden="true" />
@@ -177,12 +177,14 @@ function MetodosPago() {
                     {metodo.instrucciones && (
                       <div className="mt-4 rounded-lg bg-muted/30 p-3">
                         <p className="text-xs font-semibold text-muted-foreground">Instrucciones</p>
-                        <p className="mt-1 text-sm text-foreground">{metodo.instrucciones}</p>
+                        <p className="mt-1 break-words text-sm text-foreground">
+                          {metodo.instrucciones}
+                        </p>
                       </div>
                     )}
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex shrink-0 gap-2 self-end sm:self-auto">
                     <Button
                       type="button"
                       variant="outline"

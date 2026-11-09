@@ -28,7 +28,7 @@ export function ShellAdmin({ titulo, descripcion, acciones, breadcrumb, children
 
   return (
     <AdminShell {...props}>
-      <Encabezado descripcion={descripcion} acciones={acciones} />
+      <Encabezado descripcion={descripcion} />
       {children}
     </AdminShell>
   );

@@ -18,9 +18,13 @@ import {
 /**
  * Cabecera del panel.
  *
- * Móvil: título de la pantalla + acción principal contextual + campana.
- * Escritorio: título + búsqueda global + campana + menú de usuario.
+ * Móvil: título de la pantalla + búsqueda/campana en la primera fila y las
+ * acciones contextuales en una segunda fila desplazable. Así el título nunca
+ * se comprime y los botones no se salen de la pantalla.
+ * Escritorio: una sola fila con título + acciones + búsqueda + campana + usuario.
  */
+
+const ES_DEV = import.meta.env.DEV;
 
 export interface Migaja {
   label: string;
@@ -39,17 +43,15 @@ export function CabeceraAdmin({ titulo, acciones, breadcrumb, tituloRef }: Cabec
   const [buscadorAbierto, setBuscadorAbierto] = useState(false);
 
   return (
-    <header className="sticky top-0 z-20 border-b border-border bg-background/90 backdrop-blur">
-      <div className="flex min-h-16 items-center gap-3 px-4 py-3 lg:px-8">
+    <header className="sticky top-0 z-30 border-b border-border bg-background">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-2 px-3 py-2 sm:px-4 lg:flex-nowrap lg:px-8">
         <div className="min-w-0 flex-1">
           {breadcrumb && breadcrumb.length > 0 ? (
-            <nav aria-label="Ruta de la pantalla" className="mb-0.5">
+            <nav aria-label="Ruta de la pantalla" className="mb-0.5 hidden lg:block">
               <ol className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
                 {breadcrumb.map((miga, indice) => (
                   <li key={`${miga.label}-${indice}`} className="flex items-center gap-1">
-                    {indice > 0 ? (
-                      <ChevronRight className="h-3 w-3" aria-hidden="true" />
-                    ) : null}
+                    {indice > 0 ? <ChevronRight className="h-3 w-3" aria-hidden="true" /> : null}
                     {miga.to ? (
                       <Link to={miga.to} className="rounded hover:text-foreground">
                         {miga.label}
@@ -65,15 +67,13 @@ export function CabeceraAdmin({ titulo, acciones, breadcrumb, tituloRef }: Cabec
           <h1
             ref={tituloRef}
             tabIndex={-1}
-            className="truncate text-xl font-extrabold tracking-tight outline-none lg:text-2xl"
+            className="truncate text-lg font-extrabold tracking-tight outline-none sm:text-xl lg:text-2xl"
           >
             {titulo}
           </h1>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
-          {acciones ? <div className="flex items-center gap-2">{acciones}</div> : null}
-
+        <div className="flex shrink-0 items-center gap-1 lg:order-3 lg:gap-2">
           {/* Búsqueda global (una sola instancia: se adapta a móvil/escritorio). */}
           <BuscadorGlobal abierto={buscadorAbierto} onAbiertoCambia={setBuscadorAbierto} />
 
@@ -101,13 +101,17 @@ export function CabeceraAdmin({ titulo, acciones, breadcrumb, tituloRef }: Cabec
                     {ETIQUETA_ROL[usuario.rol]}
                   </p>
                 </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <a href="/r/demo" target="_blank" rel="noopener noreferrer">
-                    <Bell className="h-4 w-4" aria-hidden="true" />
-                    Ver el formulario del cliente
-                  </a>
-                </DropdownMenuItem>
+                {ES_DEV ? (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <a href="/r/demo" target="_blank" rel="noopener noreferrer">
+                        <Bell className="h-4 w-4" aria-hidden="true" />
+                        Ver el formulario del cliente
+                      </a>
+                    </DropdownMenuItem>
+                  </>
+                ) : null}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onSelect={() => cerrarSesion()}
@@ -120,6 +124,19 @@ export function CabeceraAdmin({ titulo, acciones, breadcrumb, tituloRef }: Cabec
             </DropdownMenu>
           ) : null}
         </div>
+
+        {acciones ? (
+          <div
+            className={[
+              "order-last flex w-full items-center gap-2 overflow-x-auto pb-0.5",
+              "lg:order-2 lg:ml-auto lg:w-auto lg:overflow-visible lg:pb-0",
+              "[&>*]:shrink-0 [&>div]:items-center max-lg:[&>div]:[flex-wrap:nowrap]",
+              "[&_a]:whitespace-nowrap [&_button]:whitespace-nowrap",
+            ].join(" ")}
+          >
+            {acciones}
+          </div>
+        ) : null}
       </div>
     </header>
   );

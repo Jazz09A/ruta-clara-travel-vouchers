@@ -75,7 +75,7 @@ function ContenidoAdminShell({
   if (!autenticado) return <PantallaCarga />;
 
   return (
-    <div className="min-h-dvh bg-background">
+    <div className="min-h-dvh overflow-x-clip bg-background">
       <NavegacionLateral
         colapsada={colapsada}
         onColapsadaCambia={setColapsada}
@@ -97,7 +97,7 @@ function ContenidoAdminShell({
 
         <main
           id="contenido-principal"
-          className="px-4 pb-28 pt-4 lg:px-8 lg:pb-12 lg:pt-6"
+          className="min-w-0 px-3 pb-32 pt-3 sm:px-4 lg:px-8 lg:pb-12 lg:pt-6"
         >
           {children}
         </main>

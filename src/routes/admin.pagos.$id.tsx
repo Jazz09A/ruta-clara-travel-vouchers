@@ -282,13 +282,13 @@ function RevisionPago() {
       }
     >
       <div className="flex flex-col gap-4">
-        <h1
+        <h2
           ref={tituloRef}
           tabIndex={-1}
           className="text-2xl font-extrabold tracking-tight text-foreground focus:outline-none"
         >
           {`Pago ${datosPago.referencia}`}
-        </h1>
+        </h2>
 
         <div role="status" aria-live="polite" className="sr-only">
           {mensaje?.texto ?? ""}

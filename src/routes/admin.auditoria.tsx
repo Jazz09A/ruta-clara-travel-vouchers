@@ -61,25 +61,18 @@ function AuditoriaPage() {
     <AdminShell
       titulo="Auditoría"
       breadcrumb={[{ label: "Panel", to: "/admin" }, { label: "Auditoría" }]}
+      acciones={
+        <button
+          onClick={() => setFiltrosAbiertos(true)}
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-input bg-background px-4 text-sm font-semibold text-foreground transition-colors hover:bg-accent"
+        >
+          <Filter className="h-4 w-4" aria-hidden="true" />
+          Filtros
+        </button>
+      }
     >
-      <div className="flex flex-col gap-6">
-        {/* Cabecera */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-extrabold tracking-tight md:text-3xl">Auditoría</h2>
-            <p className="text-sm text-muted-foreground">
-              Historial de cambios y acciones del sistema
-            </p>
-          </div>
-
-          <button
-            onClick={() => setFiltrosAbiertos(true)}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-input bg-background px-4 text-sm font-semibold text-foreground transition-colors hover:bg-accent"
-          >
-            <Filter className="h-4 w-4" aria-hidden="true" />
-            Filtros
-          </button>
-        </div>
+      <div className="flex flex-col gap-5">
+        <p className="text-sm text-muted-foreground">Historial de cambios y acciones del sistema</p>
 
         {/* Barra de búsqueda */}
         <div className="relative">

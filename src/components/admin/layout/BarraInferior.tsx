@@ -10,8 +10,9 @@ import { useSesion } from "@/components/admin/auth/sesion";
 /**
  * Barra inferior del móvil (< 1024 px).
  *
- * Cuatro accesos: Reservas, Pagos, Salidas y «Más» (Spec §9.1). Los tres
- * primeros sólo aparecen si el rol tiene el permiso; «Más» siempre está.
+ * Accesos principales: Inicio, Reservas, Pagos y Salidas (según permisos)
+ * más «Más» para el resto de secciones. Se mantiene fija al borde inferior,
+ * respeta el área segura y usa fondo opaco para evitar saltos al hacer scroll.
  */
 
 export interface BarraInferiorProps {
@@ -21,45 +22,77 @@ export interface BarraInferiorProps {
 export function BarraInferior({ rutaActual }: BarraInferiorProps) {
   const { usuario } = useSesion();
   const [masAbierto, setMasAbierto] = useState(false);
-  const items = menuDelRol(usuario?.rol ?? null).filter((item) => item.barraInferior);
+
+  const todos = menuDelRol(usuario?.rol ?? null);
+  const items = todos.filter((item) => item.barraInferior);
+  const secundarios = todos.filter((item) => !item.barraInferior);
+  const masActivo = secundarios.some((item) => esRutaActiva(rutaActual, item.ruta));
+  const columnas = Math.max(items.length + 1, 2);
 
   return (
     <>
       <nav
         aria-label="Navegación principal"
         className={cn(
-          "fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 backdrop-blur",
-          "pb-[env(safe-area-inset-bottom)] lg:hidden",
+          "fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background",
+          "pb-[env(safe-area-inset-bottom)] shadow-[0_-6px_20px_-16px_rgba(0,0,0,0.45)]",
+          "lg:hidden",
         )}
       >
-        <ul className="grid grid-cols-4">
+        <ul
+          className="grid w-full items-stretch"
+          style={{ gridTemplateColumns: `repeat(${columnas}, minmax(0, 1fr))` }}
+        >
           {items.map((item) => {
             const activo = esRutaActiva(rutaActual, item.ruta);
             const Icono = item.icono;
             return (
-              <li key={item.id}>
+              <li key={item.id} className="min-w-0">
                 <Link
                   to={item.ruta}
+                  activeOptions={{ exact: item.ruta === "/admin" }}
                   aria-current={activo ? "page" : undefined}
                   className={cn(
-                    "flex min-h-[60px] flex-col items-center justify-center gap-1 px-1 py-2 text-[11px] font-semibold",
+                    "flex min-h-[58px] min-w-0 flex-col items-center justify-center gap-0.5 px-1 pb-1.5 pt-1 text-[10px] font-semibold leading-none",
                     activo ? "text-primary" : "text-muted-foreground",
                   )}
                 >
-                  <Icono className="h-5 w-5" aria-hidden="true" />
-                  {item.etiqueta}
+                  <span
+                    className={cn(
+                      "grid h-8 w-12 place-items-center rounded-full transition-colors",
+                      activo ? "bg-primary/10" : "bg-transparent",
+                    )}
+                  >
+                    <Icono className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <span className="max-w-full truncate">{item.etiqueta}</span>
                 </Link>
               </li>
             );
           })}
-          <li>
+
+          <li className="min-w-0">
             <button
               type="button"
               onClick={() => setMasAbierto(true)}
-              className="flex min-h-[60px] w-full flex-col items-center justify-center gap-1 px-1 py-2 text-[11px] font-semibold text-muted-foreground"
+              aria-haspopup="dialog"
+              aria-expanded={masAbierto}
+              aria-current={masActivo ? "page" : undefined}
+              aria-label="Más secciones"
+              className={cn(
+                "flex min-h-[58px] w-full min-w-0 flex-col items-center justify-center gap-0.5 px-1 pb-1.5 pt-1 text-[10px] font-semibold leading-none",
+                masActivo ? "text-primary" : "text-muted-foreground",
+              )}
             >
-              <MoreHorizontal className="h-5 w-5" aria-hidden="true" />
-              Más
+              <span
+                className={cn(
+                  "grid h-8 w-12 place-items-center rounded-full transition-colors",
+                  masActivo ? "bg-primary/10" : "bg-transparent",
+                )}
+              >
+                <MoreHorizontal className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <span className="max-w-full truncate">Más</span>
             </button>
           </li>
         </ul>

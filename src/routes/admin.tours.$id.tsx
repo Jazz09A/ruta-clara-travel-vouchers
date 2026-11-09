@@ -293,14 +293,14 @@ function FichaTour() {
         </div>
       ) : (
         <Tabs defaultValue="datos">
-          <TabsList className="w-full justify-start overflow-x-auto">
-            <TabsTrigger value="datos" className="min-h-11">
+          <TabsList className="w-full">
+            <TabsTrigger value="datos" className="min-h-11 flex-1 px-2 text-xs sm:text-sm">
               Datos del tour
             </TabsTrigger>
-            <TabsTrigger value="fechas" className="min-h-11">
+            <TabsTrigger value="fechas" className="min-h-11 flex-1 px-2 text-xs sm:text-sm">
               Fechas de salida
             </TabsTrigger>
-            <TabsTrigger value="tarifas" className="min-h-11">
+            <TabsTrigger value="tarifas" className="min-h-11 flex-1 px-2 text-xs sm:text-sm">
               Tarifas
             </TabsTrigger>
           </TabsList>

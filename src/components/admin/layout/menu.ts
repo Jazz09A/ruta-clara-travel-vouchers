@@ -36,11 +36,12 @@ export interface ItemMenu {
 export const MENU: ItemMenu[] = [
   {
     id: "panel",
-    etiqueta: "Panel",
+    etiqueta: "Inicio",
     ruta: RUTAS_ADMIN.dashboard,
     icono: LayoutDashboard,
     permiso: null,
     grupo: "principal",
+    barraInferior: true,
   },
   {
     id: "reservas",
