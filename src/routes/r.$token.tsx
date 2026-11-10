@@ -516,7 +516,12 @@ function ArranquePublico({ token }: { token: string }) {
         return (
           <Firma
             token={token}
-            versionTerminosId={aceptacionTerminos?.versionTerminosId ?? ""}
+            // Si los términos se aceptaron en otra sesión (recarga, otro
+            // dispositivo) el valor local no existe: vale el que la reserva
+            // registró en el servidor.
+            versionTerminosId={
+              aceptacionTerminos?.versionTerminosId ?? reserva.terminos_version_id ?? ""
+            }
             scrollCompleto={aceptacionTerminos?.scrollCompleto ?? false}
             onFirmado={() => {
               void queryClient.invalidateQueries({ queryKey: ["reserva", token] });

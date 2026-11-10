@@ -249,3 +249,47 @@ test("la firma se guarda al primer intento (términos antes de firmar)", async (
     expect(respuestasFirma, "sólo se intentó firmar una vez").toEqual([201]);
   });
 });
+
+test("si los términos ya se aceptaron en otra sesión, firma directo y guarda (201)", async ({
+  page,
+  request,
+}) => {
+  const token = await prepararHastaFirma(request);
+
+  // Aceptación registrada en el servidor: lo que sucede cuando el cliente
+  // acepta los términos y recarga el enlace o regresa en otro dispositivo.
+  const terminos = objeto(await api(request, "get", "/public/terminos", { token }));
+  expect(texto(terminos["id"]), "la versión de términos tiene id").toBeTruthy();
+  const versionActual = async () =>
+    numero(
+      objeto(objeto(await api(request, "get", "/public/reserva", { token }))["reserva"])["version"],
+    );
+  await api(request, "post", "/public/reserva/pasos/terminos/completar", {
+    token,
+    body: {
+      scroll_completo: true,
+      versionTerminosId: texto(terminos["id"]),
+      version: await versionActual(),
+    },
+  });
+
+  const respuestasFirma: number[] = [];
+  page.on("response", (r) => {
+    if (r.url().includes("/public/reserva/firma")) respuestasFirma.push(r.status());
+  });
+
+  await test.step("el enlace abierto de nuevo va directo al lienzo", async () => {
+    await page.goto(`/r/${token}`);
+    await expect(page.locator("canvas")).toBeVisible({ timeout: 30_000 });
+  });
+
+  await test.step("el primer envío de la firma responde 201", async () => {
+    await dibujarFirma(page, page.locator("canvas"));
+    await page.getByRole("button", { name: "Firmar y continuar" }).click();
+
+    await expect(
+      page.getByRole("heading", { name: "Instrucciones de pago", exact: true }),
+    ).toBeVisible({ timeout: 30_000 });
+    expect(respuestasFirma, "sólo se intentó firmar una vez").toEqual([201]);
+  });
+});
