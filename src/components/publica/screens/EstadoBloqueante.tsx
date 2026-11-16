@@ -64,12 +64,7 @@ export function EstadoBloqueante({
         className,
       )}
     >
-      <span
-        className={cn(
-          "grid h-16 w-16 place-items-center rounded-full",
-          ESTILO_TONO[tono],
-        )}
-      >
+      <span className={cn("grid h-16 w-16 place-items-center rounded-full", ESTILO_TONO[tono])}>
         <Icono className="h-8 w-8" aria-hidden="true" />
       </span>
 

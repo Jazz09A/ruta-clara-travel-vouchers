@@ -47,13 +47,7 @@ describe("BirthDateInput (publica/ui)", () => {
   });
 
   it("inicializa correctamente con un valor preexistente", () => {
-    render(
-      <BirthDateInputPublica
-        id="test-fecha"
-        valor="1990-08-25"
-        onChange={() => {}}
-      />
-    );
+    render(<BirthDateInputPublica id="test-fecha" valor="1990-08-25" onChange={() => {}} />);
     const anioInput = screen.getByPlaceholderText("AAAA") as HTMLInputElement;
     expect(anioInput.value).toBe("1990");
   });
@@ -65,7 +59,7 @@ describe("BirthDateInput (publica/ui)", () => {
         valor="1990-08-25"
         disabled={true}
         onChange={() => {}}
-      />
+      />,
     );
     let anioInput = screen.getByPlaceholderText("AAAA") as HTMLInputElement;
     expect(anioInput).toBeDisabled();
@@ -77,7 +71,7 @@ describe("BirthDateInput (publica/ui)", () => {
         valor="1990-08-25"
         deshabilitado={true}
         onChange={() => {}}
-      />
+      />,
     );
     anioInput = screen.getByPlaceholderText("AAAA") as HTMLInputElement;
     expect(anioInput).toBeDisabled();

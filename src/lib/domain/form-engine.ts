@@ -34,6 +34,29 @@ export const MENSAJE_CAMPO_NO_SOPORTADO = "Hay una pregunta que no se puede most
 /** Aviso cuando la opción ya elegida se agotó (Spec §6.3, punto 6). */
 export const MENSAJE_OPCION_AGOTADA = "Esta opción se agotó. Elige otra";
 
+/**
+ * ¿El campo es una selección de comida (almuerzo, menú infantil…)?
+ * Con la bandera global `comidas_deshabilitadas` se oculta del formulario
+ * público sin borrarlo de la definición.
+ *
+ * Incluye los ids de los formularios anteriores a la marca `grupo`, para que
+ * las definiciones ya publicadas se comporten igual sin republicarlas.
+ */
+const CAMPOS_COMIDA_LEGADO: ReadonlySet<string> = new Set(["almuerzo", "menu_infantil"]);
+
+export function esCampoComida(campo: CampoDef): boolean {
+  return campo.grupo === "comida" || CAMPOS_COMIDA_LEGADO.has(campo.id);
+}
+
+/**
+ * ¿Las opciones del campo vienen del catálogo global de puntos de salida?
+ * Se reconoce por la marca explícita `fuente` o por la convención de id
+ * usada desde la primera versión de los formularios.
+ */
+export function esCampoPuntoSalida(campo: CampoDef): boolean {
+  return campo.fuente === "puntos_salida" || campo.id === "punto_abordaje";
+}
+
 export interface ContextoMotor {
   campos: CampoDef[];
   /** respuestas globales de la reserva */
@@ -466,7 +489,9 @@ export function validarCampo(
 
   if (esValorVacio(valor, campo.tipo)) {
     if (!campo.obligatorio) return { ok: true };
-    return { ok: false, mensaje: "Esta pregunta es obligatoria" };
+    // El mensaje identifica la pregunta: en acordeones con varios pasajeros
+    // hace falta saber cuál es la que falta.
+    return { ok: false, mensaje: `Esta pregunta es obligatoria: «${campo.label}»` };
   }
 
   switch (campo.tipo) {

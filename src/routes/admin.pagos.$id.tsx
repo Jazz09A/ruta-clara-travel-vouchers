@@ -1,32 +1,16 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Ban,
-  CircleCheckBig,
-  CircleX,
-  Keyboard,
-  MessageCircleMore,
-  ShieldAlert,
-} from "lucide-react";
+import { ArrowLeft, Ban } from "lucide-react";
 import { toast } from "sonner";
 
 import { AdminShell } from "@/components/admin/AdminShell";
 import { usePermiso, useSesion } from "@/components/admin/sesion";
 import {
   BadgePago,
-  DialogoAprobarPago,
-  DialogoCorreccionPago,
-  DialogoRechazarPago,
   VisorComprobante,
   calcularDiferencia,
   formatearMonto,
-  type DatosAprobacion,
-  type DatosCorreccion,
-  type DatosRechazo,
-  type PagoDuplicado,
 } from "@/components/admin/pagos";
 import { DialogoConfirmacion } from "@/components/core/DialogoConfirmacion";
 import { Banner } from "@/components/core/Banner";
@@ -35,35 +19,29 @@ import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { ETIQUETA_METODO_PAGO, formatDate, formatUsd, maskDocumento } from "@/lib/format";
 import type { Pago, Reserva } from "@/lib/domain/types";
-import { useEsEscritorio } from "@/lib/hooks/use-media-query";
 import { mensajeDeError, nuevoIdempotencyKey } from "@/components/admin/ui/utilidades";
 
 export const Route = createFileRoute("/admin/pagos/$id")({
   head: () => ({
     meta: [
-      { title: "Revisión de pago · Ruta Clara" },
+      { title: "Detalle de pago · Ruta Clara" },
       {
         name: "description",
-        content: "Comprobante y datos del pago listos para validar.",
+        content: "Comprobante y datos del pago registrado.",
       },
     ],
   }),
-  component: RevisionPago,
+  component: DetallePago,
 });
 
-type DialogoActivo = "ninguno" | "aprobar" | "rechazar" | "correccion" | "anular";
-
-function RevisionPago() {
+function DetallePago() {
   const { id } = Route.useParams();
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const esEscritorio = useEsEscritorio();
   const { usuario } = useSesion();
 
   const puedeVer = usePermiso("pagos.ver");
-  const puedeValidar = usePermiso("pagos.validar");
 
-  const [dialogo, setDialogo] = React.useState<DialogoActivo>("ninguno");
+  const [dialogo, setDialogo] = React.useState<"ninguno" | "anular">("ninguno");
   const [accionEnCurso, setAccionEnCurso] = React.useState<string | null>(null);
   const [mensaje, setMensaje] = React.useState<{ texto: string; error: boolean } | null>(null);
   const [motivoAnular, setMotivoAnular] = React.useState("");
@@ -79,12 +57,6 @@ function RevisionPago() {
 
   const pago = consulta.data;
 
-  const consultaDuplicado = useQuery({
-    queryKey: ["admin", "pagos", "referencia", pago?.referencia ?? ""],
-    queryFn: () => api.admin.pagos({ busqueda: pago?.referencia ?? "", limite: 20 }),
-    enabled: Boolean(pago?.duplicado_de_pago_id),
-  });
-
   // Historial de pagos previos de la misma reserva (A-09).
   const consultaPagosReserva = useQuery({
     queryKey: ["admin", "pagos", "reserva", pago?.reserva_id ?? ""],
@@ -95,18 +67,9 @@ function RevisionPago() {
   const pagosPrevios =
     consultaPagosReserva.data?.items.filter((pagoPrevio) => pagoPrevio.id !== pago?.id) ?? [];
 
-  const consultaCola = useQuery({
-    queryKey: ["admin", "pagos", "pendientes"],
-    queryFn: () => api.admin.pagos({ estado: "reportado", limite: 50 }),
-    enabled: puedeVer,
-  });
-
   React.useEffect(() => {
     if (pago) tituloRef.current?.focus();
   }, [pago]);
-
-  const pendientes = consultaCola.data?.items ?? [];
-  const siguiente = pendientes.find((item) => item.id !== id);
 
   const datosPago = pago as (Pago & { reserva: Reserva; comprobante_url?: string }) | undefined;
 
@@ -120,42 +83,13 @@ function RevisionPago() {
     });
   }, [datosPago]);
 
-  const pagoDuplicado: PagoDuplicado | undefined = React.useMemo(() => {
-    if (!datosPago?.duplicado_de_pago_id) return undefined;
-    const anterior = consultaDuplicado.data?.items.find(
-      (item) => item.id === datosPago.duplicado_de_pago_id,
-    );
-    if (!anterior) return undefined;
-    return {
-      id: anterior.id,
-      codigoReserva: anterior.reserva.codigo,
-      estado: anterior.estado,
-      monto: anterior.monto,
-      fecha: anterior.fecha_pago,
-    };
-  }, [consultaDuplicado.data, datosPago]);
-
-  /** Segregación de funciones: quien registró el pago no puede aprobarlo. */
-  const registradoPorMismo =
-    Boolean(usuario) &&
-    Boolean(datosPago?.registrado_por) &&
-    (datosPago?.registrado_por ?? "").trim().toLowerCase() ===
-      (usuario?.nombre ?? "").trim().toLowerCase();
-
-  const puedeAprobar =
-    puedeValidar &&
-    (!registradoPorMismo || usuario?.rol === "SA") &&
-    datosPago?.estado === "reportado";
-
   const refrescar = React.useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ["admin", "pagos"] });
     await queryClient.invalidateQueries({ queryKey: ["admin", "pago", id] });
-    // La vista pública del cliente vive en la misma sesión de la demo: al
-    // aprobar/rechazar un pago hay que invalidar también su reserva y resumen
-    // para que el voucher y el saldo reflejen el cambio sin recargar.
+    await queryClient.invalidateQueries({ queryKey: ["admin", "reserva", pago?.reserva_id] });
     await queryClient.invalidateQueries({ queryKey: ["reserva"] });
     await queryClient.invalidateQueries({ queryKey: ["resumen"] });
-  }, [id, queryClient]);
+  }, [id, pago?.reserva_id, queryClient]);
 
   const ejecutar = React.useCallback(
     async (nombre: string, accion: () => Promise<string>) => {
@@ -168,7 +102,7 @@ function RevisionPago() {
         await refrescar();
         return true;
       } catch (error) {
-        const texto = mensajeDeError(error, "No pudimos resolver el pago.");
+        const texto = mensajeDeError(error, "No pudimos completar la acción.");
         setMensaje({ texto, error: true });
         toast.error(texto);
         return false;
@@ -184,44 +118,12 @@ function RevisionPago() {
     setMotivoAnular("");
   }, []);
 
-  const irAlSiguiente = React.useCallback(() => {
-    if (!siguiente) return;
-    void navigate({ to: "/admin/pagos/$id", params: { id: siguiente.id } });
-  }, [navigate, siguiente]);
-
-  // Atajos de teclado (solo escritorio): abren diálogos, nunca ejecutan solos.
-  React.useEffect(() => {
-    if (!esEscritorio) return;
-    const manejar = (evento: KeyboardEvent) => {
-      const destino = evento.target as HTMLElement | null;
-      const esCampo =
-        destino !== null &&
-        (destino.tagName === "INPUT" ||
-          destino.tagName === "TEXTAREA" ||
-          destino.isContentEditable);
-      if (esCampo) return;
-      if (evento.metaKey || evento.ctrlKey || evento.altKey) return;
-      if (evento.key === "a" || evento.key === "A") {
-        evento.preventDefault();
-        setDialogo("aprobar");
-      } else if (evento.key === "r" || evento.key === "R") {
-        evento.preventDefault();
-        setDialogo("rechazar");
-      } else if (evento.key === "ArrowRight") {
-        evento.preventDefault();
-        irAlSiguiente();
-      }
-    };
-    document.addEventListener("keydown", manejar);
-    return () => document.removeEventListener("keydown", manejar);
-  }, [esEscritorio, irAlSiguiente]);
-
   if (!puedeVer) {
     return (
-      <AdminShell titulo="Revisión de pago">
+      <AdminShell titulo="Detalle de pago">
         <ErrorState
           titulo="No tienes permiso para ver los pagos"
-          mensaje="Tu rol no incluye la revisión de pagos."
+          mensaje="Tu rol no incluye la consulta de pagos."
         />
       </AdminShell>
     );
@@ -229,7 +131,7 @@ function RevisionPago() {
 
   if (consulta.isLoading) {
     return (
-      <AdminShell titulo="Revisión de pago">
+      <AdminShell titulo="Detalle de pago">
         <div role="status" aria-live="polite" className="flex flex-col gap-3">
           <p className="text-sm text-muted-foreground">Cargando el pago…</p>
           <div className="h-64 animate-pulse rounded-2xl border border-border bg-card" />
@@ -240,7 +142,7 @@ function RevisionPago() {
 
   if (consulta.isError || !datosPago) {
     return (
-      <AdminShell titulo="Revisión de pago">
+      <AdminShell titulo="Detalle de pago">
         <ErrorState
           titulo="No pudimos cargar el pago"
           mensaje={mensajeDeError(consulta.error, "Revisa tu conexión e inténtalo de nuevo.")}
@@ -257,7 +159,7 @@ function RevisionPago() {
 
   return (
     <AdminShell
-      titulo="Revisión de pago"
+      titulo="Detalle de pago"
       breadcrumb={[{ label: "Pagos", to: "/admin/pagos" }, { label: datosPago.referencia }]}
       acciones={
         <div className="flex flex-wrap items-center gap-2">
@@ -266,18 +168,8 @@ function RevisionPago() {
             className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-input px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-            <span>Volver a la cola</span>
+            <span>Volver a Pagos</span>
           </Link>
-          <Button
-            type="button"
-            variant="outline"
-            className="min-h-11"
-            onClick={irAlSiguiente}
-            disabled={!siguiente}
-          >
-            <span>Siguiente</span>
-            <ArrowRight className="h-4 w-4" aria-hidden="true" />
-          </Button>
         </div>
       }
     >
@@ -297,22 +189,11 @@ function RevisionPago() {
         {mensaje ? (
           <Banner
             variante={mensaje.error ? "error" : "success"}
-            titulo={mensaje.error ? "No se pudo resolver el pago" : "Listo"}
+            titulo={mensaje.error ? "No se pudo completar la acción" : "Listo"}
             onCerrar={() => setMensaje(null)}
           >
             {mensaje.texto}
           </Banner>
-        ) : null}
-
-        {esEscritorio ? (
-          <p className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Keyboard className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>
-              Atajos: <kbd className="rounded bg-muted px-1">A</kbd> aprobar ·{" "}
-              <kbd className="rounded bg-muted px-1">R</kbd> rechazar ·{" "}
-              <kbd className="rounded bg-muted px-1">→</kbd> siguiente. Siempre piden confirmación.
-            </span>
-          </p>
         ) : null}
 
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
@@ -326,11 +207,11 @@ function RevisionPago() {
 
           <div className="flex flex-col gap-4 xl:col-span-2">
             <section
-              aria-label="Datos a contrastar"
+              aria-label="Datos del pago"
               className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-card"
             >
               <header className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-sm font-bold text-foreground">Datos a contrastar</h2>
+                <h2 className="text-sm font-bold text-foreground">Datos del pago</h2>
                 <BadgePago estado={datosPago.estado} />
               </header>
 
@@ -380,7 +261,7 @@ function RevisionPago() {
               {diferencia ? (
                 <div className="rounded-2xl border border-border bg-muted/40 p-3">
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Monto esperado frente al reportado
+                    Monto esperado frente al registrado
                   </p>
                   <p className="mt-1 text-lg font-bold tabular-nums text-foreground">
                     {formatearMonto(datosPago.reserva.saldo_usd, "USD")}
@@ -389,7 +270,7 @@ function RevisionPago() {
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {diferencia.esSignificativa
-                      ? "La diferencia supera la tolerancia: si apruebas, debes justificar el ajuste."
+                      ? "La diferencia supera la tolerancia registrada."
                       : "La diferencia está dentro de la tolerancia."}
                   </p>
                 </div>
@@ -400,10 +281,9 @@ function RevisionPago() {
                   {datosPago.alertas.map((alerta) => (
                     <li
                       key={`${alerta.codigo}-${alerta.mensaje}`}
-                      className="flex items-start gap-1.5 text-xs font-medium text-amber-900 dark:text-amber-200"
+                      className="text-xs font-medium text-amber-900 dark:text-amber-200"
                     >
-                      <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                      <span>{alerta.mensaje}</span>
+                      {alerta.mensaje}
                     </li>
                   ))}
                 </ul>
@@ -442,53 +322,8 @@ function RevisionPago() {
             >
               <h2 className="text-sm font-bold text-foreground">Qué hacemos con este pago</h2>
 
-              {registradoPorMismo && usuario?.rol !== "SA" ? (
-                <p className="flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-medium text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100">
-                  <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                  <span>
-                    Otro validador debe aprobar este pago: lo registraste tú. Puedes rechazarlo o
-                    pedir corrección.
-                  </span>
-                </p>
-              ) : null}
-
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  className="min-h-11"
-                  disabled={!puedeAprobar || accionEnCurso !== null}
-                  onClick={() => {
-                    claveIdempotencia.current = nuevoIdempotencyKey();
-                    setDialogo("aprobar");
-                  }}
-                >
-                  <CircleCheckBig className="h-4 w-4" aria-hidden="true" />
-                  <span>Aprobar</span>
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="min-h-11"
-                  disabled={!puedeValidar || accionEnCurso !== null}
-                  onClick={() => setDialogo("rechazar")}
-                >
-                  <CircleX className="h-4 w-4" aria-hidden="true" />
-                  <span>Rechazar</span>
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="min-h-11"
-                  disabled={!puedeValidar || accionEnCurso !== null}
-                  onClick={() => setDialogo("correccion")}
-                >
-                  <MessageCircleMore className="h-4 w-4" aria-hidden="true" />
-                  <span>Solicitar corrección</span>
-                </Button>
-
-                {usuario?.rol === "SA" ? (
+              {usuario?.rol === "SA" ? (
+                <div className="flex flex-wrap gap-2">
                   <Button
                     type="button"
                     variant="destructive"
@@ -499,97 +334,22 @@ function RevisionPago() {
                     <Ban className="h-4 w-4" aria-hidden="true" />
                     <span>Anular</span>
                   </Button>
-                ) : null}
-              </div>
-
-              {!puedeValidar ? (
+                </div>
+              ) : (
                 <p className="text-xs text-muted-foreground">
-                  Tu rol puede consultar el pago, pero no resolverlo.
+                  Sólo la administración puede anular un pago.
                 </p>
-              ) : null}
+              )}
 
               {saldoNumero > 0 ? (
                 <p className="text-xs text-muted-foreground">
-                  {`La reserva tiene ${formatUsd(datosPago.reserva.saldo_usd)} pendientes. Si apruebas, quedará como pago parcial.`}
+                  {`La reserva tiene ${formatUsd(datosPago.reserva.saldo_usd)} pendientes.`}
                 </p>
               ) : null}
             </section>
           </div>
         </div>
       </div>
-
-      {diferencia ? (
-        <DialogoAprobarPago
-          abierto={dialogo === "aprobar"}
-          onAbiertoChange={(abierto) => {
-            if (!abierto) cerrarDialogo();
-          }}
-          pago={datosPago}
-          diferencia={diferencia}
-          pagoDuplicado={pagoDuplicado}
-          cargando={accionEnCurso === "aprobar"}
-          onConfirmar={(datos: DatosAprobacion) => {
-            void ejecutar("aprobar", async () => {
-              const resultado = await api.admin.validarPago(id, {
-                accion: "aprobar",
-                idempotencyKey: claveIdempotencia.current,
-                ...(datos.montoValidado ? { monto_validado: datos.montoValidado } : {}),
-                ...(datos.ajusteMotivo ? { motivo: datos.ajusteMotivo } : {}),
-                ...(datos.confirmarDuplicado ? { confirmar_duplicado: true } : {}),
-              });
-              const saldo = Number.parseFloat(resultado.saldo_usd);
-              return saldo <= 0
-                ? "Reserva confirmada, voucher en proceso."
-                : `Pago parcial aprobado, falta ${formatUsd(resultado.saldo_usd)}.`;
-            }).then(() => {
-              cerrarDialogo();
-            });
-          }}
-        />
-      ) : null}
-
-      <DialogoRechazarPago
-        abierto={dialogo === "rechazar"}
-        onAbiertoChange={(abierto) => {
-          if (!abierto) cerrarDialogo();
-        }}
-        pago={datosPago}
-        cargando={accionEnCurso === "rechazar"}
-        onConfirmar={(datos: DatosRechazo) => {
-          void ejecutar("rechazar", async () => {
-            await api.admin.validarPago(id, {
-              accion: "rechazar",
-              idempotencyKey: claveIdempotencia.current,
-              motivo_catalogo: datos.motivoCatalogo,
-              motivo: datos.textoCliente,
-            });
-            return "Pago rechazado. El titular ya puede corregirlo desde su enlace.";
-          }).then(() => {
-            cerrarDialogo();
-          });
-        }}
-      />
-
-      <DialogoCorreccionPago
-        abierto={dialogo === "correccion"}
-        onAbiertoChange={(abierto) => {
-          if (!abierto) cerrarDialogo();
-        }}
-        pago={datosPago}
-        cargando={accionEnCurso === "correccion"}
-        onConfirmar={(datos: DatosCorreccion) => {
-          void ejecutar("correccion", async () => {
-            await api.admin.validarPago(id, {
-              accion: "solicitar_correccion",
-              idempotencyKey: claveIdempotencia.current,
-              texto_cliente: datos.textoCliente,
-            });
-            return "Corrección solicitada. El titular recibió el mensaje.";
-          }).then(() => {
-            cerrarDialogo();
-          });
-        }}
-      />
 
       <DialogoConfirmacion
         open={dialogo === "anular"}

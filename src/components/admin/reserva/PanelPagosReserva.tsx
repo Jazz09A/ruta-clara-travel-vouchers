@@ -18,6 +18,10 @@ import { cn } from "@/lib/utils";
 export interface PanelPagosReservaProps {
   /** Pagos de la reserva. */
   pagos: Pago[];
+  /** El rol puede anotar datos de pago desde la reserva (nace aprobado). */
+  puedeRegistrarPago?: boolean | undefined;
+  /** Abre el formulario para anotar datos de pago. */
+  onRegistrarPago?: (() => void) | undefined;
   /** El rol puede registrar un pago en efectivo. */
   puedeRegistrarEfectivo: boolean;
   /** El rol puede validar pagos. */
@@ -33,6 +37,8 @@ export interface PanelPagosReservaProps {
 
 export function PanelPagosReserva({
   pagos,
+  puedeRegistrarPago,
+  onRegistrarPago,
   puedeRegistrarEfectivo,
   puedeValidar,
   puedeReembolsar,
@@ -43,22 +49,36 @@ export function PanelPagosReserva({
   return (
     <section
       aria-label="Pagos de la reserva"
-      className={cn("flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-card", className)}
+      className={cn(
+        "flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-card",
+        className,
+      )}
     >
       <header className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-bold text-foreground">
-          {`Pagos (${pagos.length})`}
-        </h2>
-        {puedeRegistrarEfectivo ? (
-          <Button type="button" size="sm" className="min-h-11" onClick={onRegistrarEfectivo}>
-            Registrar pago en efectivo
-          </Button>
-        ) : null}
+        <h2 className="text-sm font-bold text-foreground">{`Pagos (${pagos.length})`}</h2>
+        <div className="flex flex-wrap gap-2">
+          {puedeRegistrarPago && onRegistrarPago ? (
+            <Button type="button" size="sm" className="min-h-11" onClick={onRegistrarPago}>
+              Registrar datos de pago
+            </Button>
+          ) : null}
+          {puedeRegistrarEfectivo ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="min-h-11"
+              onClick={onRegistrarEfectivo}
+            >
+              Pago en efectivo
+            </Button>
+          ) : null}
+        </div>
       </header>
 
       {pagos.length === 0 ? (
         <p className="rounded-xl border border-dashed border-border bg-muted/40 p-4 text-sm text-muted-foreground">
-          Todavía no hay pagos reportados para esta reserva.
+          Todavía no hay pagos en esta reserva. Anota los datos cuando el cliente realice el pago.
         </p>
       ) : (
         <ul className="flex flex-col gap-3">

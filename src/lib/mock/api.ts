@@ -27,7 +27,8 @@ import {
   validarNombre,
   validarTelefono,
 } from "@/lib/domain/validators";
-import { addDecimals, edadEn, multiplyDecimal, toDecimalString } from "@/lib/format";
+import { addDecimals, edadEn, formatTime, multiplyDecimal, toDecimalString } from "@/lib/format";
+import { esCampoComida } from "@/lib/domain/form-engine";
 import type {
   Auditoria,
   CampoDef,
@@ -46,6 +47,7 @@ import type {
   Pasajero,
   PoliticaCancelacion,
   Progreso,
+  PuntoSalida,
   Reserva,
   ResumenReserva,
   Respuesta,
@@ -197,6 +199,16 @@ const LABEL_PASO: Record<string, string> = {
   pago: "Pago",
 };
 
+function reportePagoClienteActivo(): boolean {
+  return db().config.reporte_pago_cliente === true;
+}
+
+/** Etiqueta del paso: con el reporte apagado, «Pago» se lee coordinación. */
+function labelDe(id: string): string {
+  if (id === "pago" && !reportePagoClienteActivo()) return "Coordinación de pago";
+  return LABEL_PASO[id] ?? id;
+}
+
 function computarProgreso(r: Reserva): Progreso {
   const indiceActual = ORDEN_PASOS.indexOf(r.paso_actual as (typeof ORDEN_PASOS)[number]);
   const cerrada = r.estado === "cancelada" || r.estado === "expirada" || r.estado === "completada";
@@ -216,7 +228,7 @@ function computarProgreso(r: Reserva): Progreso {
     } else {
       estado = "bloqueado";
     }
-    return { id, label: LABEL_PASO[id] ?? id, estado };
+    return { id, label: labelDe(id), estado };
   });
 
   const camposFaltantes: string[] = [];
@@ -228,7 +240,8 @@ function computarProgreso(r: Reserva): Progreso {
   if (!titular?.correo) camposFaltantes.push("titular.correo");
   if (r.pasajeros.length < 1) camposFaltantes.push("pasajeros");
   if (!r.firma) camposFaltantes.push("firma");
-  if (r.estado_pago !== "pagado") camposFaltantes.push("pago");
+  // El pago sólo falta como acción del cliente si él mismo debe reportarlo.
+  if (reportePagoClienteActivo() && r.estado_pago !== "pagado") camposFaltantes.push("pago");
 
   let mensajeReanudacion: string | undefined;
   if (r.estado === "en_registro" && indiceActual > 0) {
@@ -252,6 +265,147 @@ function computarProgreso(r: Reserva): Progreso {
 
 function formularioDe(r: Reserva) {
   return db().formularios.find((f) => f.id === r.formulario_id);
+}
+
+/** Opciones del catálogo global de puntos de salida (sólo activos y seleccionables). */
+function opcionesPuntos(): { valor: string; label: string }[] {
+  const opciones = db()
+    .puntos_salida.filter((p) => p.activo && p.seleccionable !== false)
+    .map((p) => ({ valor: p.clave, label: `${p.nombre}, ${formatTime(p.hora)}` }));
+  // Caracas sí es elegible como ciudad: la pseudo-opción guarda la decisión y
+  // el punto definitivo se confirma después por WhatsApp (los puntos reales de
+  // Caracas siguen en `puntos_referencia` como sugerencia).
+  const hayCaracas = db().puntos_salida.some(
+    (p) =>
+      p.activo && p.seleccionable === false && (p.ciudad ?? "").toLowerCase().includes("caracas"),
+  );
+  if (hayCaracas) opciones.push({ valor: "caracas", label: "Caracas — punto por confirmar" });
+  return opciones;
+}
+
+/**
+ * Puntos activos que el cliente NO puede elegir, agrupados por ciudad
+ * (los de Caracas se confirman después por WhatsApp). Se envían en el
+ * campo `puntos_referencia` para el bloque informativo del formulario.
+ */
+function puntosReferencia(): NonNullable<CampoDef["puntos_referencia"]> {
+  const grupos = new Map<
+    string,
+    { clave: string; nombre: string; hora: string; referencia: string | null }[]
+  >();
+  for (const p of db().puntos_salida) {
+    if (!p.activo || p.seleccionable !== false) continue;
+    const ciudad = (p.ciudad ?? "").trim() || "Otros puntos";
+    const lista = grupos.get(ciudad) ?? [];
+    lista.push({
+      clave: p.clave,
+      nombre: p.nombre,
+      hora: formatTime(p.hora),
+      referencia: p.referencia ?? null,
+    });
+    grupos.set(ciudad, lista);
+  }
+  return [...grupos.entries()].map(([ciudad, puntos]) => ({ ciudad, puntos }));
+}
+
+/**
+ * Campos que ve el cliente: sin `extra`, sin la selección de comida cuando
+ * el flag global la apaga y con las opciones del punto de salida tomadas del
+ * catálogo (mismo criterio que el backend real).
+ */
+function camposPublicosDe(r: Reserva): CampoDef[] {
+  const formulario = formularioDe(r);
+  if (!formulario) return [];
+  let campos = formulario.definicion.campos.filter((c) => c.tipo !== "extra");
+  if (db().config.comidas_deshabilitadas !== false) {
+    campos = campos.filter((c) => !esCampoComida(c));
+  }
+  return campos.map((c) =>
+    c.fuente === "puntos_salida" || c.id === "punto_abordaje"
+      ? { ...c, opciones: opcionesPuntos(), puntos_referencia: puntosReferencia() }
+      : c,
+  );
+}
+
+/**
+ * Rechaza respuestas cuyo punto de salida no esté en la lista de opciones
+ * (los puntos de referencia, p. ej. los específicos de Caracas, no son
+ * elegibles; sí lo es la pseudo-opción `caracas` que se confirma después).
+ */
+function validarPuntosSeleccionables(
+  r: Reserva,
+  globales: Record<string, Respuesta>,
+  porPasajero: Record<string, Record<string, Respuesta>>,
+): void {
+  const campo = camposPublicosDe(r).find(
+    (c) => c.fuente === "puntos_salida" || c.id === "punto_abordaje",
+  );
+  if (!campo) return;
+  const validas = new Set((campo.opciones ?? []).map((o) => o.valor));
+  const revisar = (valor: unknown) => {
+    if (typeof valor !== "string" || !valor || validas.has(valor)) return;
+    throw err(422, "PUNTO_NO_SELECCIONABLE", "Elige un punto de salida de la lista.", {
+      detalles: [
+        {
+          campo: "punto_abordaje",
+          mensaje: "Elige un punto de salida de la lista.",
+        },
+      ],
+    });
+  };
+  revisar(globales["punto_abordaje"]);
+  for (const respuestas of Object.values(porPasajero)) revisar(respuestas?.["punto_abordaje"]);
+}
+
+// ── Foto del documento de identidad (política de la agencia) ────────────
+
+/** Fotos "subidas" en la demo: id del archivo → imagen. */
+const fotosDocumento = new Map<string, { data: string; tipo: string; nombre: string }>();
+let contadorFotosDocumento = 0;
+
+const MIME_FOTO_DOC = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
+const MAX_FOTO_DOC_BYTES = 5 * 1024 * 1024;
+
+/**
+ * Valida y guarda la foto del documento (espejo del backend). Devuelve
+ * `undefined` cuando no viene en el payload (no toca el valor guardado),
+ * `null` cuando el cliente la quitó, o el id del archivo nuevo.
+ */
+function guardarFotoDocumento(entrada: unknown): string | null | undefined {
+  if (entrada === undefined) return undefined;
+  if (entrada === null) return null;
+  const foto = entrada as { data?: unknown; tipo?: unknown; nombre?: unknown };
+  const data = typeof foto.data === "string" ? foto.data : "";
+  const tipo = String(foto.tipo ?? "").toLowerCase();
+  const mensaje = "Formato no permitido: usa una foto JPG, PNG o WebP, o un PDF.";
+  if (!data || !MIME_FOTO_DOC.has(tipo)) {
+    throw err(415, "ARCHIVO_TIPO_INVALIDO", mensaje, {
+      detalles: [{ campo: "documento_imagen", mensaje }],
+    });
+  }
+  const base64 = data.includes(",") ? (data.split(",")[1] ?? "") : data;
+  const bytes = Math.floor((base64.length * 3) / 4);
+  if (bytes > MAX_FOTO_DOC_BYTES) {
+    const mensajeGrande = "La foto del documento supera el máximo de 5 MB.";
+    throw err(413, "ARCHIVO_GRANDE", mensajeGrande, {
+      detalles: [{ campo: "documento_imagen", mensaje: mensajeGrande }],
+    });
+  }
+  contadorFotosDocumento += 1;
+  const id = `docimg_${contadorFotosDocumento}`;
+  fotosDocumento.set(id, { data, tipo, nombre: String(foto.nombre ?? "documento") });
+  return id;
+}
+
+/** Reporte de pago del cliente: desactivable con `reporte_pago_cliente`. */
+function validarReportePagoCliente(): void {
+  if (db().config.reporte_pago_cliente !== true) {
+    throw err(
+      403,
+      "PAGO_CLIENTE_DESACTIVADO",
+      "El reporte de pago por el formulario está desactivado. La agencia se pondrá en contacto contigo para coordinar el pago.",
+    );
+  }
 }
 
 function camposExtraDe(r: Reserva) {
@@ -382,6 +536,19 @@ function totalPagado(r: Reserva): string {
   return (cents / 100).toFixed(2);
 }
 
+/**
+ * Convierte el hold de la reserva en venta: los cupos retenidos pasan a
+ * vendidos (como hace el backend al confirmar). Llamar sólo en la transición
+ * a `confirmada` para no vender dos veces.
+ */
+function venderCupos(r: Reserva): void {
+  const fecha = db().fechas.find((f) => f.id === r.fecha_tour_id);
+  if (!fecha) return;
+  const n = r.pasajeros.length;
+  fecha.cupos_retenidos = Math.max(0, fecha.cupos_retenidos - n);
+  fecha.cupos_vendidos += n;
+}
+
 function opcionesAgotadas(r: Reserva): Record<string, boolean> {
   const fecha = db().fechas.find((f) => f.id === r.fecha_tour_id);
   const resultado: Record<string, boolean> = {};
@@ -424,22 +591,20 @@ function contextoDeSalida(r: Reserva): {
         ...formulario,
         definicion: {
           ...formulario.definicion,
-          campos: formulario.definicion.campos
-            .filter((c) => c.tipo !== "extra")
-            .map((c) => {
-              const { precio_usd: _p, ...resto } = c;
-              return {
-                ...resto,
-                ...(c.opciones
-                  ? {
-                      opciones: c.opciones.map((o) => {
-                        const { extra_usd: _eo, ...opcion } = o;
-                        return opcion;
-                      }),
-                    }
-                  : {}),
-              };
-            }),
+          campos: camposPublicosDe(r).map((c) => {
+            const { precio_usd: _p, ...resto } = c;
+            return {
+              ...resto,
+              ...(c.opciones
+                ? {
+                    opciones: c.opciones.map((o) => {
+                      const { extra_usd: _eo, ...opcion } = o;
+                      return opcion;
+                    }),
+                  }
+                : {}),
+            };
+          }),
         },
       }
     : undefined;
@@ -477,7 +642,8 @@ function validarReservaAbierta(r: Reserva): void {
 
 function validarHold(r: Reserva): void {
   if (!r.expira_en) return;
-  if (r.estado_pago === "reportado" || r.estado === "pago_en_verificacion") return;
+  // Ya no se congela el hold: un pago reportado (acuse) no detiene el
+  // vencimiento de la reserva.
   if (new Date(r.expira_en).getTime() < Date.now() && r.estado !== "confirmada") {
     // Liberar cupos retenidos al expirar
     const fecha = db().fechas.find((f) => f.id === r.fecha_tour_id);
@@ -618,8 +784,6 @@ const publica: ApiSurface["publica"] = {
     if (
       r.expira_en &&
       r.estado !== "confirmada" &&
-      r.estado !== "pago_en_verificacion" &&
-      r.estado_pago !== "reportado" &&
       ["en_registro", "pendiente_firma", "pendiente_pago"].includes(r.estado) &&
       new Date(r.expira_en).getTime() < Date.now()
     ) {
@@ -774,9 +938,54 @@ const publica: ApiSurface["publica"] = {
         contacto_emergencia_telefono?: string;
       }
     ).contacto_emergencia_telefono = datos.contacto_emergencia_telefono;
+    // Foto del documento: sólo se procesa si viene en esta llamada.
+    const fotoTitular = guardarFotoDocumento(datos.documento_imagen);
+    if (fotoTitular !== undefined) titular.documento_imagen_id = fotoTitular;
 
     tocar(r);
-    return { version: r.version };
+    return { version: r.version, documento_imagen_id: titular.documento_imagen_id ?? null };
+  },
+
+  async datosPorDocumento(token, body) {
+    const r = buscarReservaPorToken(token);
+    if (!r) throw err(404, "ENLACE_INVALIDO", "Este enlace no es válido.");
+    const documento = String(body.documento ?? "").replace(/\D/g, "");
+    if (documento.length < 5) {
+      throw err(422, "VALIDACION", "Escribe un número de documento válido.", {
+        detalles: [{ campo: "documento", mensaje: "Escribe un número de documento válido." }],
+      });
+    }
+    // Cualquier pasajero previo (de cualquier reserva, excluyendo la actual),
+    // el más reciente primero.
+    const previo = db()
+      .reservas.flatMap((reserva) =>
+        reserva.pasajeros.map((p) => ({
+          reserva,
+          pasajero: p as Pasajero & Record<string, unknown>,
+        })),
+      )
+      .filter(
+        (x) =>
+          x.reserva.id !== r.id &&
+          x.pasajero.tipo_doc === body.tipo_doc &&
+          x.pasajero.documento === documento,
+      )
+      .sort((a, b) =>
+        b.reserva.ultima_actividad_en.localeCompare(a.reserva.ultima_actividad_en),
+      )[0];
+    if (!previo) return { encontrado: false };
+    const p = previo.pasajero;
+    return {
+      encontrado: true,
+      datos: {
+        nombre: p.nombre || null,
+        fecha_nacimiento: (p.fecha_nacimiento as string) || null,
+        telefono: (p.telefono as string) ?? null,
+        correo: (p.correo as string) ?? null,
+        contacto_emergencia_nombre: (p.contacto_emergencia_nombre as string) ?? null,
+        contacto_emergencia_telefono: (p.contacto_emergencia_telefono as string) ?? null,
+      },
+    };
   },
 
   async guardarAcompanantes(token, pasajeros, version) {
@@ -826,11 +1035,28 @@ const publica: ApiSurface["publica"] = {
       titular.tipo_doc = entranteTitular.tipo_doc;
       titular.documento = entranteTitular.documento || titular.documento;
       titular.fecha_nacimiento = entranteTitular.fecha_nacimiento || titular.fecha_nacimiento;
+      const fotoTitular = guardarFotoDocumento(entranteTitular.documento_imagen);
+      if (fotoTitular !== undefined) titular.documento_imagen_id = fotoTitular;
     }
 
     const companions = pasajeros
       .filter((p) => !p.es_titular && p.ref_cliente !== titular.ref_cliente)
-      .map((p) => ({ ...p, es_titular: false, categoria: categoriaDe(p, r) }));
+      .map((p) => {
+        // La foto se procesa aparte: en el pasajero guardado sólo queda el
+        // id del archivo (nunca el base64).
+        const foto = guardarFotoDocumento(p.documento_imagen);
+        const { documento_imagen: _fotoEnviada, ...sinFoto } = p;
+        const previo = r.pasajeros.find((x) => x.ref_cliente === p.ref_cliente);
+        return {
+          ...sinFoto,
+          es_titular: false,
+          categoria: categoriaDe(p, r),
+          documento_imagen_id:
+            foto !== undefined
+              ? foto
+              : (previo?.documento_imagen_id ?? p.documento_imagen_id ?? null),
+        };
+      });
 
     r.pasajeros = [titular, ...companions];
 
@@ -857,6 +1083,9 @@ const publica: ApiSurface["publica"] = {
     if (!r) throw err(404, "ENLACE_INVALIDO", "Este enlace no es válido.");
     validarReservaAbierta(r);
     validarVersion(r, version);
+    // Los puntos de referencia (p. ej. los específicos de Caracas) no se
+    // guardan como respuesta; la pseudo-opción `caracas` sí.
+    validarPuntosSeleccionables(r, respuestas.globales ?? {}, respuestas.por_pasajero ?? {});
 
     r.respuestas_globales = { ...r.respuestas_globales, ...respuestas.globales };
     for (const pasajero of r.pasajeros) {
@@ -883,6 +1112,12 @@ const publica: ApiSurface["publica"] = {
         detalles.push({ campo: "documento", mensaje: "Escribe el número de documento." });
       if (!t.fecha_nacimiento)
         detalles.push({ campo: "fecha_nacimiento", mensaje: "Escribe la fecha de nacimiento." });
+      if (!t.documento_imagen_id) {
+        detalles.push({
+          campo: "documento_imagen",
+          mensaje: "Sube la foto del documento de identidad.",
+        });
+      }
     }
 
     if (paso === "acompanantes") {
@@ -891,6 +1126,13 @@ const publica: ApiSurface["publica"] = {
           detalles.push({
             campo: `pasajero:${p.ref_cliente}:nombre`,
             mensaje: "Escribe el nombre del pasajero.",
+          });
+        }
+        // Política: cada pasajero viaja con su documento fotografiado.
+        if (!p.documento_imagen_id) {
+          detalles.push({
+            campo: `pasajero:${p.ref_cliente}:documento_imagen`,
+            mensaje: "Sube la foto del documento de identidad.",
           });
         }
         const esMenor = (edadEn(p.fecha_nacimiento, fechaSalidaDe(r)) ?? 99) < 18;
@@ -916,7 +1158,7 @@ const publica: ApiSurface["publica"] = {
       if (formulario) {
         const { validarFormulario } = await import("@/lib/domain/form-engine");
         const ctx = {
-          campos: formulario.definicion.campos,
+          campos: camposPublicosDe(r),
           globales: r.respuestas_globales,
           porPasajero: Object.fromEntries(r.pasajeros.map((p) => [p.ref_cliente, p.respuestas])),
           categorias: Object.fromEntries(r.pasajeros.map((p) => [p.ref_cliente, p.categoria])),
@@ -977,10 +1219,8 @@ const publica: ApiSurface["publica"] = {
       r.paso_actual = "pago";
       r.estado = "pendiente_pago";
     }
-    if (paso === "pago" && r.estado === "pendiente_pago") {
-      r.paso_actual = "verificacion";
-      r.estado = "pago_en_verificacion";
-    }
+    // `paso === "pago"`: no cambia el estado (la agencia confirma la reserva
+    // cuando le corresponde; ya no hay «pago en verificación»).
 
     tocar(r);
     return { version: r.version, paso_actual: r.paso_actual, progreso: computarProgreso(r) };
@@ -1125,6 +1365,7 @@ const publica: ApiSurface["publica"] = {
       const r = buscarReservaPorToken(token);
       if (!r) throw err(404, "ENLACE_INVALIDO", "Este enlace no es válido.");
       validarReservaAbierta(r);
+      validarReportePagoCliente();
 
       const monto = toDecimalString(body.monto);
       const total = Number.parseFloat(r.total_usd || "0");
@@ -1177,13 +1418,13 @@ const publica: ApiSurface["publica"] = {
       }
 
       db().pagos.unshift(pago);
-      r.estado = "pago_en_verificacion";
-      r.paso_actual = "verificacion";
+      // Acuse del cliente: queda `reportado` sin cambiar el estado de la
+      // reserva ni congelar el hold (ya no hay cola de validación).
       r.estado_pago = "reportado";
       if (!r.tasa_aplicada) r.tasa_aplicada = tasa ?? null;
       tocar(r);
 
-      notificar("pago", "Pago reportado", `${r.codigo} reportó un pago por ${monto}.`, r.id);
+      notificar("pago", "Pago reportado", `${r.codigo} reportó un pago por ${monto}.`, pago.id);
       return { pago_id: pago.id };
     });
   },
@@ -1197,6 +1438,7 @@ const publica: ApiSurface["publica"] = {
   async solicitarCorreccion(token, pagoId, body) {
     const r = buscarReservaPorToken(token);
     if (!r) throw err(404, "ENLACE_INVALIDO", "Este enlace no es válido.");
+    validarReportePagoCliente();
     const pago = db().pagos.find((p) => p.id === pagoId && p.reserva_id === r.id);
     if (!pago) throw err(404, "NO_ENCONTRADO", "No encontramos ese pago.");
     if (body.referencia) pago.referencia = body.referencia;
@@ -1210,8 +1452,7 @@ const publica: ApiSurface["publica"] = {
       };
     }
     pago.estado = "reportado";
-    r.estado = "pago_en_verificacion";
-    r.paso_actual = "verificacion";
+    // Acuse corregido: no cambia el estado de la reserva (sin cola).
     r.estado_pago = "reportado";
     tocar(r);
     return { ok: true };
@@ -1376,11 +1617,16 @@ const admin: ApiSurface["admin"] = {
         total: f.cupos_total,
       }));
 
-    const pendientes = datos.pagos.filter((p) => p.estado === "reportado");
-    const masAntiguo = pendientes.length
+    // Reservas firmadas que la agencia todavía no confirma (ya no hay cola de
+    // pagos por validar).
+    const porConfirmar = datos.reservas.filter((r) => r.estado === "pendiente_pago");
+    const masAntiguo = porConfirmar.length
       ? Math.max(
-          ...pendientes.map((p) =>
-            Math.max(0, Math.round((Date.now() - new Date(p.creado_en).getTime()) / 60000)),
+          ...porConfirmar.map((r) =>
+            Math.max(
+              0,
+              Math.round((Date.now() - new Date(r.ultima_actividad_en).getTime()) / 60000),
+            ),
           ),
         )
       : 0;
@@ -1452,7 +1698,7 @@ const admin: ApiSurface["admin"] = {
     return {
       reservas_por_estado: [...porEstado.entries()].map(([estado, total]) => ({ estado, total })),
       ocupacion_proximas: ocupacion,
-      pagos_por_verificar: [{ total: pendientes.length, mas_antiguo_min: masAntiguo }],
+      por_confirmar: [{ total: porConfirmar.length, mas_antiguo_min: masAntiguo }],
       ingresos_mes_usd: (ingresos / 100).toFixed(2),
       requiere_atencion: requiereAtencion,
       ventas_por_mes: ventasPorMes(datos),
@@ -1482,8 +1728,6 @@ const admin: ApiSurface["admin"] = {
           new Date(r.expira_en).getTime() > Date.now(),
       );
     }
-    if (filtros.con_pago_por_validar)
-      items = items.filter((r) => r.estado === "pago_en_verificacion");
     if (filtros.busqueda) {
       const q = filtros.busqueda.toLowerCase().trim();
       items = items.filter((r) => {
@@ -1643,6 +1887,46 @@ const admin: ApiSurface["admin"] = {
       auditoria(operador, "reserva", id, "enlace.creado", "—", reserva.codigo);
     }
 
+    // Precio administrado en el alta: mismos conceptos que el endpoint real.
+    const lineasAlta = body.lineas ?? [];
+    const ajustesAlta = body.ajustes ?? [];
+    if (lineasAlta.length || ajustesAlta.length) {
+      reserva.precio_lineas = lineasAlta.map((l) => {
+        const cantidad = Math.floor(l.cantidad);
+        const precio = toDecimalString(l.precio_unit_usd);
+        return {
+          concepto: l.concepto.trim(),
+          cantidad,
+          precio_unit_usd: precio,
+          subtotal_usd: multiplyDecimal(precio, cantidad),
+        };
+      });
+      reserva.precio_ajustes = ajustesAlta.map((a) => ({
+        tipo: a.tipo,
+        monto_usd: toDecimalString(a.monto_usd),
+        motivo: a.motivo.trim(),
+        origen: "manual" as const,
+      }));
+      const calculo = calculoAdministrado(reserva);
+      reserva.subtotal_usd = calculo.subtotal_usd;
+      reserva.adicionales_usd = calculo.adicionales_usd;
+      reserva.descuentos_usd = calculo.descuento_usd;
+      reserva.total_usd = calculo.total_usd;
+      reserva.saldo_usd = calculo.saldo_usd;
+      reserva.desglose = { origen: "administrado", ...calculo };
+      if (operador) {
+        auditoria(
+          operador,
+          "reserva",
+          id,
+          "reserva.precio_editado",
+          "0.00",
+          reserva.total_usd,
+          "Alta de reserva con cargos iniciales",
+        );
+      }
+    }
+
     return {
       reserva,
       enlace: `${window.location.origin}/r/${token}`,
@@ -1746,7 +2030,7 @@ const admin: ApiSurface["admin"] = {
     }
 
     const anterior = r.total_usd;
-    r.precio_lineas = lineasIn.map((l) => {
+    const nuevasLineas = lineasIn.map((l) => {
       const cantidad = Math.floor(l.cantidad);
       const precio = toDecimalString(l.precio_unit_usd);
       return {
@@ -1756,14 +2040,44 @@ const admin: ApiSurface["admin"] = {
         subtotal_usd: multiplyDecimal(precio, cantidad),
       };
     });
-    r.precio_ajustes = ajustesIn.map((a) => ({
+    const nuevosAjustes = ajustesIn.map((a) => ({
       tipo: a.tipo,
       monto_usd: toDecimalString(a.monto_usd),
       motivo: a.motivo.trim(),
       origen: "manual" as const,
     }));
 
-    const calculo = calculoAdministrado(r);
+    const calculo = calculoAdministrado({
+      ...r,
+      precio_lineas: nuevasLineas,
+      precio_ajustes: nuevosAjustes,
+    });
+    // Con pagos registrados el total no cambia en frío: hace falta una
+    // justificación explícita (igual que en el backend real).
+    const pagosVigentes = db().pagos.filter(
+      (p) => p.reserva_id === id && p.estado !== "anulado" && p.estado !== "rechazado",
+    );
+    if (pagosVigentes.length) {
+      const cambiaTotal = Math.abs(Number(calculo.total_usd) - Number(anterior || "0")) > 0.005;
+      const justificacion = body.justificacion?.trim() ?? "";
+      if (cambiaTotal && justificacion.length < 10) {
+        throw err(
+          422,
+          "VALIDACION",
+          "La reserva tiene pagos registrados: para modificar el precio hay que escribir una justificación.",
+          {
+            detalles: [
+              {
+                campo: "justificacion",
+                mensaje: "Escribe una justificación (mínimo 10 caracteres).",
+              },
+            ],
+          },
+        );
+      }
+    }
+    r.precio_lineas = nuevasLineas;
+    r.precio_ajustes = nuevosAjustes;
     r.subtotal_usd = calculo.subtotal_usd;
     r.adicionales_usd = calculo.adicionales_usd;
     r.descuentos_usd = calculo.descuento_usd;
@@ -1942,101 +2256,82 @@ const admin: ApiSurface["admin"] = {
     return { ...p, reserva, comprobante_url: `/api/mock/comprobante/${p.id}` };
   },
 
+  async urlArchivo(archivoId) {
+    // En la demo la "URL firmada" es el propio data URL de la foto.
+    const foto = fotosDocumento.get(archivoId);
+    if (!foto) throw err(404, "NO_ENCONTRADO", "No encontramos ese archivo.");
+    return { url: foto.data };
+  },
+
   async validarPago(id, body: AccionValidacion) {
     return conIdempotencia(body.idempotencyKey, async () => {
       const datos = db();
       const pago = datos.pagos.find((p) => p.id === id);
       if (!pago) throw err(404, "NO_ENCONTRADO", "No encontramos ese pago.");
-      if (pago.estado !== "reportado" && pago.estado !== "correccion_solicitada") {
-        throw err(409, "TRANSICION_INVALIDA", "Otro validador ya resolvió este pago.");
+      if (body.accion !== "anular") {
+        throw err(
+          422,
+          "VALIDACION",
+          "Los pagos ya no se aprueban ni se rechazan: se registran aprobados. Sólo queda anularlos.",
+        );
       }
       const reserva = datos.reservas.find((r) => r.id === pago.reserva_id);
       if (!reserva) throw err(404, "NO_ENCONTRADO", "No encontramos la reserva.");
-
       const usuario = datos.usuarios[0] as Usuario;
-
-      if (body.accion === "aprobar") {
-        if (pago.duplicado_de_pago_id && !body.confirmar_duplicado) {
-          throw err(422, "VALIDACION", "Confirma que este pago no es un duplicado.", {
-            detalles: [
-              { campo: "confirmar_duplicado", mensaje: "Marca la confirmación del duplicado." },
-            ],
-          });
-        }
-        pago.estado = "aprobado";
-        pago.validado_por = usuario.nombre;
-        pago.validado_en = ahoraIso();
-        if (body.monto_validado) pago.monto = toDecimalString(body.monto_validado);
-
-        const pagado = Number.parseFloat(totalPagado(reserva));
-        const total = Number.parseFloat(reserva.total_usd || "0");
-        const saldo = Math.max(0, total - pagado);
-        reserva.saldo_usd = saldo.toFixed(2);
-        reserva.estado_pago = saldo <= 0 ? "pagado" : "parcial";
-
-        if (saldo <= 0) {
-          reserva.estado = "confirmada";
-          reserva.paso_actual = "confirmada";
-          reserva.expira_en = null;
-          reserva.voucher = {
-            id: `vou_${reserva.id}`,
-            version: 1,
-            estado: "listo",
-            vigente: true,
-            generado_en: ahoraIso(),
-            url_descarga: `/descarga/voucher?t=${reserva.ref_corta}`,
-            verif_token: `qr_${reserva.id}`,
-          };
-          datos.verificaciones[`qr_${reserva.id}`] = reserva.id;
-          // Vende los cupos.
-          const fecha = datos.fechas.find((f) => f.id === reserva.fecha_tour_id);
-          if (fecha) {
-            fecha.cupos_vendidos += reserva.pasajeros.length;
-            fecha.cupos_retenidos = Math.max(0, fecha.cupos_retenidos - reserva.pasajeros.length);
-          }
-        } else {
-          reserva.estado = "pago_en_verificacion";
-          reserva.paso_actual = "verificacion";
-        }
-        auditoria(usuario, "pago", id, "pago.aprobado", "reportado", "aprobado", body.motivo);
-      } else if (body.accion === "rechazar") {
-        if (!body.motivo && !body.motivo_catalogo) {
-          throw err(422, "VALIDACION", "Elige el motivo del rechazo.", {
-            detalles: [{ campo: "motivo", mensaje: "Selecciona un motivo." }],
-          });
-        }
-        pago.estado = "rechazado";
-        pago.motivo_rechazo = body.motivo_catalogo ?? body.motivo;
-        pago.comentario_validador = body.motivo;
-        pago.validado_por = usuario.nombre;
-        pago.validado_en = ahoraIso();
-        reserva.estado = "pendiente_pago";
-        reserva.paso_actual = "pago";
-        reserva.estado_pago = "rechazado";
-        auditoria(usuario, "pago", id, "pago.rechazado", "reportado", "rechazado", body.motivo);
-      } else if (body.accion === "solicitar_correccion") {
-        if (!body.texto_cliente || body.texto_cliente.trim().length < 10) {
-          throw err(
-            422,
-            "VALIDACION",
-            "Escribe un mensaje de al menos 10 caracteres para el cliente.",
-            {
-              detalles: [{ campo: "texto_cliente", mensaje: "Escribe al menos 10 caracteres." }],
-            },
-          );
-        }
-        pago.estado = "correccion_solicitada";
-        pago.comentario_validador = body.texto_cliente;
-        pago.validado_por = usuario.nombre;
-        pago.validado_en = ahoraIso();
-        auditoria(usuario, "pago", id, "pago.correccion", "reportado", "correccion_solicitada");
-      } else {
-        pago.estado = "anulado";
-        auditoria(usuario, "pago", id, "pago.anulado", "reportado", "anulado", body.motivo);
-      }
-
+      pago.estado = "anulado";
+      pago.validado_por = usuario.nombre;
+      pago.validado_en = ahoraIso();
+      auditoria(usuario, "pago", id, "pago.anulado", pago.estado, "anulado", body.motivo);
       return { ok: true, saldo_usd: reserva.saldo_usd };
     });
+  },
+
+  async confirmarReserva(id, body) {
+    const datos = db();
+    const r = datos.reservas.find((x) => x.id === id);
+    if (!r) throw err(404, "NO_ENCONTRADO", "No encontramos esa reserva.");
+    if (r.estado !== "pendiente_pago") {
+      throw err(
+        409,
+        "TRANSICION_INVALIDA",
+        `No se puede confirmar una reserva en estado ${r.estado}.`,
+      );
+    }
+    // El pago ya no es prerrequisito: se registra después, naciendo aprobado.
+    const saldo = Math.max(0, Number.parseFloat(r.total_usd || "0") - Number(totalPagado(r)));
+    r.estado = "confirmada";
+    r.paso_actual = "confirmada";
+    // El hold se convierte en venta (cupos retenidos → vendidos).
+    venderCupos(r);
+    if (!r.voucher) {
+      r.voucher = {
+        id: `vou_${r.id}`,
+        version: 1,
+        estado: "listo",
+        vigente: true,
+        generado_en: ahoraIso(),
+        url_descarga: `/descarga/voucher?t=${r.ref_corta}`,
+        verif_token: `qr_${r.id}`,
+      };
+      datos.verificaciones[`qr_${r.id}`] = r.id;
+    }
+    const usuario = datos.usuarios[0] as Usuario;
+    auditoria(
+      usuario,
+      "reserva",
+      id,
+      "reserva.confirmada_manualmente",
+      "pendiente_pago",
+      "confirmada",
+      body.motivo,
+    );
+    return {
+      ok: true as const,
+      estado: r.estado,
+      codigo: r.codigo || r.ref_corta,
+      saldo_usd: saldo.toFixed(2),
+      total_usd: r.total_usd || "0.00",
+    };
   },
 
   async registrarPagoEfectivo(id, body) {
@@ -2065,22 +2360,122 @@ const admin: ApiSurface["admin"] = {
     r.saldo_usd = saldo.toFixed(2);
     r.estado_pago = saldo <= 0 ? "pagado" : "parcial";
     if (saldo <= 0) {
+      const recienConfirmada = r.estado !== "confirmada";
       r.estado = "confirmada";
       r.paso_actual = "confirmada";
-      r.voucher = {
-        id: `vou_${r.id}`,
-        version: 1,
-        estado: "listo",
-        vigente: true,
-        generado_en: ahoraIso(),
-        url_descarga: `/descarga/voucher?t=${r.ref_corta}`,
-        verif_token: `qr_${r.id}`,
-      };
-      datos.verificaciones[`qr_${r.id}`] = r.id;
+      if (recienConfirmada) venderCupos(r);
+      if (!r.voucher) {
+        r.voucher = {
+          id: `vou_${r.id}`,
+          version: 1,
+          estado: "listo",
+          vigente: true,
+          generado_en: ahoraIso(),
+          url_descarga: `/descarga/voucher?t=${r.ref_corta}`,
+          verif_token: `qr_${r.id}`,
+        };
+        datos.verificaciones[`qr_${r.id}`] = r.id;
+      }
     }
     const usuario = datos.usuarios[0] as Usuario;
     auditoria(usuario, "pago", pago.id, "pago.efectivo", "—", pago.monto, body.nota);
     return { ok: true };
+  },
+
+  async registrarPagoReserva(id, body) {
+    const datos = db();
+    const r = datos.reservas.find((x) => x.id === id);
+    if (!r) throw err(404, "NO_ENCONTRADO", "No encontramos esa reserva.");
+
+    const metodo = datos.metodos_pago.find((m) => m.id === body.metodo_clave && m.activo);
+    if (!metodo) {
+      throw err(422, "VALIDACION", "Elige un método de pago activo.", {
+        detalles: [{ campo: "metodo_clave", mensaje: "Método de pago no disponible." }],
+      });
+    }
+    const montoNum = Number.parseFloat(String(body.monto).replace(",", "."));
+    if (!Number.isFinite(montoNum) || montoNum <= 0) {
+      throw err(422, "VALIDACION", "Escribe un monto válido.", {
+        detalles: [{ campo: "monto", mensaje: "Monto inválido." }],
+      });
+    }
+
+    const tasaVigente = db().tasa.find((t) => t.vigente)?.valor ?? null;
+    const moneda = body.moneda === "VES" ? "VES" : "USD";
+    const montoEnUsd =
+      moneda === "VES" && tasaVigente ? montoNum / Number.parseFloat(tasaVigente) : montoNum;
+
+    const pago: Pago = {
+      id: `pgo_${(datos.pagos.length + 1).toString(36)}`,
+      reserva_id: r.id,
+      metodo: metodo.id as Pago["metodo"],
+      monto: toDecimalString(montoNum),
+      moneda,
+      tasa: moneda === "VES" ? tasaVigente : null,
+      fecha_pago: body.fecha_pago ?? ahoraIso().slice(0, 10),
+      referencia: body.referencia ?? "",
+      estado: "aprobado",
+      alertas: [],
+      registrado_por: "Agencia",
+      validado_por: "Agencia",
+      validado_en: ahoraIso(),
+      creado_en: ahoraIso(),
+    };
+
+    // Anti-duplicado: método + referencia (D-05).
+    const duplicado = datos.pagos.find(
+      (p) =>
+        p.metodo === pago.metodo &&
+        p.referencia === pago.referencia &&
+        p.referencia !== "" &&
+        p.estado !== "anulado" &&
+        p.reserva_id !== r.id,
+    );
+    if (duplicado) {
+      pago.duplicado_de_pago_id = duplicado.id;
+      pago.alertas = [
+        { codigo: "duplicado_referencia", mensaje: "Esta referencia ya se usó en otra reserva." },
+      ];
+    }
+
+    datos.pagos.unshift(pago);
+    // El pago nace aprobado: suma al pagado y, si cubre el saldo, la reserva
+    // pendiente se confirma sola (código + voucher).
+    const pagado = Number.parseFloat(totalPagado(r));
+    const total = Number.parseFloat(r.total_usd || "0");
+    const saldo = Math.max(0, total - pagado);
+    r.saldo_usd = saldo.toFixed(2);
+    r.estado_pago = saldo <= 0 ? "pagado" : "parcial";
+    if (!r.tasa_aplicada) r.tasa_aplicada = tasaVigente;
+    if (saldo <= 0.005 && r.estado === "pendiente_pago") {
+      r.estado = "confirmada";
+      r.paso_actual = "confirmada";
+      r.expira_en = null;
+      venderCupos(r);
+      if (!r.voucher) {
+        r.voucher = {
+          id: `vou_${r.id}`,
+          version: 1,
+          estado: "listo",
+          vigente: true,
+          generado_en: ahoraIso(),
+          url_descarga: `/descarga/voucher?t=${r.ref_corta}`,
+          verif_token: `qr_${r.id}`,
+        };
+        datos.verificaciones[`qr_${r.id}`] = r.id;
+      }
+    }
+    tocar(r);
+
+    const usuario = datos.usuarios[0] as Usuario;
+    auditoria(usuario, "pago", pago.id, "pago.registrado", "—", pago.monto, body.nota);
+    notificar(
+      "pago",
+      "Pago anotado por la agencia",
+      `${r.codigo}: pago por ${pago.monto} anotado en la reserva.`,
+      r.id,
+    );
+    return { ok: true, pago_id: pago.id };
   },
 
   async reembolsar(id, body) {
@@ -2744,6 +3139,94 @@ const admin: ApiSurface["admin"] = {
     const datos = db();
     datos.config = { ...datos.config, ...body };
     return datos.config;
+  },
+
+  // ── puntos de salida (catálogo global) ────────────────────────────────
+
+  async puntosSalida() {
+    return [...db().puntos_salida].sort((a, b) => a.orden - b.orden);
+  },
+
+  async crearPuntoSalida(body) {
+    const datos = db();
+    const nombre = body.nombre.trim();
+    if (!nombre)
+      throw err(422, "VALIDACION", "El punto necesita un nombre.", {
+        detalles: [{ campo: "nombre", mensaje: "Escribe el nombre del punto." }],
+      });
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(body.hora)) {
+      throw err(422, "VALIDACION", "La hora debe tener formato HH:MM, por ejemplo 06:30.", {
+        detalles: [{ campo: "hora", mensaje: "Hora inválida." }],
+      });
+    }
+    const clave =
+      (body.clave ?? nombre)
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "")
+        .slice(0, 40) || "punto";
+    if (datos.puntos_salida.some((p) => p.clave === clave)) {
+      throw err(422, "VALIDACION", `Ya existe un punto con la clave «${clave}».`, {
+        detalles: [{ campo: "clave", mensaje: "Clave duplicada." }],
+      });
+    }
+    const punto: PuntoSalida = {
+      id: `pto_${(datos.puntos_salida.length + 1).toString(36)}_${Date.now().toString(36)}`,
+      clave,
+      nombre,
+      hora: body.hora,
+      referencia: body.referencia?.trim() || null,
+      ciudad: body.ciudad?.trim() || null,
+      seleccionable: body.seleccionable !== false,
+      orden: datos.puntos_salida.length,
+      activo: true,
+    };
+    datos.puntos_salida.push(punto);
+    return punto;
+  },
+
+  async actualizarPuntoSalida(id, body) {
+    const datos = db();
+    const punto = datos.puntos_salida.find((p) => p.id === id);
+    if (!punto) throw err(404, "NO_ENCONTRADO", "No encontramos ese punto de salida.");
+    if (body.nombre !== undefined) punto.nombre = body.nombre.trim() || punto.nombre;
+    if (body.hora !== undefined) {
+      if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(body.hora)) {
+        throw err(422, "VALIDACION", "La hora debe tener formato HH:MM, por ejemplo 06:30.", {
+          detalles: [{ campo: "hora", mensaje: "Hora inválida." }],
+        });
+      }
+      punto.hora = body.hora;
+    }
+    if (body.referencia !== undefined) punto.referencia = body.referencia?.trim() || null;
+    if (body.ciudad !== undefined) punto.ciudad = body.ciudad?.trim() || null;
+    if (body.seleccionable !== undefined) punto.seleccionable = body.seleccionable;
+    if (body.orden !== undefined) punto.orden = body.orden;
+    if (body.activo !== undefined) punto.activo = body.activo;
+    return punto;
+  },
+
+  async eliminarPuntoSalida(id) {
+    const datos = db();
+    const indice = datos.puntos_salida.findIndex((p) => p.id === id);
+    if (indice < 0) throw err(404, "NO_ENCONTRADO", "No encontramos ese punto de salida.");
+    const punto = datos.puntos_salida[indice] as PuntoSalida;
+
+    // ¿Ya se usó en respuestas de reservas? → se desactiva en vez de borrar.
+    const enUso =
+      datos.reservas.some((r) => r.respuestas_globales["punto_abordaje"] === punto.clave) ||
+      datos.reservas.some((r) =>
+        r.pasajeros.some((p) => p.respuestas["punto_abordaje"] === punto.clave),
+      );
+
+    if (enUso) {
+      punto.activo = false;
+      return { ...punto, eliminado: false };
+    }
+    datos.puntos_salida.splice(indice, 1);
+    return { ...punto, activo: false, eliminado: true };
   },
 
   async registrarTasa(body) {

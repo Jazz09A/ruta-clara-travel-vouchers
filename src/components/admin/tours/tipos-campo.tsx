@@ -35,12 +35,12 @@ export const AYUDA_ALCANCE: Record<AlcanceCampo, string> = {
   por_reserva: "El cliente responde una sola vez para todo el grupo.",
 };
 
-/** Categorías de pasajero con su rango de edad. */
+/** Categorías de pasajero con su rango de edad (política de la agencia). */
 export const ETIQUETA_CATEGORIA: Record<Categoria, string> = {
   Adulto: "Adulto (18 a 120 años)",
-  Niño: "Niño (3 a 11 años)",
+  Niño: "Niño (5 a 11 años)",
   "Tercera Edad": "Tercera edad (61 a 120 años)",
-  Infante: "Infante (0 a 2 años)",
+  Infante: "Infante (0 a 4 años)",
 };
 
 export const CATEGORIAS: Categoria[] = ["Adulto", "Niño", "Tercera Edad", "Infante"];

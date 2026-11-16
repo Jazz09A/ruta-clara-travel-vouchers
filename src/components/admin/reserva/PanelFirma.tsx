@@ -16,24 +16,30 @@ import { cn } from "@/lib/utils";
 /**
  * Panel de **firma** de la reserva (A-07).
  *
- * Muestra los metadatos de la firma y el resultado de la verificación de
- * integridad. El estado nunca se comunica solo con color: hay icono + texto.
+ * Versión simple: fecha de firma, número de la versión de los términos y la
+ * imagen. Los metadatos técnicos (navegador, IP, trazos, hash) quedan en la
+ * base de datos y en la auditoría; no se muestran.
  */
 
 export interface PanelFirmaProps {
   /** Firma de la reserva, si existe. */
   firma: Firma | undefined;
+  /** Número de la versión de los términos firmados (`null` si no se sabe). */
+  versionTerminos?: number | null | undefined;
   className?: string | undefined;
 }
 
-export function PanelFirma({ firma, className }: PanelFirmaProps) {
+export function PanelFirma({ firma, versionTerminos, className }: PanelFirmaProps) {
   const [verImagen, setVerImagen] = React.useState(false);
 
   if (!firma) {
     return (
       <section
         aria-label="Firma de la reserva"
-        className={cn("flex flex-col gap-2 rounded-2xl border border-border bg-card p-4 shadow-card", className)}
+        className={cn(
+          "flex flex-col gap-2 rounded-2xl border border-border bg-card p-4 shadow-card",
+          className,
+        )}
       >
         <h2 className="text-sm font-bold text-foreground">Firma</h2>
         <p className="text-sm text-muted-foreground">
@@ -55,7 +61,10 @@ export function PanelFirma({ firma, className }: PanelFirmaProps) {
   return (
     <section
       aria-label="Firma de la reserva"
-      className={cn("flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-card", className)}
+      className={cn(
+        "flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-card",
+        className,
+      )}
     >
       <header className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-sm font-bold text-foreground">Firma</h2>
@@ -78,39 +87,23 @@ export function PanelFirma({ firma, className }: PanelFirmaProps) {
 
       {alterada ? (
         <p className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm font-medium text-red-900 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-100">
-          La firma no coincide con el hash registrado. No confíes en este documento y pide una
-          nueva firma al titular.
+          La firma no coincide con el hash registrado. No confíes en este documento y pide una nueva
+          firma al titular.
         </p>
       ) : null}
 
       <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-0.5">
           <dt className="text-xs text-muted-foreground">Firmada</dt>
-          <dd className="text-sm font-medium text-foreground">{formatDateTime(firma.firmada_en)}</dd>
-        </div>
-        <div className="flex flex-col gap-0.5">
-          <dt className="text-xs text-muted-foreground">Trazos</dt>
-          <dd className="text-sm font-medium tabular-nums text-foreground">
-            {String(firma.n_trazos)}
+          <dd className="text-sm font-medium text-foreground">
+            {formatDateTime(firma.firmada_en)}
           </dd>
         </div>
         <div className="flex flex-col gap-0.5">
-          <dt className="text-xs text-muted-foreground">Duración</dt>
-          <dd className="text-sm font-medium tabular-nums text-foreground">
-            {`${(firma.duracion_ms / 1000).toFixed(1)} s`}
+          <dt className="text-xs text-muted-foreground">Versión de los términos</dt>
+          <dd className="text-sm font-medium text-foreground">
+            {typeof versionTerminos === "number" ? `Versión ${versionTerminos}` : "—"}
           </dd>
-        </div>
-        <div className="flex flex-col gap-0.5">
-          <dt className="text-xs text-muted-foreground">Dirección IP</dt>
-          <dd className="text-sm font-medium text-foreground">{firma.ip}</dd>
-        </div>
-        <div className="flex flex-col gap-0.5">
-          <dt className="text-xs text-muted-foreground">Navegador</dt>
-          <dd className="truncate text-sm font-medium text-foreground">{firma.user_agent}</dd>
-        </div>
-        <div className="flex flex-col gap-0.5">
-          <dt className="text-xs text-muted-foreground">Versión de términos</dt>
-          <dd className="truncate text-sm font-medium text-foreground">{firma.version_terminos_id}</dd>
         </div>
       </dl>
 
@@ -125,9 +118,6 @@ export function PanelFirma({ firma, className }: PanelFirmaProps) {
           <Fingerprint className="h-4 w-4" aria-hidden="true" />
           <span>Ver imagen de la firma</span>
         </Button>
-        <span className="font-mono text-[11px] text-muted-foreground">
-          {`hash ${firma.hash_imagen.slice(0, 16)}…`}
-        </span>
       </div>
 
       <Dialog open={verImagen} onOpenChange={setVerImagen}>

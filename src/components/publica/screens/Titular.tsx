@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Pencil } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { CircleCheck, Pencil } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import {
@@ -9,8 +9,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { api } from "@/lib/api";
 import type { DatosTitular } from "@/lib/domain/api";
-import type { TipoDocumento } from "@/lib/domain/types";
+import type { FotoDocumento, TipoDocumento } from "@/lib/domain/types";
 import {
   edadEn,
   formatFechaNacimiento,
@@ -18,16 +19,19 @@ import {
   isValidPhone,
   suggestEmail,
 } from "@/lib/format";
+import { MAX_FOTO_DOCUMENTO_MB, prepararFotoDocumento } from "@/lib/imagen";
 
-import { BirthDateInput, Campo, PhoneInput } from "../ui";
+import { BirthDateInput, Campo, PhoneInput, UploadArchivo } from "../ui";
 import type { ContextoReserva } from "../use-reserva";
 
 export interface TitularProps {
   reserva: ContextoReserva;
+  /** Token del enlace (para el autocompletado por documento). */
+  token: string;
   /** Fecha de salida (`YYYY-MM-DD`): define la edad y la categoría. */
   fechaSalida: string | undefined;
   /** Autoguardado del borrador (se llama al salir de un campo). */
-  onGuardar: (datos: DatosTitular) => void;
+  onGuardar: (datos: DatosTitular) => void | Promise<void>;
   /** Continúa al paso siguiente. */
   onContinuar: () => void;
   /**
@@ -83,7 +87,7 @@ const ID_CONTROL: Record<keyof EstadoFormulario, string> = {
   contacto_emergencia_telefono: "titular-emergencia-telefono-numero",
 };
 
-type Errores = Partial<Record<keyof EstadoFormulario, string>>;
+type Errores = Partial<Record<keyof EstadoFormulario | "documento_imagen", string>>;
 
 /** Un valor enmascarado nunca se reenvía (UX-20). */
 function estaEnmascarado(valor: string): boolean {
@@ -98,6 +102,7 @@ function estaEnmascarado(valor: string): boolean {
  */
 export function Titular({
   reserva,
+  token,
   fechaSalida,
   onGuardar,
   onContinuar,
@@ -118,9 +123,7 @@ export function Titular({
   // El servidor devuelve los valores sensibles enmascarados: se muestran en
   // sólo lectura hasta que el cliente decide cambiarlos.
   const [documentoEnmascarado, setDocumentoEnmascarado] = useState(
-    () =>
-      Boolean(titularInicial?.documento) &&
-      estaEnmascarado(titularInicial?.documento ?? ""),
+    () => Boolean(titularInicial?.documento) && estaEnmascarado(titularInicial?.documento ?? ""),
   );
   const [fechaEnmascarada, setFechaEnmascarada] = useState(
     () =>
@@ -131,6 +134,114 @@ export function Titular({
   const [errores, setErrores] = useState<Errores>({});
   const [tocados, setTocados] = useState<Partial<Record<keyof EstadoFormulario, boolean>>>({});
   const [anuncio, setAnuncio] = useState("");
+
+  // ── Autocompletado por documento (reservas anteriores) ────────────────
+  // Al escribir un documento válido, con un poco de espera, se busca entre
+  // los pasajeros de CUALQUIER reserva anterior. Sólo se rellenan campos
+  // vacíos: nunca se sobrescribe lo que ya escribió el usuario (ni valores
+  // enmascarados) y, si algo se rellena, se avisa para que lo revise.
+  const [avisoCompletado, setAvisoCompletado] = useState(false);
+  const formRef = useRef(formulario);
+  const consultaDocRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    formRef.current = formulario;
+  }, [formulario]);
+
+  useEffect(() => {
+    if (documentoEnmascarado) return;
+    const documento = formulario.documento.trim();
+    const esValido =
+      formulario.tipo_doc === "V" || formulario.tipo_doc === "E"
+        ? /^\d{5,10}$/.test(documento)
+        : /^[A-Za-z0-9-]{4,20}$/.test(documento);
+    if (!esValido) return;
+    const clave = `${formulario.tipo_doc}:${documento}`;
+    if (consultaDocRef.current === clave) return;
+    const timer = window.setTimeout(() => {
+      consultaDocRef.current = clave;
+      void (async () => {
+        try {
+          const r = await api.publica.datosPorDocumento(token, {
+            tipo_doc: formulario.tipo_doc,
+            documento,
+          });
+          if (!r.encontrado || !r.datos) return;
+          const datos = r.datos;
+          const actual = formRef.current;
+          const siguiente: EstadoFormulario = { ...actual };
+          let cambio = false;
+          const rellenar = (
+            campo: Exclude<keyof EstadoFormulario, "tipo_doc">,
+            valor: string | null | undefined,
+          ) => {
+            if (!actual[campo] && valor) {
+              siguiente[campo] = valor;
+              cambio = true;
+            }
+          };
+          rellenar("nombre", datos.nombre);
+          rellenar("fecha_nacimiento", datos.fecha_nacimiento);
+          rellenar("telefono", datos.telefono);
+          rellenar("correo", datos.correo);
+          rellenar("contacto_emergencia_nombre", datos.contacto_emergencia_nombre);
+          rellenar("contacto_emergencia_telefono", datos.contacto_emergencia_telefono);
+          if (!cambio) return;
+          setFormulario(siguiente);
+          // Los campos rellenados dejan de estar en falta.
+          setErrores((previos) => {
+            const copia = { ...previos };
+            (Object.keys(siguiente) as (keyof EstadoFormulario)[]).forEach((campo) => {
+              if (siguiente[campo] && siguiente[campo] !== actual[campo]) delete copia[campo];
+            });
+            return copia;
+          });
+          setAvisoCompletado(true);
+        } catch {
+          // El autocompletado es un detalle: si falla, el formulario sigue igual.
+        }
+      })();
+    }, 600);
+    return () => window.clearTimeout(timer);
+  }, [formulario.documento, formulario.tipo_doc, documentoEnmascarado, token]);
+
+  // Foto del documento de identidad (política de la agencia): mientras
+  // `fotoPendiente` exista se envía en cada guardado (el servidor la guarda
+  // de forma idempotente) hasta que responda con el id del archivo.
+  const [fotoPendiente, setFotoPendiente] = useState<FotoDocumento | null>(null);
+  const [fotoPreview, setFotoPreview] = useState<string | null>(null);
+  const [fotoCargando, setFotoCargando] = useState(false);
+  const idAlElegirRef = useRef<string | null>(null);
+  const idFotoServidor = titularInicial?.documento_imagen_id ?? null;
+  // ¿La foto elegida ya está confirmada por el servidor?
+  const fotoSubida =
+    idFotoServidor !== null && (fotoPendiente === null || idFotoServidor !== idAlElegirRef.current);
+
+  // El servidor confirmó la foto: deja de reenviarla.
+  useEffect(() => {
+    if (fotoPendiente && idFotoServidor && idFotoServidor !== idAlElegirRef.current) {
+      setFotoPendiente(null);
+    }
+  }, [fotoPendiente, idFotoServidor]);
+
+  const elegirFoto = async (archivo: File) => {
+    setFotoCargando(true);
+    try {
+      const foto = await prepararFotoDocumento(archivo);
+      idAlElegirRef.current = idFotoServidor;
+      setFotoPreview(foto.data);
+      setFotoPendiente(foto);
+      setErrores((previos) => ({ ...previos, documento_imagen: undefined }));
+      guardarBorrador(foto);
+    } catch {
+      setErrores((previos) => ({
+        ...previos,
+        documento_imagen: "No pudimos leer la foto. Tómala de nuevo",
+      }));
+    } finally {
+      setFotoCargando(false);
+    }
+  };
 
   const edad = useMemo(
     () =>
@@ -168,21 +279,27 @@ export function Titular({
     }
   };
 
-  /** Datos que se envían: los valores enmascarados no se reenvían (UX-20). */
-  const datosParaEnviar = (): DatosTitular => ({
-    nombre: formulario.nombre.trim(),
-    tipo_doc: formulario.tipo_doc,
-    documento: documentoEnmascarado ? "" : formulario.documento.trim(),
-    fecha_nacimiento: fechaEnmascarada ? "" : formulario.fecha_nacimiento,
-    telefono: formulario.telefono,
-    correo: formulario.correo.trim().toLowerCase(),
-    contacto_emergencia_nombre: formulario.contacto_emergencia_nombre.trim(),
-    contacto_emergencia_telefono: formulario.contacto_emergencia_telefono,
-  });
-
-  const guardarBorrador = () => {
-    onGuardar(datosParaEnviar());
+  /**
+   * Datos que se envían: los valores enmascarados no se reenvían (UX-20).
+   * La foto viaja sólo mientras el servidor no la confirme (o la elegida
+   * recién en esta llamada, para que el envío no dependa del estado).
+   */
+  const datosParaEnviar = (foto?: FotoDocumento | null): DatosTitular => {
+    const base: DatosTitular = {
+      nombre: formulario.nombre.trim(),
+      tipo_doc: formulario.tipo_doc,
+      documento: documentoEnmascarado ? "" : formulario.documento.trim(),
+      fecha_nacimiento: fechaEnmascarada ? "" : formulario.fecha_nacimiento,
+      telefono: formulario.telefono,
+      correo: formulario.correo.trim().toLowerCase(),
+      contacto_emergencia_nombre: formulario.contacto_emergencia_nombre.trim(),
+      contacto_emergencia_telefono: formulario.contacto_emergencia_telefono,
+    };
+    const aEnviar = foto !== undefined ? foto : fotoPendiente;
+    return aEnviar ? { ...base, documento_imagen: aEnviar } : base;
   };
+
+  const guardarBorrador = (foto?: FotoDocumento | null) => onGuardar(datosParaEnviar(foto));
 
   const marcarTocado = (campo: keyof EstadoFormulario) => {
     setTocados((previos) => ({ ...previos, [campo]: true }));
@@ -194,11 +311,16 @@ export function Titular({
     guardarBorrador();
   };
 
-  const continuar = () => {
+  const continuar = async () => {
     const nuevosErrores: Errores = {};
     for (const campo of Object.keys(ESTADO_VACIO) as (keyof EstadoFormulario)[]) {
       const mensaje = validarCampo(campo, formulario[campo], formulario, fechaSalida);
       if (mensaje) nuevosErrores[campo] = mensaje;
+    }
+
+    // Política: cada pasajero viaja con la foto de su documento de identidad.
+    if (!fotoSubida && !fotoPendiente) {
+      nuevosErrores.documento_imagen = "Sube la foto del documento de identidad";
     }
 
     setErrores(nuevosErrores);
@@ -209,8 +331,8 @@ export function Titular({
       ),
     );
 
-    const camposConError = (Object.keys(nuevosErrores) as (keyof EstadoFormulario)[]).filter(
-      (campo) => Boolean(nuevosErrores[campo]),
+    const camposConError = (Object.keys(nuevosErrores) as (keyof Errores)[]).filter((campo) =>
+      Boolean(nuevosErrores[campo]),
     );
 
     if (camposConError.length > 0) {
@@ -221,10 +343,14 @@ export function Titular({
       const primero = camposConError[0];
       if (primero) {
         window.requestAnimationFrame(() => {
-          const control = document.getElementById(ID_CONTROL[primero]);
+          const idControl =
+            primero === "documento_imagen"
+              ? "titular-foto-documento"
+              : ID_CONTROL[primero as keyof EstadoFormulario];
+          const control = document.getElementById(idControl);
           const alterno =
-            document.getElementById(`${ID_CONTROL[primero]}-cambiar`) ??
-            document.getElementById(`titular-${primero}-cambiar`);
+            document.getElementById(`${idControl}-cambiar`) ??
+            document.getElementById(`titular-${String(primero)}-cambiar`);
           const elemento = control ?? alterno;
           elemento?.scrollIntoView({ block: "center", behavior: "smooth" });
           elemento?.focus();
@@ -234,7 +360,9 @@ export function Titular({
     }
 
     setAnuncio("");
-    guardarBorrador();
+    // Se espera el guardado (incluida la foto) antes de completar el paso:
+    // si no, el servidor rechazaría el paso por falta de la foto.
+    await Promise.resolve(guardarBorrador());
     onContinuar();
   };
 
@@ -258,12 +386,17 @@ export function Titular({
         </p>
       ) : null}
 
-      <Campo
-        id="titular-nombre"
-        etiqueta="Nombre y apellido"
-        error={error("nombre")}
-        requerido
-      >
+      {avisoCompletado ? (
+        <p
+          role="status"
+          className="flex items-start gap-2 rounded-xl border border-success/40 bg-success/10 px-3 py-2 text-sm text-foreground"
+        >
+          <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-success" aria-hidden="true" />
+          <span>Completamos tus datos de una reserva anterior. Revísalos antes de continuar.</span>
+        </p>
+      ) : null}
+
+      <Campo id="titular-nombre" etiqueta="Nombre y apellido" error={error("nombre")} requerido>
         {(aria) => (
           <Input
             {...aria}
@@ -357,6 +490,28 @@ export function Titular({
             )
           }
         </Campo>
+      </div>
+
+      {/* Foto del documento de identidad (política de la agencia) */}
+      <div className="flex flex-col gap-1.5">
+        <UploadArchivo
+          id="titular-foto-documento"
+          etiqueta="Foto del documento de identidad"
+          ayuda="Toma una foto legible de la cédula o el pasaporte (o adjunta un PDF). Es obligatoria: verifica que los datos sean reales."
+          acepta="image/jpeg,image/png,image/webp,application/pdf"
+          maxMB={MAX_FOTO_DOCUMENTO_MB}
+          captura="environment"
+          cargando={fotoCargando}
+          nombreArchivo={fotoPendiente?.nombre ?? (fotoSubida ? "Foto del documento" : undefined)}
+          previewUrl={fotoPreview ?? undefined}
+          error={errores.documento_imagen}
+          onSeleccionar={(archivo) => void elegirFoto(archivo)}
+        />
+        {fotoSubida ? (
+          <p className="text-xs font-medium text-success">Foto del documento lista ✓</p>
+        ) : fotoPendiente ? (
+          <p className="text-xs text-muted-foreground">Enviando la foto…</p>
+        ) : null}
       </div>
 
       <Campo
@@ -454,9 +609,7 @@ export function Titular({
                 autoComplete="name"
                 className="h-11 text-base"
                 value={formulario.contacto_emergencia_nombre}
-                onChange={(evento) =>
-                  actualizar("contacto_emergencia_nombre", evento.target.value)
-                }
+                onChange={(evento) => actualizar("contacto_emergencia_nombre", evento.target.value)}
                 onBlur={() => marcarTocado("contacto_emergencia_nombre")}
               />
             )}
@@ -477,9 +630,7 @@ export function Titular({
         </div>
       </section>
 
-      {guardando ? (
-        <p className="text-xs text-muted-foreground">Guardando tus datos…</p>
-      ) : null}
+      {guardando ? <p className="text-xs text-muted-foreground">Guardando tus datos…</p> : null}
     </div>
   );
 }

@@ -37,8 +37,8 @@ export function EnlaceInvalido({
       titulo="Este enlace no es válido"
       mensaje={
         <p>
-          El enlace que abriste no está disponible. Puede que haya caducado o que ya se haya
-          usado. Escríbenos y te enviamos uno nuevo en un minuto.
+          El enlace que abriste no está disponible. Puede que haya caducado o que ya se haya usado.
+          Escríbenos y te enviamos uno nuevo en un minuto.
         </p>
       }
       whatsappMensaje={mensajeWhatsApp}

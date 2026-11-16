@@ -1,11 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, CreditCard, UtensilsCrossed } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { Campo } from "@/components/admin/Campo";
 import { BotonCargar } from "@/components/admin/BotonCargar";
-import { MARCA } from "@/lib/brand";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { api } from "@/lib/api";
+import type { Configuracion } from "@/lib/domain/types";
 
 export const Route = createFileRoute("/admin/configuracion/general")({
   head: () => ({
@@ -19,6 +22,28 @@ export const Route = createFileRoute("/admin/configuracion/general")({
 
 function ConfiguracionGeneral() {
   const [guardando, setGuardando] = useState(false);
+  const queryClient = useQueryClient();
+
+  const { data: datos } = useQuery({
+    queryKey: ["configuracion", "general"],
+    queryFn: () => api.admin.configuracion(),
+  });
+  const config = datos?.config;
+
+  // Banderas globales del formulario: se guardan de inmediato, sin botón aparte.
+  const guardarPreferencia = useMutation({
+    mutationFn: (cambios: Partial<Configuracion>) => api.admin.guardarConfiguracion(cambios),
+    onSuccess: () => {
+      toast.success("Preferencia actualizada");
+      void queryClient.invalidateQueries({ queryKey: ["configuracion"] });
+    },
+    onError: () => {
+      toast.error("No pudimos guardar la preferencia");
+    },
+  });
+
+  const comidasHabilitadas = !(config?.comidas_deshabilitadas ?? true);
+  const reportePagoActivo = config?.reporte_pago_cliente ?? false;
 
   const handleGuardar = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,7 +62,11 @@ function ConfiguracionGeneral() {
   return (
     <AdminShell
       titulo="Configuración general"
-      breadcrumb={[{ label: "Panel", to: "/admin" }, { label: "Configuración", to: "/admin/configuracion" }, { label: "General" }]}
+      breadcrumb={[
+        { label: "Panel", to: "/admin" },
+        { label: "Configuración", to: "/admin/configuracion" },
+        { label: "General" },
+      ]}
     >
       <div className="mx-auto w-full max-w-2xl">
         <Link
@@ -47,6 +76,63 @@ function ConfiguracionGeneral() {
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           Volver a configuración
         </Link>
+
+        {/* Preferencias del formulario (flags globales) ------------------- */}
+        <div className="mb-6 rounded-2xl border border-border bg-card p-6 shadow-card">
+          <h2 className="text-xl font-extrabold tracking-tight text-foreground">
+            Preferencias del formulario
+          </h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Se aplican a todos los formularios públicos. Se pueden activar o desactivar en cualquier
+            momento, sin perder los campos ni el flujo.
+          </p>
+
+          <ul className="mt-5 space-y-4">
+            <li className="flex items-start justify-between gap-4 rounded-xl border border-border bg-background p-4">
+              <div className="min-w-0">
+                <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <UtensilsCrossed className="h-4 w-4 text-primary" aria-hidden="true" />
+                  Selección de comida
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  Muestra u oculta las preguntas de comida (almuerzo, menús). Al ocultarlas, los
+                  campos se conservan y las respuestas anteriores no se borran.
+                </p>
+              </div>
+              <Switch
+                id="flag-comidas"
+                checked={comidasHabilitadas}
+                disabled={guardarPreferencia.isPending}
+                onCheckedChange={(checked) =>
+                  guardarPreferencia.mutate({ comidas_deshabilitadas: !checked })
+                }
+                aria-label="Selección de comida habilitada"
+              />
+            </li>
+
+            <li className="flex items-start justify-between gap-4 rounded-xl border border-border bg-background p-4">
+              <div className="min-w-0">
+                <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <CreditCard className="h-4 w-4 text-primary" aria-hidden="true" />
+                  Reporte de pago del cliente
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  Si está apagado, el cliente no reporta pagos por el formulario: la agencia anota
+                  los datos del pago desde la reserva y el pago entra a la cola «Pagos por validar».
+                </p>
+              </div>
+              <Switch
+                id="flag-reporte-pago"
+                checked={reportePagoActivo}
+                disabled={guardarPreferencia.isPending}
+                onCheckedChange={(checked) =>
+                  guardarPreferencia.mutate({ reporte_pago_cliente: checked })
+                }
+                aria-label="Reporte de pago del cliente habilitado"
+              />
+            </li>
+          </ul>
+        </div>
 
         <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
           <h2 className="text-xl font-extrabold tracking-tight text-foreground">

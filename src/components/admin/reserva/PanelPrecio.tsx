@@ -1,20 +1,14 @@
 import * as React from "react";
-import { Plus, Trash2, Wallet } from "lucide-react";
+import { Wallet } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { formatUsd } from "@/lib/format";
 import type { AjustePrecioAdmin, LineaPrecioAdmin, Reserva } from "@/lib/domain/types";
 import { cn } from "@/lib/utils";
+import { EditorPrecio, type DatosPrecio } from "./EditorPrecio";
+
+export type { DatosPrecio };
 
 /**
  * Panel de **precio administrado** de la reserva.
@@ -24,13 +18,10 @@ import { cn } from "@/lib/utils";
  * con motivo obligatorio; el servidor recalcula el total con las tarifas
  * reales. Las promos (`origen: "promo"`) se muestran pero no se editan desde
  * este panel.
+ *
+ * El formulario en sí vive en `EditorPrecio`, compartido con el alta de
+ * reserva.
  */
-
-export interface DatosPrecio {
-  motivo: string;
-  lineas: { id?: string; concepto: string; cantidad: number; precio_unit_usd: string }[];
-  ajustes: { id?: string; tipo: "descuento" | "recargo"; monto_usd: string; motivo: string }[];
-}
 
 export interface PanelPrecioProps {
   reserva: Reserva;
@@ -42,21 +33,13 @@ export interface PanelPrecioProps {
   guardando: boolean;
   /** Persiste el precio; lanza error con mensaje en español si falla. */
   onGuardar: (datos: DatosPrecio) => Promise<void>;
+  /** Explica por qué el precio no se puede editar (si aplica). */
+  motivoBloqueo?: string | undefined;
+  /** La reserva tiene pagos registrados: cambiar el total exige justificación. */
+  justificacionRequerida?: boolean | undefined;
+  /** Explica por qué se pide la justificación. */
+  avisoJustificacion?: string | undefined;
   className?: string | undefined;
-}
-
-interface LineaEdit {
-  id?: string | undefined;
-  concepto: string;
-  cantidad: string;
-  precio_unit_usd: string;
-}
-
-interface AjusteEdit {
-  id?: string | undefined;
-  tipo: "descuento" | "recargo";
-  monto_usd: string;
-  motivo: string;
 }
 
 export function PanelPrecio({
@@ -65,80 +48,18 @@ export function PanelPrecio({
   abierta,
   guardando,
   onGuardar,
+  motivoBloqueo,
+  justificacionRequerida = false,
+  avisoJustificacion,
   className,
 }: PanelPrecioProps) {
   const editable = puedeEditar && abierta;
   const [editando, setEditando] = React.useState(false);
-  const [motivo, setMotivo] = React.useState("");
-  const [lineas, setLineas] = React.useState<LineaEdit[]>([]);
-  const [ajustes, setAjustes] = React.useState<AjusteEdit[]>([]);
-  const [error, setError] = React.useState<string | null>(null);
 
   const lineasPrecio = reserva.precio_lineas ?? [];
   const ajustesPrecio = reserva.precio_ajustes ?? [];
   const ajustesManuales = ajustesPrecio.filter((a) => a.origen !== "promo");
   const ajustesPromo = ajustesPrecio.filter((a) => a.origen === "promo");
-
-  // Reinicia el borrador cuando cambia la reserva (guardar o refrescar).
-  React.useEffect(() => {
-    setEditando(false);
-    setMotivo("");
-    setError(null);
-    setLineas(
-      lineasPrecio.map((l: LineaPrecioAdmin) => ({
-        ...(l.id ? { id: l.id } : {}),
-        concepto: l.concepto,
-        cantidad: String(l.cantidad),
-        precio_unit_usd: l.precio_unit_usd,
-      })),
-    );
-    setAjustes(
-      ajustesManuales.map((a: AjustePrecioAdmin) => ({
-        ...(a.id ? { id: a.id } : {}),
-        tipo: a.tipo,
-        monto_usd: a.monto_usd,
-        motivo: a.motivo,
-      })),
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reserva.version, reserva.id]);
-
-  const empezarEdicion = () => {
-    setMotivo("");
-    setError(null);
-    setEditando(true);
-  };
-
-  const guardar = async () => {
-    setError(null);
-    const lineasValidas = lineas
-      .map((l) => ({
-        ...(l.id ? { id: l.id } : {}),
-        concepto: l.concepto.trim(),
-        cantidad: Math.floor(Number(l.cantidad)),
-        precio_unit_usd: l.precio_unit_usd.trim(),
-      }))
-      .filter((l) => l.concepto !== "" || l.cantidad > 0 || l.precio_unit_usd !== "");
-    const ajustesValidos = ajustes
-      .map((a) => ({
-        ...(a.id ? { id: a.id } : {}),
-        tipo: a.tipo,
-        monto_usd: a.monto_usd.trim(),
-        motivo: a.motivo.trim(),
-      }))
-      .filter((a) => a.monto_usd !== "" || a.motivo !== "");
-
-    if (!motivo.trim()) {
-      setError("Escribe el motivo del cambio de precio.");
-      return;
-    }
-    try {
-      await onGuardar({ motivo: motivo.trim(), lineas: lineasValidas, ajustes: ajustesValidos });
-      setEditando(false);
-    } catch {
-      // El error ya se muestra en la página; el panel conserva el borrador.
-    }
-  };
 
   const descuentos = Number.parseFloat(reserva.descuentos_usd ?? "0");
   const total = Number.parseFloat(reserva.total_usd);
@@ -164,7 +85,7 @@ export function PanelPrecio({
             variant="outline"
             size="sm"
             className="min-h-11"
-            onClick={empezarEdicion}
+            onClick={() => setEditando(true)}
           >
             Editar precio
           </Button>
@@ -180,7 +101,7 @@ export function PanelPrecio({
             </dd>
           </div>
 
-          {lineasPrecio.map((linea) => (
+          {lineasPrecio.map((linea: LineaPrecioAdmin) => (
             <div
               key={linea.id ?? linea.concepto}
               className="flex items-center justify-between gap-3"
@@ -195,7 +116,7 @@ export function PanelPrecio({
             </div>
           ))}
 
-          {ajustesManuales.map((ajuste) => (
+          {ajustesManuales.map((ajuste: AjustePrecioAdmin) => (
             <div
               key={ajuste.id ?? ajuste.motivo}
               className="flex items-center justify-between gap-3"
@@ -220,7 +141,7 @@ export function PanelPrecio({
             </div>
           ))}
 
-          {ajustesPromo.map((ajuste) => (
+          {ajustesPromo.map((ajuste: AjustePrecioAdmin) => (
             <div
               key={ajuste.id ?? ajuste.motivo}
               className="flex items-center justify-between gap-3"
@@ -262,238 +183,18 @@ export function PanelPrecio({
           </div>
         </dl>
       ) : (
-        <div className="flex flex-col gap-4">
-          {/* Líneas extra */}
-          <div className="flex flex-col gap-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Cargos extra (toldos, servicios)
-            </p>
-            {lineas.map((linea, indice) => (
-              <div
-                key={linea.id ?? `nueva-${indice}`}
-                className="grid grid-cols-[1fr_72px_96px_40px] items-end gap-2"
-              >
-                <div className="flex flex-col gap-1">
-                  <Label htmlFor={`linea-concepto-${indice}`} className="text-xs">
-                    Concepto
-                  </Label>
-                  <Input
-                    id={`linea-concepto-${indice}`}
-                    value={linea.concepto}
-                    onChange={(e) =>
-                      setLineas((prev) =>
-                        prev.map((l, i) => (i === indice ? { ...l, concepto: e.target.value } : l)),
-                      )
-                    }
-                    placeholder="Alquiler de toldo"
-                    className="min-h-11"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <Label htmlFor={`linea-cantidad-${indice}`} className="text-xs">
-                    Cant.
-                  </Label>
-                  <Input
-                    id={`linea-cantidad-${indice}`}
-                    type="number"
-                    min={1}
-                    step={1}
-                    value={linea.cantidad}
-                    onChange={(e) =>
-                      setLineas((prev) =>
-                        prev.map((l, i) => (i === indice ? { ...l, cantidad: e.target.value } : l)),
-                      )
-                    }
-                    className="min-h-11"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <Label htmlFor={`linea-precio-${indice}`} className="text-xs">
-                    Precio $
-                  </Label>
-                  <Input
-                    id={`linea-precio-${indice}`}
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={linea.precio_unit_usd}
-                    onChange={(e) =>
-                      setLineas((prev) =>
-                        prev.map((l, i) =>
-                          i === indice ? { ...l, precio_unit_usd: e.target.value } : l,
-                        ),
-                      )
-                    }
-                    className="min-h-11"
-                  />
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="min-h-11 min-w-11"
-                  aria-label="Quitar línea"
-                  onClick={() => setLineas((prev) => prev.filter((_, i) => i !== indice))}
-                >
-                  <Trash2 className="h-4 w-4" aria-hidden="true" />
-                </Button>
-              </div>
-            ))}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="min-h-11 self-start"
-              onClick={() =>
-                setLineas((prev) => [...prev, { concepto: "", cantidad: "1", precio_unit_usd: "" }])
-              }
-            >
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              <span>Agregar cargo</span>
-            </Button>
-          </div>
-
-          {/* Ajustes manuales */}
-          <div className="flex flex-col gap-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Ajustes (descuentos y recargos)
-            </p>
-            {ajustes.map((ajuste, indice) => (
-              <div
-                key={ajuste.id ?? `nuevo-${indice}`}
-                className="grid grid-cols-[110px_1fr_96px_40px] items-end gap-2"
-              >
-                <div className="flex flex-col gap-1">
-                  <Label htmlFor={`ajuste-tipo-${indice}`} className="text-xs">
-                    Tipo
-                  </Label>
-                  <Select
-                    value={ajuste.tipo}
-                    onValueChange={(valor) =>
-                      setAjustes((prev) =>
-                        prev.map((a, i) =>
-                          i === indice ? { ...a, tipo: valor as "descuento" | "recargo" } : a,
-                        ),
-                      )
-                    }
-                  >
-                    <SelectTrigger id={`ajuste-tipo-${indice}`} className="min-h-11">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="descuento">Descuento</SelectItem>
-                      <SelectItem value="recargo">Recargo</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <Label htmlFor={`ajuste-motivo-${indice}`} className="text-xs">
-                    Motivo
-                  </Label>
-                  <Input
-                    id={`ajuste-motivo-${indice}`}
-                    value={ajuste.motivo}
-                    onChange={(e) =>
-                      setAjustes((prev) =>
-                        prev.map((a, i) => (i === indice ? { ...a, motivo: e.target.value } : a)),
-                      )
-                    }
-                    placeholder="Convenio con el cliente"
-                    className="min-h-11"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <Label htmlFor={`ajuste-monto-${indice}`} className="text-xs">
-                    Monto $
-                  </Label>
-                  <Input
-                    id={`ajuste-monto-${indice}`}
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={ajuste.monto_usd}
-                    onChange={(e) =>
-                      setAjustes((prev) =>
-                        prev.map((a, i) =>
-                          i === indice ? { ...a, monto_usd: e.target.value } : a,
-                        ),
-                      )
-                    }
-                    className="min-h-11"
-                  />
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="min-h-11 min-w-11"
-                  aria-label="Quitar ajuste"
-                  onClick={() => setAjustes((prev) => prev.filter((_, i) => i !== indice))}
-                >
-                  <Trash2 className="h-4 w-4" aria-hidden="true" />
-                </Button>
-              </div>
-            ))}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="min-h-11 self-start"
-              onClick={() =>
-                setAjustes((prev) => [...prev, { tipo: "descuento", monto_usd: "", motivo: "" }])
-              }
-            >
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              <span>Agregar ajuste</span>
-            </Button>
-          </div>
-
-          {/* Motivo global obligatorio */}
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="precio-motivo" className="text-sm font-semibold text-foreground">
-              Motivo del cambio
-            </Label>
-            <Input
-              id="precio-motivo"
-              value={motivo}
-              onChange={(e) => setMotivo(e.target.value)}
-              placeholder="Ej.: se agregó toldo para 4 personas"
-              className="min-h-11"
-            />
-            <p className="text-xs text-muted-foreground">
-              Queda en la auditoría de la reserva. El cliente solo verá el nuevo total.
-            </p>
-          </div>
-
-          {error ? (
-            <p role="alert" className="text-sm font-medium text-red-700 dark:text-red-300">
-              {error}
-            </p>
-          ) : null}
-
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              size="sm"
-              className="min-h-11"
-              disabled={guardando}
-              aria-busy={guardando || undefined}
-              onClick={() => void guardar()}
-            >
-              {guardando ? "Guardando…" : "Guardar precio"}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="min-h-11"
-              disabled={guardando}
-              onClick={() => setEditando(false)}
-            >
-              Cancelar
-            </Button>
-          </div>
-        </div>
+        <EditorPrecio
+          lineasIniciales={lineasPrecio}
+          ajustesIniciales={ajustesManuales}
+          guardando={guardando}
+          justificacionRequerida={justificacionRequerida}
+          avisoJustificacion={avisoJustificacion}
+          onGuardar={async (datos) => {
+            await onGuardar(datos);
+            setEditando(false);
+          }}
+          onCancelar={() => setEditando(false)}
+        />
       )}
 
       {netoPagado > 0 && !editando ? (

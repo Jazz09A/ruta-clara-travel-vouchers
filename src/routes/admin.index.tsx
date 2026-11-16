@@ -153,19 +153,19 @@ function Dashboard() {
           ]),
         },
         {
-          title: "Pagos por validar",
-          value: dashboardData.pagos_por_verificar[0]?.total.toString() ?? "0",
+          title: "Por confirmar",
+          value: dashboardData.por_confirmar[0]?.total.toString() ?? "0",
           delta:
-            dashboardData.pagos_por_verificar[0]?.mas_antiguo_min &&
-            dashboardData.pagos_por_verificar[0].mas_antiguo_min > 0
-              ? `${dashboardData.pagos_por_verificar[0].mas_antiguo_min} min`
+            dashboardData.por_confirmar[0]?.mas_antiguo_min &&
+            dashboardData.por_confirmar[0].mas_antiguo_min > 0
+              ? `${dashboardData.por_confirmar[0].mas_antiguo_min} min`
               : "0",
           icon: Clock,
           segs: segsOf([
-            Math.round((dashboardData.pagos_por_verificar[0]?.total ?? 0) * 0.4),
-            Math.round((dashboardData.pagos_por_verificar[0]?.total ?? 0) * 0.3),
-            Math.round((dashboardData.pagos_por_verificar[0]?.total ?? 0) * 0.2),
-            Math.round((dashboardData.pagos_por_verificar[0]?.total ?? 0) * 0.1),
+            Math.round((dashboardData.por_confirmar[0]?.total ?? 0) * 0.4),
+            Math.round((dashboardData.por_confirmar[0]?.total ?? 0) * 0.3),
+            Math.round((dashboardData.por_confirmar[0]?.total ?? 0) * 0.2),
+            Math.round((dashboardData.por_confirmar[0]?.total ?? 0) * 0.1),
           ]),
         },
       ]
@@ -305,10 +305,10 @@ function Dashboard() {
                   })
                 )}
                 <Link
-                  to="/admin/pagos"
+                  to="/admin/reservas"
                   className="rounded-xl bg-brand py-2.5 text-center text-sm font-semibold text-primary-foreground"
                 >
-                  Ir a la cola de pagos
+                  Reservas por confirmar
                 </Link>
               </div>
             </div>

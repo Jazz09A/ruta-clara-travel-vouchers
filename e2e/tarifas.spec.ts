@@ -49,19 +49,13 @@ test("CRUD de tarifas: crear, editar precio y eliminar", async ({ page }) => {
     await expect(page.getByText("Guardamos la tarifa.")).toBeVisible({ timeout: 15_000 });
     // El seed ya trae tarifas de Infante en varias salidas: la nuestra se
     // identifica por el precio recién creado.
-    const fila = page
-      .getByRole("row")
-      .filter({ hasText: "Infante" })
-      .filter({ hasText: "$25,00" });
+    const fila = page.getByRole("row").filter({ hasText: "Infante" }).filter({ hasText: "$25,00" });
     await expect(fila).toBeVisible({ timeout: 15_000 });
     await expect(fila.getByText("0 a 2 años")).toBeVisible();
   });
 
   await test.step("edita el precio de la tarifa", async () => {
-    const fila = page
-      .getByRole("row")
-      .filter({ hasText: "Infante" })
-      .filter({ hasText: "$25,00" });
+    const fila = page.getByRole("row").filter({ hasText: "Infante" }).filter({ hasText: "$25,00" });
     await fila.getByRole("button").first().click(); // Editar (lápiz)
 
     const dialogoEdicion = page.getByRole("dialog");
@@ -74,26 +68,17 @@ test("CRUD de tarifas: crear, editar precio y eliminar", async ({ page }) => {
 
     await expect(page.getByText("Guardamos la tarifa.")).toBeVisible({ timeout: 15_000 });
     await expect(
-      page
-        .getByRole("row")
-        .filter({ hasText: "Infante" })
-        .filter({ hasText: "$30,00" }),
+      page.getByRole("row").filter({ hasText: "Infante" }).filter({ hasText: "$30,00" }),
     ).toBeVisible({ timeout: 15_000 });
   });
 
   await test.step("elimina la tarifa", async () => {
-    const fila = page
-      .getByRole("row")
-      .filter({ hasText: "Infante" })
-      .filter({ hasText: "$30,00" });
+    const fila = page.getByRole("row").filter({ hasText: "Infante" }).filter({ hasText: "$30,00" });
     await fila.getByRole("button").last().click(); // Papelera
 
     await expect(page.getByText("Eliminamos la tarifa.")).toBeVisible({ timeout: 15_000 });
     await expect(
-      page
-        .getByRole("row")
-        .filter({ hasText: "Infante" })
-        .filter({ hasText: "$30,00" }),
+      page.getByRole("row").filter({ hasText: "Infante" }).filter({ hasText: "$30,00" }),
     ).toHaveCount(0, { timeout: 15_000 });
   });
 });

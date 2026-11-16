@@ -13,13 +13,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { AYUDA_ALCANCE, AYUDA_TIPO_CAMPO, CATEGORIAS, ETIQUETA_ALCANCE, ETIQUETA_CATEGORIA, ETIQUETA_TIPO_CAMPO } from "./tipos-campo";
+import {
+  AYUDA_ALCANCE,
+  AYUDA_TIPO_CAMPO,
+  CATEGORIAS,
+  ETIQUETA_ALCANCE,
+  ETIQUETA_CATEGORIA,
+  ETIQUETA_TIPO_CAMPO,
+} from "./tipos-campo";
 import { EditorCondicion } from "./editor-condicion";
 import { EditorOpciones } from "./editor-opciones";
 import { generarIdCampo } from "./biblioteca-campos";
 import type { ProblemaCampo } from "./validacion";
-import type { AlcanceCampo, CampoDef, Categoria, TipoCampo } from "@/lib/domain/types";
-import { TIPOS_SOPORTADOS } from "@/lib/domain/form-engine";
+import type { AlcanceCampo, CampoDef, Categoria, PuntoSalida, TipoCampo } from "@/lib/domain/types";
+import { TIPOS_SOPORTADOS, esCampoComida, esCampoPuntoSalida } from "@/lib/domain/form-engine";
+import { formatTime } from "@/lib/format";
+import { EnlaceAdmin } from "@/components/admin/ui/enlace";
 
 export interface EditorCampoProps {
   campo: CampoDef;
@@ -29,6 +38,10 @@ export interface EditorCampoProps {
   bloqueado: boolean;
   /** Problemas de validación viva de este campo. */
   problemas: ProblemaCampo[];
+  /** Catálogo global de puntos de salida (opciones del campo de abordaje). */
+  puntosSalida?: PuntoSalida[] | undefined;
+  /** Bandera global: la selección de comida está oculta para el cliente. */
+  comidasDeshabilitadas?: boolean | undefined;
   onChange: (campo: CampoDef) => void;
 }
 
@@ -39,7 +52,15 @@ export interface EditorCampoProps {
  * propiedades del campo. El `id` se autogenera del nombre y queda bloqueado
  * cuando la versión ya fue publicada.
  */
-export function EditorCampo({ campo, campos, bloqueado, problemas, onChange }: EditorCampoProps) {
+export function EditorCampo({
+  campo,
+  campos,
+  bloqueado,
+  problemas,
+  puntosSalida,
+  comidasDeshabilitadas = false,
+  onChange,
+}: EditorCampoProps) {
   const [idManual, setIdManual] = React.useState(false);
   const idBloqueantes = problemas.filter((problema) => problema.nivel === "bloqueante");
   const advertencias = problemas.filter((problema) => problema.nivel === "advertencia");
@@ -120,7 +141,11 @@ export function EditorCampo({ campo, campos, bloqueado, problemas, onChange }: E
         <Campo
           id="campo-tipo"
           etiqueta="Tipo de pregunta"
-          ayuda={bloqueado ? "El tipo no se puede cambiar en un campo ya publicado." : AYUDA_TIPO_CAMPO[campo.tipo]}
+          ayuda={
+            bloqueado
+              ? "El tipo no se puede cambiar en un campo ya publicado."
+              : AYUDA_TIPO_CAMPO[campo.tipo]
+          }
         >
           {(props) => (
             <Select
@@ -145,7 +170,11 @@ export function EditorCampo({ campo, campos, bloqueado, problemas, onChange }: E
         <Campo
           id="campo-alcance"
           etiqueta="Alcance de la respuesta"
-          ayuda={bloqueado ? "El alcance no se puede cambiar en un campo ya publicado." : AYUDA_ALCANCE[campo.alcance]}
+          ayuda={
+            bloqueado
+              ? "El alcance no se puede cambiar en un campo ya publicado."
+              : AYUDA_ALCANCE[campo.alcance]
+          }
         >
           {(props) => (
             <Select
@@ -177,6 +206,24 @@ export function EditorCampo({ campo, campos, bloqueado, problemas, onChange }: E
           </Label>
         </div>
 
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="campo-grupo-comida"
+            checked={esCampoComida(campo)}
+            onCheckedChange={(estado) => {
+              if (estado === true) {
+                onChange({ ...campo, grupo: "comida" });
+                return;
+              }
+              const { grupo: _grupo, ...resto } = campo;
+              onChange({ ...resto });
+            }}
+          />
+          <Label htmlFor="campo-grupo-comida" className="text-sm font-normal">
+            Es una selección de comida
+          </Label>
+        </div>
+
         {campo.alcance === "por_reserva" ? (
           <div className="flex items-center gap-2">
             <Checkbox
@@ -192,6 +239,13 @@ export function EditorCampo({ campo, campos, bloqueado, problemas, onChange }: E
           </div>
         ) : null}
       </div>
+
+      {esCampoComida(campo) && comidasDeshabilitadas ? (
+        <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
+          Esta pregunta está oculta para el cliente mientras la selección de comida esté
+          deshabilitada en la configuración. Aquí se conserva y se puede seguir editando.
+        </p>
+      ) : null}
 
       <Campo
         id="campo-valor-defecto"
@@ -245,13 +299,50 @@ export function EditorCampo({ campo, campos, bloqueado, problemas, onChange }: E
       ) : null}
 
       {campo.tipo === "select" || campo.tipo === "multiselect" ? (
-        <div className="rounded-xl border border-border p-3">
-          <p className="mb-2 text-sm font-semibold text-foreground">Opciones</p>
-          <EditorOpciones
-            opciones={campo.opciones ?? []}
-            onChange={(opciones) => onChange({ ...campo, opciones })}
-          />
-        </div>
+        esCampoPuntoSalida(campo) ? (
+          <div className="rounded-xl border border-border p-3">
+            <p className="text-sm font-semibold text-foreground">
+              Opciones — catálogo de puntos de salida
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              Este campo toma sus opciones del catálogo global de la agencia (no se editan aquí).
+              Para crear, editar o quitar puntos:{" "}
+              <EnlaceAdmin
+                to="/admin/configuracion/puntos"
+                className="font-semibold text-primary underline-offset-4 hover:underline"
+              >
+                Configuración → Puntos de salida
+              </EnlaceAdmin>
+              .
+            </p>
+            <ul className="mt-3 space-y-1.5">
+              {(puntosSalida ?? [])
+                .filter((punto) => punto.activo)
+                .map((punto) => (
+                  <li
+                    key={punto.id}
+                    className="flex items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
+                  >
+                    <span className="font-medium text-foreground">{punto.nombre}</span>
+                    <span className="text-xs text-muted-foreground">{formatTime(punto.hora)}</span>
+                  </li>
+                ))}
+              {(puntosSalida ?? []).filter((punto) => punto.activo).length === 0 ? (
+                <li className="rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
+                  No hay puntos activos. Créalos en la configuración.
+                </li>
+              ) : null}
+            </ul>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-border p-3">
+            <p className="mb-2 text-sm font-semibold text-foreground">Opciones</p>
+            <EditorOpciones
+              opciones={campo.opciones ?? []}
+              onChange={(opciones) => onChange({ ...campo, opciones })}
+            />
+          </div>
+        )
       ) : null}
 
       {campo.tipo === "extra" ? (

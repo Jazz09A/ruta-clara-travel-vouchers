@@ -67,7 +67,9 @@ export function FormularioDinamico({
     () =>
       evaluados.filter(
         (evaluado) =>
-          evaluado.aplica && evaluado.visible && (filtrarCampos ? filtrarCampos(evaluado.campo) : true),
+          evaluado.aplica &&
+          evaluado.visible &&
+          (filtrarCampos ? filtrarCampos(evaluado.campo) : true),
       ),
     [evaluados, filtrarCampos],
   );
@@ -109,19 +111,25 @@ export function FormularioDinamico({
               </div>
             ) : null}
 
-            <CampoDinamico
-              campo={campo}
-              valor={evaluado.valor}
-              error={errorDe(campo.id)}
-              agotadas={agotadas}
-              deshabilitado={deshabilitado}
-              onChange={(valor) => onChange(campo.id, valor)}
-              onCopiarAnterior={
-                onCopiarAnterior && (puedeCopiar ? puedeCopiar(campo) : true)
-                  ? (campoId) => onCopiarAnterior(campoId)
-                  : undefined
-              }
-            />
+            {puedeBajar && alcance === "por_reserva" && !compartido ? (
+              <p className="rounded-xl border border-dashed border-border bg-background px-3 py-2 text-xs text-muted-foreground">
+                Cada pasajero responde por su cuenta desde su sección.
+              </p>
+            ) : (
+              <CampoDinamico
+                campo={campo}
+                valor={evaluado.valor}
+                error={errorDe(campo.id)}
+                agotadas={agotadas}
+                deshabilitado={deshabilitado}
+                onChange={(valor) => onChange(campo.id, valor)}
+                onCopiarAnterior={
+                  onCopiarAnterior && (puedeCopiar ? puedeCopiar(campo) : true)
+                    ? (campoId) => onCopiarAnterior(campoId)
+                    : undefined
+                }
+              />
+            )}
           </section>
         );
       })}

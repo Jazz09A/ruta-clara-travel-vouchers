@@ -4,6 +4,7 @@ import * as React from "react";
 import { api, apiAbsUrl } from "@/lib/api";
 import {
   ArrowLeft,
+  BadgeCheck,
   Ban,
   CalendarClock,
   FileClock,
@@ -27,6 +28,7 @@ import {
   DialogoMotivo,
   DialogoPagoEfectivo,
   DialogoReembolso,
+  DialogoRegistrarPago,
   DialogoReprogramar,
   DialogoRevelarDato,
   LineaTiempoReserva,
@@ -44,6 +46,7 @@ import {
   type DatosEdicion,
   type DatosExtenderHold,
   type DatosPagoEfectivo,
+  type DatosPagoReserva,
   type DatosReembolso,
   type DatosReprogramar,
   type SimulacionCancelacion,
@@ -92,9 +95,11 @@ type DialogoActivo =
   | "reabrir"
   | "editar"
   | "efectivo"
+  | "datos-pago"
   | "reembolso"
   | "revelar"
-  | "voucher";
+  | "voucher"
+  | "confirmar";
 
 /** Campos que el panel de passengers puede editar. */
 const TIPOS_EDITABLES = new Set(["select", "text", "textarea"]);
@@ -275,14 +280,30 @@ function DetalleReserva() {
   const abierta = !["cancelada", "expirada", "completada"].includes(estado);
   const puedeCancelarAhora = TRANSICIONES[estado].includes("cancelada");
   const puedeReactivarAhora = estado === "expirada";
-  const puedeReprogramarAhora = estado === "confirmada" || estado === "pago_en_verificacion";
+  const puedeReprogramarAhora = estado === "confirmada";
   const puedeExtenderAhora = Boolean(reserva.expira_en) && abierta;
   const puedeEditarEnlace = abierta;
   const hayTokenEnlace = Boolean(reserva.link_token);
+  // La reserva se puede confirmar a mano cuando el titular no reporta el pago
+  // (la agencia lo cobra por adelantado, por transferencia o al abordar).
+  // El pago ya no es prerrequisito: se registra después, naciendo aprobado.
+  const puedeConfirmarAhora = estado === "pendiente_pago" && Boolean(reserva.firma);
 
   const montoAprobado = reserva.pagos
     .filter((pago) => pago.estado === "aprobado")
     .reduce((total, pago) => total + Number.parseFloat(pago.monto), 0);
+
+  // Con pagos registrados el total ya no se cambia en frío: hace falta una
+  // justificación explícita (queda en la auditoría).
+  const pagosVigentes = reserva.pagos.filter(
+    (pago) => pago.estado !== "anulado" && pago.estado !== "rechazado",
+  );
+  const justificacionRequerida = pagosVigentes.length > 0;
+  const saldoActual = Number.parseFloat(reserva.saldo_usd || "0");
+  const pagoCompleto = justificacionRequerida && montoAprobado > 0 && saldoActual <= 0.005;
+  const avisoJustificacion = pagoCompleto
+    ? "Esta reserva tiene el pago completo: cambiar el total exige una justificación."
+    : "Esta reserva tiene pagos registrados: cambiar el total exige una justificación.";
 
   const camposFaltantes: string[] = [];
   const titular = reserva.pasajeros.find((pasajero) => pasajero.es_titular);
@@ -335,9 +356,11 @@ function DetalleReserva() {
   const panelPagos = (
     <PanelPagosReserva
       pagos={reserva.pagos}
+      puedeRegistrarPago={puedeRegistrarEfectivo && abierta}
       puedeRegistrarEfectivo={puedeRegistrarEfectivo && abierta}
       puedeValidar={puedeValidar}
       puedeReembolsar={puedeReembolsar}
+      onRegistrarPago={() => setDialogo("datos-pago")}
       onRegistrarEfectivo={() => setDialogo("efectivo")}
       onReembolsar={(pago) => {
         setPagoAReembolsar(pago);
@@ -352,11 +375,18 @@ function DetalleReserva() {
       puedeEditar={puedeEditar}
       abierta={abierta}
       guardando={accionEnCurso === "precio"}
+      justificacionRequerida={justificacionRequerida}
+      avisoJustificacion={avisoJustificacion}
       onGuardar={async (datos) => {
         setAccionEnCurso("precio");
         setMensaje(null);
         try {
-          const resultado = await api.admin.guardarPrecio(id, datos);
+          const resultado = await api.admin.guardarPrecio(id, {
+            motivo: datos.motivo,
+            ...(datos.justificacion ? { justificacion: datos.justificacion } : {}),
+            lineas: datos.lineas,
+            ajustes: datos.ajustes,
+          });
           const texto = resultado.advertencia
             ? `Precio actualizado. ${resultado.advertencia}`
             : "Precio actualizado.";
@@ -376,9 +406,18 @@ function DetalleReserva() {
     />
   );
 
-  const panelFirma = <PanelFirma firma={reserva.firma} />;
+  const panelFirma = (
+    <PanelFirma
+      firma={reserva.firma}
+      versionTerminos={
+        reserva.terminos && reserva.terminos.id === reserva.firma?.version_terminos_id
+          ? reserva.terminos.version
+          : null
+      }
+    />
+  );
 
-  const puedeGenerarVoucher = ["pago_en_verificacion", "confirmada", "completada"].includes(estado);
+  const puedeGenerarVoucher = ["confirmada", "completada"].includes(estado);
 
   const panelVoucher = (
     <PanelVoucher
@@ -388,7 +427,7 @@ function DetalleReserva() {
       motivoBloqueo={
         puedeGenerarVoucher
           ? "La regeneración crea una versión nueva del voucher y deja la anterior como reemplazada."
-          : "El voucher se genera cuando el pago queda aprobado."
+          : "El voucher se genera al confirmar la reserva."
       }
       descargando={accionEnCurso === "voucher-descarga"}
       onDescargar={() => {
@@ -445,6 +484,21 @@ function DetalleReserva() {
       breadcrumb={[{ label: "Reservas", to: "/admin/reservas" }, { label: reserva.codigo }]}
       acciones={
         <div className="flex flex-wrap items-center gap-2">
+          {puedeConfirmarAhora ? (
+            <Button
+              type="button"
+              className="min-h-11"
+              disabled={accionEnCurso !== null}
+              onClick={() => {
+                setMotivo("");
+                setDialogo("confirmar");
+              }}
+            >
+              <BadgeCheck className="h-4 w-4" aria-hidden="true" />
+              <span>Confirmar reserva</span>
+            </Button>
+          ) : null}
+
           {puedeEditar && abierta ? (
             <Button
               type="button"
@@ -613,6 +667,37 @@ function DetalleReserva() {
         >
           {`Reserva ${reserva.codigo}`}
         </h2>
+
+        {/* Acción principal: confirmar la reserva va de lo primero para no
+            tener que bajar hasta el voucher. El resto del detalle queda a la
+            vista para quien quiera revisarlo. */}
+        {puedeConfirmarAhora ? (
+          <section
+            aria-label="Confirmar reserva"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-600/30 bg-emerald-500/10 p-4 shadow-card"
+          >
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-foreground">
+                La reserva está lista para confirmarse
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {`Se asigna el código y se genera el voucher. El pago se puede registrar después (queda ${formatUsd(reserva.saldo_usd)} por cobrar).`}
+              </p>
+            </div>
+            <Button
+              type="button"
+              className="min-h-11"
+              disabled={accionEnCurso !== null}
+              onClick={() => {
+                setMotivo("");
+                setDialogo("confirmar");
+              }}
+            >
+              <BadgeCheck className="h-4 w-4" aria-hidden="true" />
+              <span>Confirmar reserva</span>
+            </Button>
+          </section>
+        ) : null}
 
         <div role="status" aria-live="polite" className="sr-only">
           {mensaje?.texto ?? ""}
@@ -785,6 +870,30 @@ function DetalleReserva() {
       />
 
       <DialogoMotivo
+        abierto={dialogo === "confirmar"}
+        onAbiertoChange={(abierto) => {
+          if (!abierto) cerrarDialogo();
+        }}
+        titulo="Confirmar la reserva"
+        descripcion="La reserva queda confirmada: se le asigna su código y se genera el voucher. Úsalo cuando el titular no reporta el pago (la agencia lo cobra por adelantado, por transferencia o al abordar)."
+        textoConfirmar="Confirmar reserva"
+        motivo={motivo}
+        onMotivoChange={setMotivo}
+        cargando={accionEnCurso === "confirmar"}
+        onConfirmar={() => {
+          void ejecutar("confirmar", async () => {
+            const resultado = await api.admin.confirmarReserva(id, { motivo: motivo.trim() });
+            const saldo = Number(resultado.saldo_usd);
+            return saldo > 0
+              ? `Reserva confirmada (${resultado.codigo}). Queda un saldo de $${saldo.toFixed(2)} por cobrar.`
+              : `Reserva confirmada (${resultado.codigo}). El voucher se está generando.`;
+          }).then(() => {
+            cerrarDialogo();
+          });
+        }}
+      />
+
+      <DialogoMotivo
         abierto={dialogo === "reabrir"}
         onAbiertoChange={(abierto) => {
           if (!abierto) cerrarDialogo();
@@ -903,6 +1012,30 @@ function DetalleReserva() {
               },
             });
             return "Datos actualizados.";
+          }).then(() => {
+            cerrarDialogo();
+          });
+        }}
+      />
+
+      <DialogoRegistrarPago
+        abierto={dialogo === "datos-pago"}
+        onAbiertoChange={(abierto) => {
+          if (!abierto) cerrarDialogo();
+        }}
+        reserva={reserva}
+        cargando={accionEnCurso === "datos-pago"}
+        onConfirmar={(datos: DatosPagoReserva) => {
+          void ejecutar("datos-pago", async () => {
+            await api.admin.registrarPagoReserva(id, {
+              metodo_clave: datos.metodo_clave,
+              monto: datos.monto,
+              moneda: datos.moneda,
+              fecha_pago: datos.fecha_pago,
+              ...(datos.referencia ? { referencia: datos.referencia } : {}),
+              ...(datos.nota ? { nota: datos.nota } : {}),
+            });
+            return "Pago anotado. Queda aprobado en la reserva.";
           }).then(() => {
             cerrarDialogo();
           });

@@ -5,7 +5,12 @@ import { Clock3, Filter, RefreshCw, Search, TriangleAlert } from "lucide-react";
 
 import { AdminShell } from "@/components/admin/AdminShell";
 import { usePermiso } from "@/components/admin/sesion";
-import { FilaPagoCola, BadgePago, calcularDiferencia, formatearMonto } from "@/components/admin/pagos";
+import {
+  FilaPagoCola,
+  BadgePago,
+  calcularDiferencia,
+  formatearMonto,
+} from "@/components/admin/pagos";
 import { EmptyState } from "@/components/core/EmptyState";
 import { ErrorState } from "@/components/core/ErrorState";
 import { Button } from "@/components/ui/button";
@@ -18,7 +23,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { api } from "@/lib/api";
 import { ETIQUETA_METODO_PAGO, formatRelative } from "@/lib/format";
 import type { FiltroPagos } from "@/lib/domain/api";
@@ -28,14 +40,14 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/admin/pagos/")({
   head: () => ({
     meta: [
-      { title: "Cola de pagos · Ruta Clara" },
+      { title: "Pagos · Ruta Clara" },
       {
         name: "description",
-        content: "Pagos reportados por los clientes, listos para validar.",
+        content: "Historial de pagos registrados de las reservas.",
       },
     ],
   }),
-  component: ColaPagos,
+  component: HistorialPagos,
 });
 
 /** Minutos a partir de los cuales el pago más antiguo se resalta. */
@@ -45,18 +57,18 @@ const UMBRAL_ANTIGUEDAD_MIN = 120;
 const LIMITE_PAGINA = 20;
 
 const FILTROS_ESTADO: { valor: string; etiqueta: string }[] = [
-  { valor: "reportado", etiqueta: "Reportados (por validar)" },
   { valor: "aprobado", etiqueta: "Aprobados" },
+  { valor: "reportado", etiqueta: "Reportados (acuse del cliente)" },
   { valor: "rechazado", etiqueta: "Rechazados" },
   { valor: "correccion_solicitada", etiqueta: "Corrección solicitada" },
   { valor: "anulado", etiqueta: "Anulados" },
   { valor: "todos", etiqueta: "Todos" },
 ];
 
-function ColaPagos() {
+function HistorialPagos() {
   const puedeVer = usePermiso("pagos.ver");
 
-  const [filtroEstado, setFiltroEstado] = React.useState("reportado");
+  const [filtroEstado, setFiltroEstado] = React.useState("todos");
   const [busqueda, setBusqueda] = React.useState("");
   const [busquedaAplicada, setBusquedaAplicada] = React.useState("");
 
@@ -99,7 +111,7 @@ function ColaPagos() {
 
   if (!puedeVer) {
     return (
-      <AdminShell titulo="Cola de pagos">
+      <AdminShell titulo="Pagos">
         <ErrorState
           titulo="No tienes permiso para ver los pagos"
           mensaje="Tu rol no incluye la consulta de pagos. Pídele a un administrador que te habilite el acceso."
@@ -108,11 +120,11 @@ function ColaPagos() {
     );
   }
 
-  const hayFiltros = filtroEstado !== "reportado" || busquedaAplicada !== "";
+  const hayFiltros = filtroEstado !== "todos" || busquedaAplicada !== "";
 
   return (
     <AdminShell
-      titulo="Cola de pagos"
+      titulo="Pagos"
       breadcrumb={[{ label: "Pagos" }]}
       acciones={
         <Button
@@ -134,12 +146,12 @@ function ColaPagos() {
     >
       <div className="flex flex-col gap-4">
         <p className="text-sm text-muted-foreground">
-          Los pagos se muestran del más antiguo al más reciente. Revisa el comprobante, contrasta el
-          monto y aprueba o rechaza.
+          Los pagos se registran ya aprobados (sin cola de validación) desde la reserva. Aquí
+          consulta el historial completo, incluidos los acuses que reporta el cliente.
         </p>
 
         <section
-          aria-label="Filtros de la cola de pagos"
+          aria-label="Filtros del historial de pagos"
           className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-card"
         >
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -150,7 +162,10 @@ function ColaPagos() {
                   <span>Estado del pago</span>
                 </span>
               </Label>
-              <Select value={filtroEstado} onValueChange={(valor: string) => setFiltroEstado(valor)}>
+              <Select
+                value={filtroEstado}
+                onValueChange={(valor: string) => setFiltroEstado(valor)}
+              >
                 <SelectTrigger id="filtro-estado" className="h-11">
                   <SelectValue />
                 </SelectTrigger>
@@ -189,10 +204,10 @@ function ColaPagos() {
           {hayFiltros ? (
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-semibold text-muted-foreground">Filtros activos:</span>
-              {filtroEstado !== "reportado" ? (
+              {filtroEstado !== "todos" ? (
                 <button
                   type="button"
-                  onClick={() => setFiltroEstado("reportado")}
+                  onClick={() => setFiltroEstado("todos")}
                   className="min-h-9 rounded-full border border-border bg-muted px-3 py-1 text-xs font-semibold text-foreground"
                 >
                   {`Estado: ${FILTROS_ESTADO.find((f) => f.valor === filtroEstado)?.etiqueta ?? filtroEstado}`}
@@ -214,7 +229,9 @@ function ColaPagos() {
         </section>
 
         <div role="status" aria-live="polite" className="sr-only">
-          {consulta.isFetching ? "Actualizando la cola de pagos" : `${pagos.length} pagos en la lista`}
+          {consulta.isFetching
+            ? "Actualizando el historial de pagos"
+            : `${pagos.length} pagos en la lista`}
         </div>
 
         {consulta.isLoading ? (
@@ -230,7 +247,7 @@ function ColaPagos() {
 
         {consulta.isError ? (
           <ErrorState
-            titulo="No pudimos cargar la cola de pagos"
+            titulo="No pudimos cargar el historial de pagos"
             mensaje="Revisa tu conexión e inténtalo de nuevo."
             onReintentar={() => {
               void consulta.refetch();
@@ -244,19 +261,19 @@ function ColaPagos() {
             titulo={
               hayFiltros
                 ? "No encontramos pagos con estos filtros"
-                : "No hay pagos por validar ahora mismo"
+                : "Todavía no hay pagos registrados"
             }
             descripcion={
               hayFiltros
-                ? "Prueba con otro estado o limpia la búsqueda para ver toda la cola."
-                : "Cuando un cliente reporte un pago aparecerá aquí, listo para validar."
+                ? "Prueba con otro estado o limpia la búsqueda para ver todo el historial."
+                : "Registra los pagos desde la reserva; aparecerán aquí."
             }
             accion={
               hayFiltros
                 ? {
                     etiqueta: "Limpiar filtros",
                     onClick: () => {
-                      setFiltroEstado("reportado");
+                      setFiltroEstado("todos");
                       setBusqueda("");
                     },
                   }
@@ -361,7 +378,10 @@ function ColaPagos() {
                         </TableCell>
                         <TableCell>
                           <span className="flex items-center gap-1.5 whitespace-nowrap">
-                            <Clock3 className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                            <Clock3
+                              className="h-3.5 w-3.5 text-muted-foreground"
+                              aria-hidden="true"
+                            />
                             <span>{formatRelative(pago.creado_en)}</span>
                           </span>
                         </TableCell>
@@ -394,7 +414,7 @@ function ColaPagos() {
                             params={{ id: pago.id }}
                             className="inline-flex min-h-11 items-center justify-center rounded-md border border-input px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
                           >
-                            Revisar
+                            Ver
                           </Link>
                         </TableCell>
                       </TableRow>

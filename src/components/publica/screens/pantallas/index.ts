@@ -6,9 +6,6 @@
  * P-13 (voucher) los prepara otro agente sobre la misma plantilla.
  */
 export { EstadoBloqueante } from "../EstadoBloqueante";
-export type {
-  EstadoBloqueanteProps,
-  TonoEstadoBloqueante,
-} from "../EstadoBloqueante";
+export type { EstadoBloqueanteProps, TonoEstadoBloqueante } from "../EstadoBloqueante";
 export { EnlaceInvalido, type EnlaceInvalidoProps } from "./EnlaceInvalido";
 export { EnlaceVencido, type EnlaceVencidoProps } from "./EnlaceVencido";

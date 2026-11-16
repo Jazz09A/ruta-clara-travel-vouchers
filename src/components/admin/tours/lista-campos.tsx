@@ -13,6 +13,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { ETIQUETA_ALCANCE, ETIQUETA_TIPO_CAMPO } from "./tipos-campo";
+import { esCampoComida } from "@/lib/domain/form-engine";
 import type { CampoDef } from "@/lib/domain/types";
 
 export interface ListaCamposProps {
@@ -24,6 +25,11 @@ export interface ListaCamposProps {
   onMover: (id: string, destino: number) => void;
   /** Añade un campo nuevo (abre el selector de tipo en el padre). */
   onAgregar?: (() => void) | undefined;
+  /**
+   * Flag global de comidas: los campos de comida se marcan como ocultos para
+   * el cliente (siguen editables, no se borran).
+   */
+  comidasDeshabilitadas?: boolean | undefined;
   className?: string | undefined;
 }
 
@@ -39,6 +45,7 @@ export function ListaCampos({
   onSeleccionar,
   onMover,
   onAgregar,
+  comidasDeshabilitadas = false,
   className,
 }: ListaCamposProps) {
   const [arrastrado, setArrastrado] = React.useState<string | null>(null);
@@ -46,7 +53,9 @@ export function ListaCampos({
 
   if (campos.length === 0) {
     return (
-      <div className={cn("rounded-2xl border border-dashed border-border p-6 text-center", className)}>
+      <div
+        className={cn("rounded-2xl border border-dashed border-border p-6 text-center", className)}
+      >
         <p className="font-semibold text-foreground">Este formulario todavía no tiene preguntas</p>
         <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
           Agrega la primera pregunta o inserta una de la biblioteca de campos.
@@ -114,7 +123,10 @@ export function ListaCampos({
                   >
                     <span className="flex items-center gap-2">
                       <Pencil
-                        className={cn("h-3.5 w-3.5 shrink-0", activo ? "text-primary" : "text-muted-foreground")}
+                        className={cn(
+                          "h-3.5 w-3.5 shrink-0",
+                          activo ? "text-primary" : "text-muted-foreground",
+                        )}
                         aria-hidden="true"
                       />
                       <span className="truncate text-sm font-semibold text-foreground">
@@ -136,6 +148,18 @@ export function ListaCampos({
                       {campo.visible_si ? (
                         <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
                           Condicionada
+                        </span>
+                      ) : null}
+                      {esCampoComida(campo) ? (
+                        <span
+                          className={cn(
+                            "rounded-full px-2 py-0.5 text-xs font-semibold",
+                            comidasDeshabilitadas
+                              ? "bg-amber-100 text-amber-900 dark:bg-amber-500/15 dark:text-amber-200"
+                              : "bg-muted text-muted-foreground",
+                          )}
+                        >
+                          {comidasDeshabilitadas ? "Comida · oculta al cliente" : "Comida"}
                         </span>
                       ) : null}
                     </span>

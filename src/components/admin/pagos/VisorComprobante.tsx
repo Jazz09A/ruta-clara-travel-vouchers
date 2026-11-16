@@ -116,11 +116,12 @@ export function VisorComprobante({
     return () => window.clearInterval(id);
   }, [expiraEn]);
 
-  const contador = segundosRestantes === null
-    ? "—"
-    : segundosRestantes >= 60
-      ? `${Math.floor(segundosRestantes / 60)} min ${segundosRestantes % 60} s`
-      : `${segundosRestantes} s`;
+  const contador =
+    segundosRestantes === null
+      ? "—"
+      : segundosRestantes >= 60
+        ? `${Math.floor(segundosRestantes / 60)} min ${segundosRestantes % 60} s`
+        : `${segundosRestantes} s`;
 
   const panel = (
     <div className="flex flex-col gap-3">
@@ -142,7 +143,10 @@ export function VisorComprobante({
       </div>
 
       {error ? (
-        <div role="alert" className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-900">
+        <div
+          role="alert"
+          className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-900"
+        >
           <p>{error}</p>
           <Button
             type="button"
@@ -287,8 +291,7 @@ export function VisorComprobante({
       aria-label="Comprobante del pago"
       className={cn(
         "rounded-2xl border border-border bg-card p-4",
-        pantallaCompleta &&
-          "fixed inset-0 z-50 m-0 flex flex-col overflow-y-auto rounded-none p-4",
+        pantallaCompleta && "fixed inset-0 z-50 m-0 flex flex-col overflow-y-auto rounded-none p-4",
         className,
       )}
     >

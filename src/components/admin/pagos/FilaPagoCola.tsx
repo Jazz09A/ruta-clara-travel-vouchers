@@ -24,11 +24,7 @@ export interface FilaPagoColaProps {
   destacado: boolean;
 }
 
-export function FilaPagoCola({
-  pago,
-  antiguedadMin,
-  destacado,
-}: FilaPagoColaProps) {
+export function FilaPagoCola({ pago, antiguedadMin, destacado }: FilaPagoColaProps) {
   const titular = pago.reserva.pasajeros.find((pasajero) => pasajero.es_titular);
   const diferencia = calcularDiferencia({
     esperadoUsd: pago.reserva.saldo_usd,
@@ -89,7 +85,9 @@ export function FilaPagoCola({
                   : "text-foreground",
             )}
           >
-            {diferencia.diferencia !== null ? formatearMonto(diferencia.diferencia, pago.moneda) : "—"}
+            {diferencia.diferencia !== null
+              ? formatearMonto(diferencia.diferencia, pago.moneda)
+              : "—"}
           </dd>
         </div>
         <div>
@@ -122,7 +120,7 @@ export function FilaPagoCola({
       {destacado ? (
         <p className="flex items-center gap-1.5 text-xs font-semibold text-amber-900 dark:text-amber-200">
           <Clock3 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          <span>{`Es el más antiguo de la cola (${antiguedadMin} min sin resolver).`}</span>
+          <span>{`Es el pago más antiguo del historial (${antiguedadMin} min).`}</span>
         </p>
       ) : null}
 
@@ -132,7 +130,7 @@ export function FilaPagoCola({
           params={{ id: pago.id }}
           className="inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
         >
-          Revisar pago
+          Ver pago
         </Link>
       </div>
     </li>

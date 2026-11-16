@@ -17,6 +17,10 @@ export interface UploadArchivoProps {
   acepta?: string | undefined;
   /** Tamaño máximo en MB (por defecto 10). */
   maxMB?: number | undefined;
+  /** Abre directamente la cámara del celular (`environment` o `user`). */
+  captura?: "environment" | "user" | undefined;
+  /** Miniatura del archivo ya cargado (data URL). */
+  previewUrl?: string | undefined;
   className?: string | undefined;
 }
 
@@ -39,11 +43,19 @@ export function UploadArchivo({
   ayuda,
   acepta,
   maxMB = 10,
+  captura,
+  previewUrl,
   className,
 }: UploadArchivoProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [errorLocal, setErrorLocal] = useState<string | null>(null);
-  const tipos = acepta ? [acepta] : TIPOS_POR_DEFECTO;
+  // `acepta` admite uno o varios MIME separados por coma.
+  const tipos = acepta
+    ? acepta
+        .split(",")
+        .map((tipo) => tipo.trim())
+        .filter(Boolean)
+    : TIPOS_POR_DEFECTO;
 
   const errorVisible = error ?? errorLocal;
 
@@ -53,7 +65,15 @@ export function UploadArchivo({
 
       {nombreArchivo ? (
         <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2.5">
-          <FileText className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          {previewUrl ? (
+            <img
+              src={previewUrl}
+              alt={`Vista previa de ${nombreArchivo}`}
+              className="h-10 w-10 shrink-0 rounded-md border border-border object-cover"
+            />
+          ) : (
+            <FileText className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          )}
           <span className="min-w-0 flex-1 truncate text-sm text-foreground">{nombreArchivo}</span>
           {onQuitar ? (
             <button
@@ -73,6 +93,7 @@ export function UploadArchivo({
         id={id}
         type="file"
         accept={tipos.join(",")}
+        capture={captura}
         className="sr-only"
         aria-invalid={errorVisible ? true : undefined}
         aria-describedby={errorVisible ? `${id}-error` : ayuda ? `${id}-ayuda` : undefined}

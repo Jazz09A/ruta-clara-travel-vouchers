@@ -24,6 +24,7 @@ import {
 import { Terminos, type AceptacionTerminos } from "@/components/publica/screens/Terminos";
 import { Firma } from "@/components/publica/screens/Firma";
 import { Pago } from "@/components/publica/screens/Pago";
+import { PagoCoordina } from "@/components/publica/screens/PagoCoordina";
 import { VerificacionPago } from "@/components/publica/screens/VerificacionPago";
 import { Voucher } from "@/components/publica/screens/Voucher";
 import { EstadoBloqueante } from "@/components/publica/screens/EstadoBloqueante";
@@ -219,6 +220,9 @@ function ArranquePublico({ token }: { token: string }) {
   const maxPasajeros = config?.max_pasajeros_reserva ?? 10;
   const documentoMenores = config?.documento_menores ?? "opcional";
   const requiereAutorizacion = config?.Requires_autorizacion_menores ?? false;
+  // Reporte de pago del cliente (flag global). Si está apagado, la agencia
+  // anota los datos del pago desde el panel y el formulario no pide nada.
+  const reportePagoActivo = config?.reporte_pago_cliente === true;
 
   // --- Cargas iniciales y errores de arranque --------------------------------
   if (cargando && !reserva) {
@@ -306,7 +310,11 @@ function ArranquePublico({ token }: { token: string }) {
       setPasoForzado(null);
       return true;
     } catch (error) {
-      setErrorPaso(mensajeDeError(error));
+      // Si el servidor detalló los campos (p. ej. falta la foto del
+      // documento), se muestra el mensaje específico en vez del genérico.
+      const detalle =
+        esApiError(error) && error.detalles?.length ? (error.detalles[0]?.mensaje ?? null) : null;
+      setErrorPaso(detalle ?? mensajeDeError(error));
       return false;
     } finally {
       setContinuarCargando(false);
@@ -382,7 +390,6 @@ function ArranquePublico({ token }: { token: string }) {
         return (
           <Bienvenida
             reserva={reserva}
-            categorias={categorias}
             onComenzar={() => void comenzar()}
             iniciando={iniciando}
             errorInicio={errorInicio}
@@ -394,8 +401,9 @@ function ArranquePublico({ token }: { token: string }) {
         return (
           <Titular
             reserva={reserva}
+            token={token}
             fechaSalida={fechaSalida}
-            onGuardar={(datos) => void guardarTitular(datos)}
+            onGuardar={guardarTitular}
             onContinuar={() => void avanzar("titular")}
             registrarContinuar={registrarContinuar}
             errorServidor={errorPaso ?? undefined}
@@ -411,7 +419,7 @@ function ArranquePublico({ token }: { token: string }) {
             maxPasajeros={maxPasajeros}
             documentoMenores={documentoMenores}
             requiereAutorizacionMenores={requiereAutorizacion}
-            onGuardar={(pasajeros) => void guardarAcompanantes(pasajeros)}
+            onGuardar={guardarAcompanantes}
             onContinuar={() => void avanzar("acompanantes")}
             registrarContinuar={registrarContinuar}
             errorServidor={errorPaso ?? undefined}
@@ -538,6 +546,18 @@ function ArranquePublico({ token }: { token: string }) {
       }
 
       case "pago":
+        // Con el reporte desactivado, este paso sólo informa: la agencia es
+        // quien coordina el pago con el cliente fuera del formulario.
+        if (!reportePagoActivo) {
+          return (
+            <PagoCoordina
+              token={token}
+              refCorta={reserva.ref_corta}
+              nombreTour={reserva.tour?.nombre}
+              telefonoWhatsapp={config?.agencia_whatsapp ?? MARCA.whatsapp}
+            />
+          );
+        }
         return (
           <Pago
             token={token}
@@ -553,6 +573,7 @@ function ArranquePublico({ token }: { token: string }) {
         return (
           <VerificacionPago
             token={token}
+            permiteReportar={reportePagoActivo}
             onConfirmada={() => setPasoForzado("confirmada")}
             onVolverAPago={() => {
               setPrecargaPago(undefined);
@@ -568,10 +589,19 @@ function ArranquePublico({ token }: { token: string }) {
         return (
           <Voucher
             token={token}
-            onReportarPago={() => {
-              setPrecargaPago(undefined);
-              setPasoForzado("pago");
-            }}
+            onReportarPago={
+              reportePagoActivo
+                ? () => {
+                    setPrecargaPago(undefined);
+                    setPasoForzado("pago");
+                  }
+                : undefined
+            }
+            textoSaldo={
+              reportePagoActivo
+                ? undefined
+                : "Tu reserva está confirmada. La agencia se pondrá en contacto contigo para coordinar el pago."
+            }
             onReservaCerrada={() => setPasoForzado("cerrada")}
             refCorta={reserva.ref_corta}
             nombreTour={reserva.tour?.nombre}
@@ -603,9 +633,17 @@ function ArranquePublico({ token }: { token: string }) {
         }
       : undefined;
 
-  // Los pasos terminos, firma, pago, verificacion y confirmada tienen su propio PublicShell
-  const pasosConShellPropio = ["terminos", "firma", "pago", "verificacion", "confirmada"];
-  const tieneShellPropio = pasosConShellPropio.includes(pantalla);
+  // Los pasos terminos, firma, pago, verificacion y confirmada tienen su propio
+  // PublicShell. Con el reporte de pago desactivado, «pago» se muestra dentro
+  // del shell normal (junto a la barra de progreso) como una pantalla informativa.
+  const pasosConShellPropio = [
+    "terminos",
+    "firma",
+    ...(reportePagoActivo ? (["pago"] as const) : []),
+    "verificacion",
+    "confirmada",
+  ];
+  const tieneShellPropio = pasosConShellPropio.includes(pantalla as never);
 
   if (tieneShellPropio) {
     return <>{contenido()}</>;

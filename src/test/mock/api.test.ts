@@ -19,6 +19,14 @@ function idem(): string {
   return `idem_${Math.random().toString(36).slice(2)}`;
 }
 
+const FOTO_DOC = {
+  // PNG de 1×1 px: suficiente para la política (el servidor sólo valida
+  // formato y tamaño; la legibilidad la revisa la agencia).
+  data: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+  tipo: "image/png",
+  nombre: "cedula.png",
+};
+
 const TITULAR = {
   ref_cliente: "ref_titular_1",
   es_titular: true,
@@ -28,6 +36,7 @@ const TITULAR = {
   fecha_nacimiento: "1988-04-12",
   categoria: "Adulto" as const,
   respuestas: {},
+  documento_imagen: FOTO_DOC,
 };
 
 const COMPAÑERA = {
@@ -39,6 +48,7 @@ const COMPAÑERA = {
   fecha_nacimiento: "2016-09-03",
   categoria: "Niño" as const,
   respuestas: {},
+  documento_imagen: FOTO_DOC,
 };
 
 const DATOS_TITULAR = {
@@ -50,6 +60,7 @@ const DATOS_TITULAR = {
   correo: "maria.perez@gmail.com",
   contacto_emergencia_nombre: "Carlos Pérez",
   contacto_emergencia_telefono: "+584149998877",
+  documento_imagen: FOTO_DOC,
 };
 
 beforeEach(() => {
@@ -100,9 +111,13 @@ describe("API simulada — ciclo de vida de una reserva", () => {
       {
         por_pasajero: {
           [TITULAR.ref_cliente]: { almuerzo: "pescado", tiene_alergias: false },
-          [COMPAÑERA.ref_cliente]: { almuerzo: "pollo", tiene_alergias: false, menu_infantil: "pasta" },
+          [COMPAÑERA.ref_cliente]: {
+            almuerzo: "pollo",
+            tiene_alergias: false,
+            menu_infantil: "pasta",
+          },
         },
-        globales: { punto_abordaje: "altamira" },
+        globales: { punto_abordaje: "guatire" },
       },
       estado.reserva.version,
     );
@@ -155,7 +170,11 @@ describe("API simulada — ciclo de vida de una reserva", () => {
     expect(estado.reserva.estado).toBe("pendiente_pago");
     expect(estado.reserva.firma?.integridad).toBe("ok");
 
-    // 11. Reporta el pago.
+    // 11. Reporta el pago (este escenario reactiva el reporte del cliente,
+    // que viene desactivado por defecto: la agencia anota los pagos). El
+    // reporte es un acuse: queda `reportado` sin cambiar el estado de la
+    // reserva (ya no hay cola de validación ni hold congelado).
+    await api.admin.guardarConfiguracion({ reporte_pago_cliente: true });
     const metodos = await api.publica.metodosPago(token);
     expect(metodos.metodos.length).toBeGreaterThan(0);
     expect(metodos.metodos.some((m) => m.id === "efectivo")).toBe(false);
@@ -177,26 +196,31 @@ describe("API simulada — ciclo de vida de una reserva", () => {
     );
     expect(reporte.pago_id).toBeTruthy();
     estado = await api.publica.reserva(token);
-    expect(estado.reserva.estado).toBe("pago_en_verificacion");
-    expect(estado.reserva.paso_actual).toBe("verificacion");
+    expect(estado.reserva.estado).toBe("pendiente_pago");
+    expect(estado.reserva.estado_pago).toBe("reportado");
 
-    // 12. El validador aprueba el pago.
-    const cola = await api.admin.pagos({ estado: "reportado" });
-    const pendiente = cola.items.find((p) => p.id === reporte.pago_id);
-    expect(pendiente).toBeDefined();
+    // 12. La agencia confirma la reserva a mano: no depende del pago.
+    const acuses = await api.admin.pagos({ estado: "reportado" });
+    expect(acuses.items.some((p) => p.id === reporte.pago_id)).toBe(true);
 
-    const validacion = await api.admin.validarPago(reporte.pago_id, {
-      accion: "aprobar",
-      idempotencyKey: idem(),
-    });
-    expect(validacion.saldo_usd).toBe("0.00");
+    const confirmacion = await api.admin.confirmarReserva(estado.reserva.id, {});
+    expect(confirmacion.ok).toBe(true);
 
     estado = await api.publica.reserva(token);
     expect(estado.reserva.estado).toBe("confirmada");
-    expect(estado.reserva.estado_pago).toBe("pagado");
     expect(estado.reserva.paso_actual).toBe("confirmada");
 
-    // 13. El voucher ya se generó al aprobar el pago y queda descargable.
+    // 13. Ya no se aprueban ni se rechazan pagos: sólo se anulan.
+    await expect(
+      api.admin.validarPago(reporte.pago_id, {
+        // @ts-expect-error — la aprobación ya no existe en el contrato; el
+        // mock debe rechazarla igual (defensa en profundidad).
+        accion: "aprobar",
+        idempotencyKey: idem(),
+      }),
+    ).rejects.toMatchObject({ status: 422 });
+
+    // 14. El voucher ya se generó al confirmar y queda descargable.
     const voucher = await api.publica.voucher(token);
     expect(voucher.estado).toBe("listo");
     expect(voucher.url_descarga).toBeTruthy();
@@ -268,15 +292,17 @@ describe("API simulada — ciclo de vida de una reserva", () => {
     const token = tokenDeEnlace(creado.enlace);
     await api.publica.iniciar(token, { acepta_aviso_privacidad: true }, idem());
 
-    await expect(
-      api.publica.guardarTitular(token, DATOS_TITULAR, 999),
-    ).rejects.toMatchObject({ status: 409, codigo: "VERSION_DESACTUALIZADA" });
+    await expect(api.publica.guardarTitular(token, DATOS_TITULAR, 999)).rejects.toMatchObject({
+      status: 409,
+      codigo: "VERSION_DESACTUALIZADA",
+    });
   });
 
   it("la cola del validador marca la referencia duplicada sin bloquear al cliente", async () => {
     const creado = await api.admin.crearReserva({ fecha_tour_id: FECHA_CON_CUPO });
     const token = tokenDeEnlace(creado.enlace);
     await api.publica.iniciar(token, { acepta_aviso_privacidad: true }, idem());
+    await api.admin.guardarConfiguracion({ reporte_pago_cliente: true });
 
     await api.publica.reportarPago(
       token,
@@ -291,14 +317,124 @@ describe("API simulada — ciclo de vida de una reserva", () => {
     );
 
     const cola = await api.admin.pagos({});
-    const conDuplicado = cola.items.filter((p) => p.alertas.some((a) => a.codigo === "duplicado_referencia"));
+    const conDuplicado = cola.items.filter((p) =>
+      p.alertas.some((a) => a.codigo === "duplicado_referencia"),
+    );
     expect(conDuplicado.length).toBeGreaterThan(0);
+  });
+
+  it("el cliente no reporta pagos por defecto; la agencia los anota desde la reserva", async () => {
+    const creado = await api.admin.crearReserva({ fecha_tour_id: FECHA_CON_CUPO });
+    const token = tokenDeEnlace(creado.enlace);
+    await api.publica.iniciar(token, { acepta_aviso_privacidad: true }, idem());
+
+    // Por defecto el reporte del cliente está desactivado (flag global).
+    await expect(
+      api.publica.reportarPago(
+        token,
+        {
+          metodo: "zelle",
+          monto: "10.00",
+          moneda: "USD",
+          fecha_pago: new Date().toISOString().slice(0, 10),
+          referencia: "ZELLE-CLIENTE-1",
+        },
+        idem(),
+      ),
+    ).rejects.toMatchObject({ status: 403, codigo: "PAGO_CLIENTE_DESACTIVADO" });
+
+    // La agencia anota los datos del pago: nace aprobado (sin cola).
+    const { pago_id } = await api.admin.registrarPagoReserva(creado.reserva.id, {
+      metodo_clave: "zelle",
+      monto: "10.00",
+      fecha_pago: new Date().toISOString().slice(0, 10),
+      referencia: "ZELLE-AGENCIA-1",
+      nota: "Transferencia confirmada por el mostrador.",
+    });
+    expect(pago_id).toBeTruthy();
+
+    const pagos = await api.admin.pagos({ estado: "aprobado" });
+    expect(pagos.items.some((p) => p.id === pago_id)).toBe(true);
+
+    const estado = await api.publica.reserva(token);
+    expect(estado.config?.reporte_pago_cliente).toBe(false);
+  });
+
+  it("la foto del documento es obligatoria y valida formato y tamaño", async () => {
+    const creado = await api.admin.crearReserva({
+      fecha_tour_id: FECHA_CON_CUPO,
+      referencia_interna: "Foto documento",
+    });
+    const token = tokenDeEnlace(creado.enlace);
+    await api.publica.iniciar(token, { acepta_aviso_privacidad: true }, idem());
+
+    // Sin foto el paso del titular no se completa.
+    let estado = await api.publica.reserva(token);
+    await api.publica.guardarTitular(
+      token,
+      { ...DATOS_TITULAR, documento_imagen: undefined },
+      estado.reserva.version,
+    );
+    estado = await api.publica.reserva(token);
+    await expect(
+      api.publica.completarPaso(token, "titular", {}, estado.reserva.version),
+    ).rejects.toMatchObject({
+      detalles: expect.arrayContaining([expect.objectContaining({ campo: "documento_imagen" })]),
+    });
+
+    // Un formato fuera de la política se rechaza.
+    estado = await api.publica.reserva(token);
+    await expect(
+      api.publica.guardarTitular(
+        token,
+        {
+          ...DATOS_TITULAR,
+          documento_imagen: {
+            data: "data:text/html,<h1>x</h1>",
+            tipo: "text/html",
+            nombre: "x.html",
+          },
+        },
+        estado.reserva.version,
+      ),
+    ).rejects.toMatchObject({ codigo: "ARCHIVO_TIPO_INVALIDO" });
+
+    // Con la foto válida el paso avanza.
+    estado = await api.publica.reserva(token);
+    await api.publica.guardarTitular(token, DATOS_TITULAR, estado.reserva.version);
+    estado = await api.publica.reserva(token);
+    expect(estado.reserva.pasajeros[0]?.documento_imagen_id).toBeTruthy();
+    await expect(
+      api.publica.completarPaso(token, "titular", {}, estado.reserva.version),
+    ).resolves.toMatchObject({ paso_actual: "acompanantes" });
+  });
+
+  it("el catálogo de puntos de salida admite crear, editar y eliminar", async () => {
+    const puntos = await api.admin.puntosSalida();
+    expect(puntos.map((p) => p.clave)).toEqual(["guatire", "guarenas", "caracas"]);
+
+    const creado = await api.admin.crearPuntoSalida({ nombre: "Charallave", hora: "07:30" });
+    expect(creado.clave).toBe("charallave");
+    expect((await api.admin.puntosSalida()).some((p) => p.id === creado.id)).toBe(true);
+
+    const editado = await api.admin.actualizarPuntoSalida(creado.id, { hora: "08:00" });
+    expect(editado.hora).toBe("08:00");
+
+    const borrado = await api.admin.eliminarPuntoSalida(creado.id);
+    expect(borrado.eliminado).toBe(true);
+    expect((await api.admin.puntosSalida()).some((p) => p.id === creado.id)).toBe(false);
+
+    // Un punto ya elegido por algún cliente no se borra: se desactiva.
+    const enUso = await api.admin.crearPuntoSalida({ nombre: "Altamira", hora: "05:00" });
+    const desactivado = await api.admin.eliminarPuntoSalida(enUso.id);
+    expect(desactivado.eliminado).toBe(false);
+    expect(desactivado.activo).toBe(false);
   });
 
   it("la operación ve todos los estados y la reserva expira liberando el cupo", async () => {
     const panel = await api.admin.dashboard();
     expect(panel.reservas_por_estado.length).toBeGreaterThan(3);
-    expect(panel.pagos_por_verificar[0]?.total).toBeGreaterThan(0);
+    expect(panel.por_confirmar[0]?.total).toBeGreaterThan(0);
     expect(panel.requiere_atencion.length).toBeGreaterThan(0);
 
     const lista = await api.admin.reservas({ limite: 5 });
@@ -327,7 +463,9 @@ describe("API simulada — ciclo de vida de una reserva", () => {
       { token: "demo-pago", estado: "pendiente_pago", paso: "pago" },
       { token: "demo-ventana", estado: "pendiente_pago", paso: "pago" },
       { token: "demo-pago-urgente", estado: "pendiente_pago", paso: "pago" },
-      { token: "demo-verif", estado: "pago_en_verificacion", paso: "verificacion" },
+      // Acuse de pago reportado: espera la confirmación manual (sin «pago en
+      // verificación» ni hold congelado).
+      { token: "demo-verif", estado: "pendiente_pago", paso: "pago" },
       { token: "demo-confirmada", estado: "confirmada", paso: "confirmada" },
       { token: "demo-cancelada", estado: "cancelada", paso: "cerrada" },
       { token: "demo-expirada", estado: "expirada", paso: "cerrada" },

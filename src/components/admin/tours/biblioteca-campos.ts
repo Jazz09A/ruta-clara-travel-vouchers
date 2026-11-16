@@ -113,6 +113,7 @@ export const BIBLIOTECA_CAMPOS: CampoBiblioteca[] = [
       alcance: "por_reserva",
       obligatorio: true,
       permite_por_pasajero: true,
+      fuente: "puntos_salida",
       opciones: [
         { valor: "altamira", label: "Altamira" },
         { valor: "petare", label: "Petare" },

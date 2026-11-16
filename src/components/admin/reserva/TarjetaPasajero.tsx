@@ -1,8 +1,10 @@
+import { useState } from "react";
 import {
   Cake,
   Eye,
   EyeOff,
   IdCard,
+  Image as ImageIcon,
   Mail,
   Phone,
   ShieldAlert,
@@ -10,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { api } from "@/lib/api";
 import { formatFechaNacimiento, formatPhoneE164, maskDocumento } from "@/lib/format";
 import type { Pasajero } from "@/lib/domain/types";
 import { cn } from "@/lib/utils";
@@ -104,6 +107,24 @@ export function TarjetaPasajero({
       ? pasajero.respuestas["detalle_alergias"]
       : "";
 
+  // Foto del documento: se abre con una URL firmada de corta vigencia y
+  // la consulta queda registrada en la auditoría del servidor.
+  const [cargandoFoto, setCargandoFoto] = useState(false);
+  const [errorFoto, setErrorFoto] = useState<string | null>(null);
+  const verFotoDocumento = async () => {
+    if (!pasajero.documento_imagen_id || cargandoFoto) return;
+    setCargandoFoto(true);
+    setErrorFoto(null);
+    try {
+      const { url } = await api.admin.urlArchivo(pasajero.documento_imagen_id);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch {
+      setErrorFoto("No pudimos abrir la foto del documento. Reintenta.");
+    } finally {
+      setCargandoFoto(false);
+    }
+  };
+
   return (
     <article className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-card">
       <header className="flex flex-wrap items-start justify-between gap-2">
@@ -115,32 +136,32 @@ export function TarjetaPasajero({
           <p className="mt-0.5 text-xs text-muted-foreground">
             {`${pasajero.categoria}${esTitular ? " · Titular de la reserva" : ""}`}
           </p>
+          {pasajero.categoria === "Infante" ? (
+            <p className="mt-0.5 text-xs font-semibold text-success">
+              Sin costo · viaja en piernas de su representante
+            </p>
+          ) : null}
         </div>
 
-        {esTitular ? (
-          <span className="rounded-full border border-primary/30 bg-secondary px-2 py-0.5 text-xs font-semibold text-secondary-foreground">
-            Titular
-          </span>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          {esTitular ? (
+            <span className="rounded-full border border-primary/30 bg-secondary px-2 py-0.5 text-xs font-semibold text-secondary-foreground">
+              Titular
+            </span>
+          ) : null}
+          {!pasajero.documento_imagen_id ? (
+            <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
+              Sin foto del documento
+            </span>
+          ) : null}
+        </div>
       </header>
 
       <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <FilaDato
-          icono={IdCard}
-          etiqueta="Documento"
-          valor={documento || "Sin completar"}
-        />
-        <FilaDato
-          icono={Cake}
-          etiqueta="Fecha de nacimiento"
-          valor={nacimiento}
-        />
+        <FilaDato icono={IdCard} etiqueta="Documento" valor={documento || "Sin completar"} />
+        <FilaDato icono={Cake} etiqueta="Fecha de nacimiento" valor={nacimiento} />
         {esTitular && pasajero.telefono ? (
-          <FilaDato
-            icono={Phone}
-            etiqueta="Teléfono"
-            valor={formatPhoneE164(pasajero.telefono)}
-          />
+          <FilaDato icono={Phone} etiqueta="Teléfono" valor={formatPhoneE164(pasajero.telefono)} />
         ) : null}
         {esTitular && pasajero.correo ? (
           <FilaDato icono={Mail} etiqueta="Correo" valor={pasajero.correo} />
@@ -217,10 +238,22 @@ export function TarjetaPasajero({
               ) : (
                 <Eye className="h-4 w-4" aria-hidden="true" />
               )}
-              <span>
-                {nacimientoRevelado ? "Fecha visible" : "Ver fecha de nacimiento"}
-              </span>
+              <span>{nacimientoRevelado ? "Fecha visible" : "Ver fecha de nacimiento"}</span>
             </Button>
+
+            {pasajero.documento_imagen_id ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="min-h-11"
+                onClick={() => void verFotoDocumento()}
+                disabled={cargandoFoto}
+              >
+                <ImageIcon className="h-4 w-4" aria-hidden="true" />
+                <span>{cargandoFoto ? "Abriendo…" : "Ver foto del documento"}</span>
+              </Button>
+            ) : null}
 
             {documentoRevelado || nacimientoRevelado ? (
               <Button
@@ -242,6 +275,9 @@ export function TarjetaPasajero({
             Tu rol no puede revelar datos sensibles de esta reserva.
           </p>
         )}
+        {errorFoto ? (
+          <p className="w-full text-xs font-medium text-destructive">{errorFoto}</p>
+        ) : null}
       </div>
 
       {segundosRevelado !== null ? (

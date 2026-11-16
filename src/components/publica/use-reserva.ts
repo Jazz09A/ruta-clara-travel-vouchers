@@ -217,8 +217,8 @@ export function useReserva(token: string): UseReserva {
         if (lote.titular) {
           const respuesta = await api.publica.guardarTitular(token, lote.titular, v);
           v = Math.max(v, respuesta.version);
-          // El servidor devuelve solo {version}: reflejar el titular en la
-          // caché local (el mock lo hacía por referencia compartida).
+          // El servidor devuelve solo {version} (+ la foto del documento si
+          // se envió): reflejar el titular en la caché local.
           const t = lote.titular;
           queryClient.setQueryData<DatosReserva>(["reserva", token], (prev) =>
             prev
@@ -238,6 +238,9 @@ export function useReserva(token: string): UseReserva {
                             correo: t.correo,
                             contacto_emergencia_nombre: t.contacto_emergencia_nombre,
                             contacto_emergencia_telefono: t.contacto_emergencia_telefono,
+                            ...(respuesta.documento_imagen_id !== undefined
+                              ? { documento_imagen_id: respuesta.documento_imagen_id }
+                              : {}),
                           }
                         : p,
                     ),

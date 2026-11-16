@@ -370,7 +370,9 @@ describe("motor de formularios — validación por tipo", () => {
   it("text: exige contenido y respeta max_length", () => {
     const texto: CampoDef = { ...detalleAlergias, tipo: "text", obligatorio: true };
     expect(validarCampo(texto, "   ", {}).ok).toBe(false);
-    expect(validarCampo(texto, "   ", {}).mensaje).toBe("Esta pregunta es obligatoria");
+    expect(validarCampo(texto, "   ", {}).mensaje).toBe(
+      "Esta pregunta es obligatoria: «Describa cuáles»",
+    );
     expect(validarCampo(texto, "Mariscos", {}).ok).toBe(true);
     const largo = "a".repeat(501);
     expect(validarCampo(texto, largo, {}).ok).toBe(false);
@@ -483,7 +485,7 @@ describe("motor de formularios — validación del formulario completo", () => {
     const almuerzoP1 = resultado.errores.find(
       (e) => e.campo === "almuerzo" && e.pasajero_ref === "p1",
     );
-    expect(almuerzoP1?.mensaje).toBe("Esta pregunta es obligatoria");
+    expect(almuerzoP1?.mensaje).toBe("Esta pregunta es obligatoria: «Selección de almuerzo»");
     // p2 respondió todo.
     expect(resultado.errores.some((e) => e.pasajero_ref === "p2")).toBe(false);
   });

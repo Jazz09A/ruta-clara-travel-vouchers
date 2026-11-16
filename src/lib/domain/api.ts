@@ -10,6 +10,7 @@ import type {
   EstadoReserva,
   Exportacion,
   FechaTour,
+  FotoDocumento,
   Formulario,
   MetodoPago,
   MotivoCierre,
@@ -18,6 +19,7 @@ import type {
   Pasajero,
   PoliticaCancelacion,
   Progreso,
+  PuntoSalida,
   Reserva,
   ResumenReserva,
   Respuesta,
@@ -91,6 +93,8 @@ export interface DatosTitular {
   correo: string;
   contacto_emergencia_nombre: string;
   contacto_emergencia_telefono: string;
+  /** Foto del documento: sólo se envía cuando el cliente la acaba de elegir. */
+  documento_imagen?: FotoDocumento | null;
 }
 
 export interface RespuestasFormulario {
@@ -177,7 +181,30 @@ export interface ApiPublica {
     body: { acepta_aviso_privacidad: boolean },
     idempotencyKey: string,
   ): Promise<ResultadoIniciar>;
-  guardarTitular(token: string, datos: DatosTitular, version: number): Promise<{ version: number }>;
+  guardarTitular(
+    token: string,
+    datos: DatosTitular,
+    version: number,
+  ): Promise<{ version: number; documento_imagen_id?: string | null }>;
+  /**
+   * Autocompletado del titular por documento: busca pasajeros de cualquier
+   * reserva anterior y devuelve los datos que el formulario puede rellenar
+   * en campos vacíos (nunca sobrescribe lo ya escrito).
+   */
+  datosPorDocumento(
+    token: string,
+    body: { tipo_doc: string; documento: string },
+  ): Promise<{
+    encontrado: boolean;
+    datos?: {
+      nombre: string | null;
+      fecha_nacimiento: string | null;
+      telefono: string | null;
+      correo: string | null;
+      contacto_emergencia_nombre: string | null;
+      contacto_emergencia_telefono: string | null;
+    };
+  }>;
   guardarAcompanantes(
     token: string,
     pasajeros: Pasajero[],
@@ -249,7 +276,6 @@ export interface FiltrosReservas {
   estado_pago?: string | undefined;
   requiere_accion?: boolean | undefined;
   por_expirar?: boolean | undefined;
-  con_pago_por_validar?: boolean | undefined;
   busqueda?: string | undefined;
   cursor?: string | undefined;
   limite?: number | undefined;
@@ -271,12 +297,9 @@ export interface FiltroPagos {
 }
 
 export interface AccionValidacion {
-  accion: "aprobar" | "rechazar" | "solicitar_correccion" | "anular";
-  monto_validado?: string | undefined;
+  /** Única acción correctiva que queda: anular un pago mal anotado. */
+  accion: "anular";
   motivo?: string | undefined;
-  motivo_catalogo?: string | undefined;
-  texto_cliente?: string | undefined;
-  confirmar_duplicado?: boolean | undefined;
   idempotencyKey: string;
 }
 
@@ -309,6 +332,13 @@ export interface ApiAdmin {
     fecha_tour_id: string;
     referencia_interna?: string | undefined;
     estimated_pasajeros?: number | undefined;
+    /** Cargos extra iniciales (toldos, servicios…) al crear el enlace. */
+    lineas?:
+      { id?: string; concepto: string; cantidad: number; precio_unit_usd: string }[] | undefined;
+    /** Descuentos/recargos iniciales con motivo, al crear el enlace. */
+    ajustes?:
+      | { id?: string; tipo: "descuento" | "recargo"; monto_usd: string; motivo: string }[]
+      | undefined;
   }): Promise<{
     reserva: Reserva;
     enlace: string;
@@ -326,6 +356,7 @@ export interface ApiAdmin {
     id: string,
     body: {
       motivo: string;
+      justificacion?: string | undefined;
       lineas: { id?: string; concepto: string; cantidad: number; precio_unit_usd: string }[];
       ajustes: { id?: string; tipo: "descuento" | "recargo"; monto_usd: string; motivo: string }[];
     },
@@ -354,18 +385,81 @@ export interface ApiAdmin {
     body: { fecha_tour_id: string; motivo: string; diferencia_usd?: string },
   ): Promise<{ ok: true; diferencia_usd?: string }>;
   reactivar(id: string, body: { motivo: string }): Promise<{ ok: true }>;
+  /**
+   * Confirma la reserva a mano: el titular no reporta el pago (la agencia lo
+   * cobra por adelantado o en el punto de encuentro), así que la reserva queda
+   * en `pendiente_pago`. Genera el código y el voucher.
+   */
+  confirmarReserva(
+    id: string,
+    body: { motivo?: string | undefined },
+  ): Promise<{
+    ok: true;
+    estado: string;
+    codigo: string;
+    saldo_usd: string;
+    total_usd: string;
+  }>;
 
   pagos(filtros: FiltroPagos): Promise<Pagina<Pago & { reserva: Reserva }>>;
   pago(id: string): Promise<Pago & { reserva: Reserva; comprobante_url?: string }>;
+  /**
+   * URL firmada de corta vigencia para un archivo privado (p. ej. la foto
+   * del documento de identidad de un pasajero). La consulta de la foto
+   * queda registrada en la auditoría del servidor.
+   */
+  urlArchivo(archivoId: string): Promise<{ url: string }>;
+  /**
+   * Acción correctiva sobre un pago: anularlo (con motivo). Los pagos ya no
+   * se aprueban ni se rechazan — nacen aprobados al registrarse.
+   */
   validarPago(id: string, body: AccionValidacion): Promise<{ ok: true; saldo_usd: string }>;
   registrarPagoEfectivo(
     id: string,
     body: { monto: string; referencia?: string; nota?: string },
   ): Promise<{ ok: true }>;
+  /**
+   * Anota los datos de un pago desde la reserva (el cliente no reporta nada):
+   * el pago **nace aprobado** — no hay cola ni validación — y, si cubre el
+   * saldo, la reserva pendiente se confirma sola.
+   */
+  registrarPagoReserva(
+    id: string,
+    body: {
+      metodo_clave: string;
+      monto: string;
+      moneda?: "USD" | "VES" | "USDT";
+      fecha_pago?: string;
+      referencia?: string;
+      nota?: string;
+    },
+  ): Promise<{ ok: true; pago_id: string }>;
   reembolsar(
     id: string,
     body: { monto: string; metodo: string; motivo: string },
   ): Promise<{ ok: true }>;
+
+  // ── puntos de salida (catálogo global) ────────────────────────────────
+  puntosSalida(): Promise<PuntoSalida[]>;
+  crearPuntoSalida(body: {
+    nombre: string;
+    hora: string;
+    clave?: string;
+    referencia?: string;
+    ciudad?: string;
+    /** `false` = el punto sólo se muestra como referencia (no lo elige el cliente). */
+    seleccionable?: boolean;
+  }): Promise<PuntoSalida>;
+  actualizarPuntoSalida(
+    id: string,
+    body: Partial<
+      Pick<
+        PuntoSalida,
+        "nombre" | "hora" | "clave" | "referencia" | "ciudad" | "seleccionable" | "orden" | "activo"
+      >
+    >,
+  ): Promise<PuntoSalida>;
+  eliminarPuntoSalida(id: string): Promise<PuntoSalida & { eliminado: boolean }>;
 
   tours(): Promise<Tour[]>;
   tour(id: string): Promise<{

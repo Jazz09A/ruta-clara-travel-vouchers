@@ -57,7 +57,7 @@ export const DICCIONARIO = {
   paso_de: "Paso",
   de_total: "de",
   tu_cupo_reservado: "Tu cupo está reservado por",
-  cupo_vence_pronto: "Tu cupo vence pronto. Reporta tu pago para conservarlo",
+  cupo_vence_pronto: "Tu cupo vence pronto. Contacta a la agencia para conservarlo",
   verificando_pago: "Estamos verificando tu pago",
   ayuda_whatsapp: "¿Necesitas ayuda?",
   continuar_registro: "Comenzar",

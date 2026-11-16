@@ -34,6 +34,7 @@ import type {
   Pasajero,
   PoliticaCancelacion,
   PlantillaMensaje,
+  PuntoSalida,
   Reserva,
   Rol,
   Tarifa,
@@ -62,6 +63,8 @@ export interface SeedData {
   plantillas: PlantillaMensaje[];
   promos: CodigoPromocional[];
   config: Configuracion;
+  /** Catálogo global de puntos de salida (compartido por todos los tours). */
+  puntos_salida: PuntoSalida[];
   auditoria: Auditoria[];
   notificaciones: Notificacion[];
   /** Token de enlace -> id de reserva. Los tokens SOLO se entregan al crear un enlace nuevo (D-08). */
@@ -247,6 +250,7 @@ function camposSimples(puntos: { valor: string; label: string }[]): CamposFormul
       tipo: "select",
       alcance: "por_pasajero",
       obligatorio: true,
+      grupo: "comida",
       aplica_a: ["Adulto", "Tercera Edad", "Niño"],
       opciones: [
         { valor: "pescado", label: "Pescado frito", cupo: 20 },
@@ -279,6 +283,7 @@ function camposSimples(puntos: { valor: string; label: string }[]): CamposFormul
       alcance: "por_reserva",
       obligatorio: true,
       permite_por_pasajero: true,
+      fuente: "puntos_salida",
       opciones: puntos,
     },
     {
@@ -321,6 +326,7 @@ const CAMPOS_ROQUES_V2: CamposFormulario = [
     tipo: "select",
     alcance: "por_pasajero",
     obligatorio: true,
+    grupo: "comida",
     aplica_a: ["Niño"],
     opciones: [
       { valor: "jugo_emparedado", label: "Jugo y emparedado" },
@@ -1111,7 +1117,51 @@ function crearConfiguracion(tourActivoDefault: string): Configuracion {
     documento_menores: "opcional",
     minutos_inactividad: 30,
     tour_activo_default: tourActivoDefault,
+    // Flags globales (mismos defaults que el backend real):
+    // la selección de comida está apagada y el cliente no reporta pagos.
+    comidas_deshabilitadas: true,
+    reporte_pago_cliente: false,
   };
+}
+
+/** Catálogo inicial de puntos de salida: Guatire, Guarenas y Caracas. */
+function crearPuntosSalida(): PuntoSalida[] {
+  return [
+    {
+      id: "pto_guatire",
+      clave: "guatire",
+      nombre: "Guatire",
+      ciudad: "Guatire",
+      hora: "06:00",
+      referencia: "Punto de encuentro en el centro de Guatire.",
+      seleccionable: true,
+      orden: 0,
+      activo: true,
+    },
+    {
+      id: "pto_guarenas",
+      clave: "guarenas",
+      nombre: "Guarenas",
+      ciudad: "Guarenas",
+      hora: "06:30",
+      referencia: "Punto de encuentro en el centro de Guarenas.",
+      seleccionable: true,
+      orden: 1,
+      activo: true,
+    },
+    {
+      id: "pto_caracas",
+      clave: "caracas",
+      nombre: "Caracas",
+      ciudad: "Caracas",
+      hora: "07:00",
+      referencia: "Punto de encuentro en Caracas.",
+      // En Caracas el punto no lo elige el cliente: se confirma por WhatsApp.
+      seleccionable: false,
+      orden: 2,
+      activo: true,
+    },
+  ];
 }
 
 function crearMetodosPago(): MetodoPago[] {
@@ -1227,14 +1277,7 @@ interface SemillaPasajero {
 
 /** Etiquetas de vencimiento para no repetir literales ISO en el seed. */
 type EtiquetaVencimiento =
-  | "enlace"
-  | "enlace_vencido"
-  | "hold_23h"
-  | "hold_1h30"
-  | "hold_25m"
-  | "hold_20h"
-  | "hold_5h"
-  | "congelado";
+  "enlace" | "enlace_vencido" | "hold_23h" | "hold_1h30" | "hold_25m" | "hold_20h" | "hold_5h";
 
 interface SemillaReserva {
   id: string;
@@ -1541,9 +1584,11 @@ const SEMILLAS_RESERVAS: SemillaReserva[] = [
     tour_id: "tour_roques",
     fecha_tour_id: "fch_roq_03",
     formulario_id: "form_roques",
-    estado: "pago_en_verificacion",
+    // Acuse de pago reportado: espera que la agencia confirme (ya no hay
+    // cola de validación ni hold congelado).
+    estado: "pendiente_pago",
     estado_pago: "reportado",
-    paso_actual: "verificacion",
+    paso_actual: "pago",
     pasajeros: [
       {
         nombre: "Andrea Ríos",
@@ -1555,7 +1600,7 @@ const SEMILLAS_RESERVAS: SemillaReserva[] = [
       },
     ],
     punto_abordaje: "petare",
-    vencimiento: "congelado",
+    vencimiento: "hold_20h",
     creado_dias: 2,
     actividad_min: 45,
   },
@@ -1566,9 +1611,11 @@ const SEMILLAS_RESERVAS: SemillaReserva[] = [
     tour_id: "tour_colonia",
     fecha_tour_id: "fch_col_03",
     formulario_id: "form_colonia",
-    estado: "pago_en_verificacion",
+    // Acuse de pago reportado: espera que la agencia confirme (ya no hay
+    // cola de validación ni hold congelado).
+    estado: "pendiente_pago",
     estado_pago: "reportado",
-    paso_actual: "verificacion",
+    paso_actual: "pago",
     pasajeros: [
       {
         nombre: "Rosa Hernández",
@@ -1589,7 +1636,7 @@ const SEMILLAS_RESERVAS: SemillaReserva[] = [
     ],
     punto_abordaje: "plaza_caracas",
     requiere_accion: "Falta validar el comprobante del titular",
-    vencimiento: "congelado",
+    vencimiento: "hold_5h",
     creado_dias: 2,
     actividad_min: 150,
   },
@@ -1859,9 +1906,6 @@ function calcularExpiraEn(etiqueta: EtiquetaVencimiento | undefined, ahora: numb
       return fechaIso(ahora, 0, 20);
     case "hold_5h":
       return fechaIso(ahora, 0, 5);
-    case "congelado":
-      // El vencimiento se congela mientras hay un pago por validar.
-      return null;
     default:
       return null;
   }
@@ -2403,8 +2447,9 @@ function crearNotificaciones(ahora: number): Notificacion[] {
   const notificaciones: Omit<Notificacion, "id">[] = [
     {
       tipo: "pago",
-      titulo: "Pago reportado por verificar",
-      detalle: "Andrea Ríos reportó un pago de $55.00 con Zelle para Full Day Los Roques.",
+      titulo: "Pago reportado",
+      detalle:
+        "Andrea Ríos reportó un pago de $55.00 con Zelle para Full Day Los Roques. El pago nace aprobado; revísalo desde la reserva.",
       entidad_id: "pag_001",
       leida: false,
       fecha: fechaIso(ahora, -2, -1),
@@ -2412,7 +2457,7 @@ function crearNotificaciones(ahora: number): Notificacion[] {
     {
       tipo: "pago",
       titulo: "Referencia duplicada detectada",
-      detalle: "La referencia ZL-884512 aparece en dos pagos. Confirma antes de aprobar.",
+      detalle: "La referencia ZL-884512 aparece en dos pagos. Revísala desde el detalle del pago.",
       entidad_id: "pag_001",
       leida: false,
       fecha: fechaIso(ahora, -2, -1),
@@ -2420,7 +2465,7 @@ function crearNotificaciones(ahora: number): Notificacion[] {
     {
       tipo: "reserva",
       titulo: "Reserva por expirar",
-      detalle: "La reserva F5L2WQH8 vence en menos de 2 horas si no se reporta el pago.",
+      detalle: "La reserva F5L2WQH8 vence en menos de 2 horas si no se confirma.",
       entidad_id: "res_008",
       leida: false,
       fecha: fechaIso(ahora, 0, -1),
@@ -2434,7 +2479,7 @@ function crearNotificaciones(ahora: number): Notificacion[] {
       fecha: fechaIso(ahora, -1),
     },
     {
-      tipo: "sistema",
+      tipo: "reserva",
       titulo: "Voucher emitido",
       detalle: "El voucher de la reserva J6X2RTF9 está listo para descargar.",
       entidad_id: "res_012",
@@ -2467,6 +2512,7 @@ export function crearSeed(): SeedData {
   const plantillas = crearPlantillas();
   const promos = crearPromos(ahora);
   const config = crearConfiguracion("tour_roques");
+  const puntos_salida = crearPuntosSalida();
   const metodos_pago = crearMetodosPago();
   const tasa = crearTasa(ahora);
 
@@ -2531,6 +2577,7 @@ export function crearSeed(): SeedData {
     plantillas,
     promos,
     config,
+    puntos_salida,
     auditoria,
     notificaciones,
     enlaces,

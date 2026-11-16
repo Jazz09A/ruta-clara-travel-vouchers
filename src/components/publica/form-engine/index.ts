@@ -6,7 +6,4 @@
  * admin).
  */
 export { CampoDinamico, type CampoDinamicoProps } from "./CampoDinamico";
-export {
-  FormularioDinamico,
-  type FormularioDinamicoProps,
-} from "./FormularioDinamico";
+export { FormularioDinamico, type FormularioDinamicoProps } from "./FormularioDinamico";

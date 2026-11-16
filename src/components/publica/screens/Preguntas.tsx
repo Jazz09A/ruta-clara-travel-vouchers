@@ -40,6 +40,15 @@ function esVacio(valor: Respuesta | undefined): boolean {
   return false;
 }
 
+/** Ítem del resumen de errores: «pregunta» — ámbito (pasajero o reserva). */
+interface ErrorPreguntas {
+  clave: string;
+  label: string;
+  ambito: string;
+  ref: string | null;
+  campo: string;
+}
+
 /**
  * Sólo se pueden copiar respuestas de campos de selección sin cupo propio y
  * que no sean datos sensibles (por ejemplo, alergias).
@@ -70,9 +79,31 @@ export function Preguntas({
   const [respuestasLocales, setRespuestasLocales] = useState<RespuestasFormulario>(respuestas);
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [anuncio, setAnuncio] = useState("");
-  const [expandido, setExpandido] = useState<string | null>(null);
+  const [abiertos, setAbiertos] = useState<string[]>([]);
+  /** Resumen visible: «pregunta» — pasajero (o «Toda la reserva»). */
+  const [resumenErrores, setResumenErrores] = useState<ErrorPreguntas[]>([]);
   const [modoCompartido, setModoCompartido] = useState<Record<string, boolean>>({});
   const inicializadoRef = useRef(false);
+
+  /** Abre un pasajero si no lo está. */
+  const abrirPasajero = (ref: string) => {
+    setAbiertos((previos) => (previos.includes(ref) ? previos : [...previos, ref]));
+  };
+
+  /** Lleva el foco (y el scroll) a la primera pregunta con error de un ítem. */
+  const enfocarError = (item: ErrorPreguntas) => {
+    if (item.ref) abrirPasajero(item.ref);
+    // Doble rAF: el acordeón se abre en el mismo ciclo y el control recién
+    // montado debe existir antes de buscarlo.
+    window.requestAnimationFrame(() =>
+      window.requestAnimationFrame(() => {
+        const contenedor = item.ref ? document.getElementById(`preguntas-${item.ref}`) : document;
+        const control = contenedor?.querySelector<HTMLElement>(`[id="campo-${item.campo}"]`);
+        control?.scrollIntoView({ block: "center", behavior: "smooth" });
+        control?.focus();
+      }),
+    );
+  };
 
   const categorias = useMemo(() => {
     const mapa: Record<string, Categoria> = {};
@@ -108,17 +139,17 @@ export function Preguntas({
     });
   }, [agotadas, categorias, campos, respuestasLocales.globales, respuestasLocales.por_pasajero]);
 
-  // Se abre el primer pasajero incompleto.
+  // Se abre el primer pasajero incompleto (si no hay alguno ya abierto).
   useEffect(() => {
-    if (expandido) return;
+    if (abiertos.length > 0) return;
     for (const pasajero of pasajeros) {
       const progreso = avanceDe(ctx, pasajero.ref_cliente, modoCompartido);
       if (progreso.respondidos < progreso.total) {
-        setExpandido(pasajero.ref_cliente);
+        setAbiertos([pasajero.ref_cliente]);
         return;
       }
     }
-  }, [ctx, expandido, pasajeros]);
+  }, [abiertos, ctx, modoCompartido, pasajeros]);
 
   const guardar = (siguiente: RespuestasFormulario) => {
     setRespuestasLocales(siguiente);
@@ -132,6 +163,7 @@ export function Preguntas({
     };
     setRespuestasLocales(siguiente);
     onCambiar(siguiente);
+    limpiarError(campoId);
   };
 
   const cambiarPasajero = (ref: string, campoId: string, valor: Respuesta) => {
@@ -145,6 +177,18 @@ export function Preguntas({
     };
     setRespuestasLocales(siguiente);
     onCambiar(siguiente);
+    limpiarError(ref ? `${campoId}@${ref}` : campoId);
+  };
+
+  /** Al responder, el campo deja de aparecer en el resumen de errores. */
+  const limpiarError = (clave: string) => {
+    setErrores((previos) => {
+      if (!previos[clave]) return previos;
+      const copia = { ...previos };
+      delete copia[clave];
+      return copia;
+    });
+    setResumenErrores((previos) => previos.filter((item) => item.clave !== clave));
   };
 
   const alternarModoCompartido = (campoId: string, compartido: boolean) => {
@@ -154,7 +198,9 @@ export function Preguntas({
     if (compartido) {
       // Vuelve a una sola respuesta: se toma la del primer pasajero.
       const primer = pasajeros[0];
-      const valor = primer ? respuestasLocales.por_pasajero[primer.ref_cliente]?.[campoId] : undefined;
+      const valor = primer
+        ? respuestasLocales.por_pasajero[primer.ref_cliente]?.[campoId]
+        : undefined;
       const porPasajero: Record<string, Record<string, Respuesta>> = {};
       for (const pasajero of pasajeros) {
         const propias = respuestasLocales.por_pasajero[pasajero.ref_cliente];
@@ -196,26 +242,53 @@ export function Preguntas({
     const resultado = validarFormulario(ctx);
     if (!resultado.ok) {
       const nuevosErrores: Record<string, string> = {};
+      const resumen: ErrorPreguntas[] = [];
+      const refsConError = new Set<string>();
       for (const error of resultado.errores) {
         const clave = error.pasajero_ref ? `${error.campo}@${error.pasajero_ref}` : error.campo;
         if (!nuevosErrores[clave]) nuevosErrores[clave] = error.mensaje;
+        if (error.pasajero_ref) refsConError.add(error.pasajero_ref);
+        if (resumen.some((item) => item.clave === clave)) continue;
+        const campo = campos.find((c) => c.id === error.campo);
+        const pasajero = error.pasajero_ref
+          ? pasajeros.find((p) => p.ref_cliente === error.pasajero_ref)
+          : undefined;
+        resumen.push({
+          clave,
+          label: campo?.label ?? error.campo,
+          ambito: pasajero ? pasajero.nombre || "Pasajero sin nombre" : "Toda la reserva",
+          ref: error.pasajero_ref ?? null,
+          campo: error.campo,
+        });
       }
       setErrores(nuevosErrores);
+      setResumenErrores(resumen);
       setAnuncio(
         `Hay ${resultado.errores.length} ${resultado.errores.length === 1 ? "pregunta" : "preguntas"} por corregir`,
       );
 
+      // Se abren TODOS los pasajeros con errores (antes sólo el primero).
+      setAbiertos((previos) => [...new Set([...previos, ...refsConError])]);
+
+      // El foco va a la primera pregunta con error, en SU pasajero.
       const primero = resultado.errores[0];
       if (primero) {
-        if (primero.pasajero_ref) setExpandido(primero.pasajero_ref);
-        window.requestAnimationFrame(() => {
-          document.getElementById(`campo-${primero.campo}`)?.focus();
-        });
+        window.requestAnimationFrame(() =>
+          window.requestAnimationFrame(() => {
+            const contenedor = primero.pasajero_ref
+              ? document.getElementById(`preguntas-${primero.pasajero_ref}`)
+              : document;
+            const control = contenedor?.querySelector<HTMLElement>(`[id="campo-${primero.campo}"]`);
+            control?.scrollIntoView({ block: "center", behavior: "smooth" });
+            control?.focus();
+          }),
+        );
       }
       return;
     }
 
     setErrores({});
+    setResumenErrores([]);
     setAnuncio("");
     guardar(respuestasLocales);
     onContinuar();
@@ -234,7 +307,13 @@ export function Preguntas({
       campo.permite_por_pasajero === true &&
       modoCompartido[campo.id] === false);
 
-  const hayGlobales = campos.some(filtroGlobal);
+  // Sección global: además de los campos compartidos, incluye los que están
+  // en modo "por pasajero" para conservar ahí el interruptor de vuelta.
+  const hayGlobales = campos.some(
+    (campo) =>
+      filtroGlobal(campo) ||
+      (campo.permite_por_pasajero === true && modoCompartido[campo.id] === false),
+  );
 
   return (
     <div className="flex flex-col gap-5">
@@ -246,6 +325,32 @@ export function Preguntas({
         <p className="rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">
           {errorServidor}
         </p>
+      ) : null}
+
+      {/* Resumen de preguntas por corregir: «pregunta» — pasajero. */}
+      {resumenErrores.length > 0 ? (
+        <section
+          role="alert"
+          aria-label="Preguntas por corregir"
+          className="rounded-xl border border-destructive/40 bg-destructive/10 p-3"
+        >
+          <p className="text-sm font-bold text-destructive">
+            {`Corrige ${resumenErrores.length === 1 ? "esta pregunta" : `estas ${resumenErrores.length} preguntas`}:`}
+          </p>
+          <ul className="mt-1.5 flex flex-col gap-1">
+            {resumenErrores.map((item) => (
+              <li key={item.clave}>
+                <button
+                  type="button"
+                  onClick={() => enfocarError(item)}
+                  className="min-h-11 text-left text-sm font-medium text-destructive underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {`«${item.label}» — ${item.ambito}`}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
       ) : null}
 
       {campos.length === 0 ? (
@@ -275,17 +380,29 @@ export function Preguntas({
       {/* Un acordeón por pasajero */}
       {pasajeros.map((pasajero) => {
         const progreso = avanceDe(ctx, pasajero.ref_cliente, modoCompartido);
-        const abierto = expandido === pasajero.ref_cliente;
+        const abierto = abiertos.includes(pasajero.ref_cliente);
         const indice = pasajeros.findIndex((p) => p.ref_cliente === pasajero.ref_cliente);
+        const tieneError = Object.keys(errores).some((clave) =>
+          clave.endsWith(`@${pasajero.ref_cliente}`),
+        );
 
         return (
           <section
             key={pasajero.ref_cliente}
-            className="overflow-hidden rounded-2xl border border-border bg-card"
+            className={cn(
+              "overflow-hidden rounded-2xl border bg-card",
+              tieneError ? "border-destructive/60" : "border-border",
+            )}
           >
             <button
               type="button"
-              onClick={() => setExpandido(abierto ? null : pasajero.ref_cliente)}
+              onClick={() =>
+                setAbiertos((previos) =>
+                  previos.includes(pasajero.ref_cliente)
+                    ? previos.filter((r) => r !== pasajero.ref_cliente)
+                    : [...previos, pasajero.ref_cliente],
+                )
+              }
               aria-expanded={abierto}
               aria-controls={`preguntas-${pasajero.ref_cliente}`}
               className="flex min-h-11 w-full items-center gap-3 px-4 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -297,6 +414,12 @@ export function Preguntas({
                 <span className="mt-0.5 block text-xs text-muted-foreground">
                   {`${pasajero.categoria} · ${progreso.respondidos} de ${progreso.total} respondidos`}
                 </span>
+                {tieneError ? (
+                  <span className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-destructive">
+                    <TriangleAlert className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    <span>Faltan preguntas por responder</span>
+                  </span>
+                ) : null}
               </span>
               {progreso.respondidos >= progreso.total && progreso.total > 0 ? (
                 <CircleCheck className="h-5 w-5 shrink-0 text-success" aria-hidden="true" />
@@ -324,7 +447,9 @@ export function Preguntas({
                     ctx={ctx}
                     alcance="por_pasajero"
                     refPasajero={pasajero.ref_cliente}
-                    onChange={(campoId, valor) => cambiarPasajero(pasajero.ref_cliente, campoId, valor)}
+                    onChange={(campoId, valor) =>
+                      cambiarPasajero(pasajero.ref_cliente, campoId, valor)
+                    }
                     errores={errores}
                     agotadas={agotadas}
                     filtrarCampos={filtroPasajero}

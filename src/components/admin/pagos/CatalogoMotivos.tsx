@@ -81,9 +81,7 @@ export function CatalogoMotivos({
   return (
     <div className={cn("flex flex-col gap-4", className)}>
       <fieldset className="flex flex-col gap-2" disabled={disabled}>
-        <legend className="text-sm font-semibold text-foreground">
-          Motivo del rechazo
-        </legend>
+        <legend className="text-sm font-semibold text-foreground">Motivo del rechazo</legend>
 
         <RadioGroup
           value={valor}
@@ -192,7 +190,10 @@ export function VistaPreviaMensaje({
         Mensaje que verá el cliente
       </p>
       <p className="flex items-start gap-2 text-sm leading-relaxed text-foreground">
-        <MessageSquareQuote className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <MessageSquareQuote
+          className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+          aria-hidden="true"
+        />
         <span>{mensaje || "Elige un motivo para ver el mensaje."}</span>
       </p>
     </div>

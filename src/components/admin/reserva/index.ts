@@ -51,6 +51,11 @@ export {
   type DialogoPagoEfectivoProps,
 } from "./DialogoPagoEfectivo";
 export {
+  DialogoRegistrarPago,
+  type DatosPagoReserva,
+  type DialogoRegistrarPagoProps,
+} from "./DialogoRegistrarPago";
+export {
   DialogoReembolso,
   type DatosReembolso,
   type DialogoReembolsoProps,
@@ -62,4 +67,9 @@ export {
   type DialogoExtenderHoldProps,
 } from "./DialogoExtenderHold";
 export { useReveloTemporal, type ControlRevelo, type DatoRevelado } from "./use-revelo-temporal";
+export {
+  EditorPrecio,
+  type DatosPrecio as DatosEditorPrecio,
+  type EditorPrecioProps,
+} from "./EditorPrecio";
 export { PanelPrecio, type DatosPrecio, type PanelPrecioProps } from "./PanelPrecio";

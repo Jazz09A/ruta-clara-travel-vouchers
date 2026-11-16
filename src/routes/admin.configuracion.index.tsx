@@ -4,6 +4,7 @@ import {
   DollarSign,
   CreditCard,
   FileText,
+  MapPin,
   MessageSquare,
   Shield,
   Tag,
@@ -16,7 +17,10 @@ export const Route = createFileRoute("/admin/configuracion/")({
   head: () => ({
     meta: [
       { title: "Configuración · Panel" },
-      { name: "description", content: "Configuración general, métodos de pago, términos y usuarios." },
+      {
+        name: "description",
+        content: "Configuración general, métodos de pago, términos y usuarios.",
+      },
     ],
   }),
   component: Configuracion,
@@ -43,6 +47,13 @@ const seccionesConfig = [
     descripcion: "Cuentas bancarias, Zelle, Pago Móvil",
     icono: CreditCard,
     ruta: "/admin/configuracion/metodos",
+  },
+  {
+    id: "puntos",
+    titulo: "Puntos de salida",
+    descripcion: "Guatire, Guarenas, Caracas… crear y eliminar",
+    icono: MapPin,
+    ruta: "/admin/configuracion/puntos",
   },
   {
     id: "terminos",

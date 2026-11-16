@@ -34,6 +34,7 @@ import { Route as AdminConfiguracionMetodosRouteImport } from './routes/admin.co
 import { Route as AdminConfiguracionPlantillasRouteImport } from './routes/admin.configuracion.plantillas'
 import { Route as AdminConfiguracionPoliticasRouteImport } from './routes/admin.configuracion.politicas'
 import { Route as AdminConfiguracionPromosRouteImport } from './routes/admin.configuracion.promos'
+import { Route as AdminConfiguracionPuntosRouteImport } from './routes/admin.configuracion.puntos'
 import { Route as AdminConfiguracionTasaRouteImport } from './routes/admin.configuracion.tasa'
 import { Route as AdminConfiguracionTerminosRouteImport } from './routes/admin.configuracion.terminos'
 import { Route as AdminConfiguracionUsuariosRouteImport } from './routes/admin.configuracion.usuarios'
@@ -178,6 +179,12 @@ const AdminConfiguracionPromosRoute =
     path: '/promos',
     getParentRoute: () => AdminConfiguracionRoute,
   } as any)
+const AdminConfiguracionPuntosRoute =
+  AdminConfiguracionPuntosRouteImport.update({
+    id: '/puntos',
+    path: '/puntos',
+    getParentRoute: () => AdminConfiguracionRoute,
+  } as any)
 const AdminConfiguracionTasaRoute = AdminConfiguracionTasaRouteImport.update({
   id: '/tasa',
   path: '/tasa',
@@ -270,6 +277,7 @@ export interface FileRoutesByFullPath {
   '/admin/configuracion/plantillas': typeof AdminConfiguracionPlantillasRoute
   '/admin/configuracion/politicas': typeof AdminConfiguracionPoliticasRoute
   '/admin/configuracion/promos': typeof AdminConfiguracionPromosRoute
+  '/admin/configuracion/puntos': typeof AdminConfiguracionPuntosRoute
   '/admin/configuracion/tasa': typeof AdminConfiguracionTasaRoute
   '/admin/configuracion/terminos': typeof AdminConfiguracionTerminosRoute
   '/admin/configuracion/usuarios': typeof AdminConfiguracionUsuariosRoute
@@ -304,6 +312,7 @@ export interface FileRoutesByTo {
   '/admin/configuracion/plantillas': typeof AdminConfiguracionPlantillasRoute
   '/admin/configuracion/politicas': typeof AdminConfiguracionPoliticasRoute
   '/admin/configuracion/promos': typeof AdminConfiguracionPromosRoute
+  '/admin/configuracion/puntos': typeof AdminConfiguracionPuntosRoute
   '/admin/configuracion/tasa': typeof AdminConfiguracionTasaRoute
   '/admin/configuracion/terminos': typeof AdminConfiguracionTerminosRoute
   '/admin/configuracion/usuarios': typeof AdminConfiguracionUsuariosRoute
@@ -345,6 +354,7 @@ export interface FileRoutesById {
   '/admin/configuracion/plantillas': typeof AdminConfiguracionPlantillasRoute
   '/admin/configuracion/politicas': typeof AdminConfiguracionPoliticasRoute
   '/admin/configuracion/promos': typeof AdminConfiguracionPromosRoute
+  '/admin/configuracion/puntos': typeof AdminConfiguracionPuntosRoute
   '/admin/configuracion/tasa': typeof AdminConfiguracionTasaRoute
   '/admin/configuracion/terminos': typeof AdminConfiguracionTerminosRoute
   '/admin/configuracion/usuarios': typeof AdminConfiguracionUsuariosRoute
@@ -387,6 +397,7 @@ export interface FileRouteTypes {
     | '/admin/configuracion/plantillas'
     | '/admin/configuracion/politicas'
     | '/admin/configuracion/promos'
+    | '/admin/configuracion/puntos'
     | '/admin/configuracion/tasa'
     | '/admin/configuracion/terminos'
     | '/admin/configuracion/usuarios'
@@ -421,6 +432,7 @@ export interface FileRouteTypes {
     | '/admin/configuracion/plantillas'
     | '/admin/configuracion/politicas'
     | '/admin/configuracion/promos'
+    | '/admin/configuracion/puntos'
     | '/admin/configuracion/tasa'
     | '/admin/configuracion/terminos'
     | '/admin/configuracion/usuarios'
@@ -461,6 +473,7 @@ export interface FileRouteTypes {
     | '/admin/configuracion/plantillas'
     | '/admin/configuracion/politicas'
     | '/admin/configuracion/promos'
+    | '/admin/configuracion/puntos'
     | '/admin/configuracion/tasa'
     | '/admin/configuracion/terminos'
     | '/admin/configuracion/usuarios'
@@ -674,6 +687,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminConfiguracionPromosRouteImport
       parentRoute: typeof AdminConfiguracionRoute
     }
+    '/admin/configuracion/puntos': {
+      id: '/admin/configuracion/puntos'
+      path: '/puntos'
+      fullPath: '/admin/configuracion/puntos'
+      preLoaderRoute: typeof AdminConfiguracionPuntosRouteImport
+      parentRoute: typeof AdminConfiguracionRoute
+    }
     '/admin/configuracion/tasa': {
       id: '/admin/configuracion/tasa'
       path: '/tasa'
@@ -789,6 +809,7 @@ interface AdminConfiguracionRouteChildren {
   AdminConfiguracionPlantillasRoute: typeof AdminConfiguracionPlantillasRoute
   AdminConfiguracionPoliticasRoute: typeof AdminConfiguracionPoliticasRoute
   AdminConfiguracionPromosRoute: typeof AdminConfiguracionPromosRoute
+  AdminConfiguracionPuntosRoute: typeof AdminConfiguracionPuntosRoute
   AdminConfiguracionTasaRoute: typeof AdminConfiguracionTasaRoute
   AdminConfiguracionTerminosRoute: typeof AdminConfiguracionTerminosRoute
   AdminConfiguracionUsuariosRoute: typeof AdminConfiguracionUsuariosRoute
@@ -802,6 +823,7 @@ const AdminConfiguracionRouteChildren: AdminConfiguracionRouteChildren = {
   AdminConfiguracionPlantillasRoute: AdminConfiguracionPlantillasRoute,
   AdminConfiguracionPoliticasRoute: AdminConfiguracionPoliticasRoute,
   AdminConfiguracionPromosRoute: AdminConfiguracionPromosRoute,
+  AdminConfiguracionPuntosRoute: AdminConfiguracionPuntosRoute,
   AdminConfiguracionTasaRoute: AdminConfiguracionTasaRoute,
   AdminConfiguracionTerminosRoute: AdminConfiguracionTerminosRoute,
   AdminConfiguracionUsuariosRoute: AdminConfiguracionUsuariosRoute,

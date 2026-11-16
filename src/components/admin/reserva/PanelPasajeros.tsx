@@ -56,6 +56,11 @@ export function PanelPasajeros({
     campos.find((definicion) => definicion.id === campo)?.label ?? campo;
 
   const valorDeCampo = (campo: string, valor: Respuesta): string => {
+    // Pseudo-clave del selector de ciudades: el punto exacto de Caracas se
+    // confirma después por WhatsApp (no está en el snapshot del formulario).
+    if (campo === "punto_abordaje" && valor === "caracas") {
+      return "Caracas — punto por confirmar";
+    }
     const definicion = campos.find((c) => c.id === campo);
     if (definicion && definicion.tipo === "select" && typeof valor === "string") {
       return definicion.opciones.find((opcion) => opcion.valor === valor)?.label ?? valor;
@@ -68,7 +73,10 @@ export function PanelPasajeros({
   return (
     <section
       aria-label="Pasajeros y respuestas"
-      className={cn("flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 shadow-card", className)}
+      className={cn(
+        "flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 shadow-card",
+        className,
+      )}
     >
       <header className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-sm font-bold text-foreground">
@@ -82,12 +90,27 @@ export function PanelPasajeros({
       <div className="flex flex-col gap-3">
         {pasajeros.map((pasajero) => {
           const selecciones: SeleccionMostrada[] = Object.entries(pasajero.respuestas)
-            .filter(([, valor]) => valor !== null && valor !== undefined && valor !== "")
+            .filter(
+              ([campo, valor]) =>
+                campo !== "punto_abordaje" && valor !== null && valor !== undefined && valor !== "",
+            )
             .map(([campo, valor]) => ({
               campo,
               etiqueta: etiquetaDeCampo(campo),
               valor: valorDeCampo(campo, valor),
             }));
+
+          // Punto de salida por pasajero (salidas personalizadas): el propio
+          // o, si no lo definió, el de la reserva.
+          const puntoPropio = pasajero.respuestas["punto_abordaje"];
+          const puntoEfectivo = puntoPropio ?? respuestasGlobales["punto_abordaje"];
+          if (puntoEfectivo !== null && puntoEfectivo !== undefined && puntoEfectivo !== "") {
+            selecciones.unshift({
+              campo: "punto_abordaje",
+              etiqueta: puntoPropio ? "Punto de salida" : "Punto de salida (reserva)",
+              valor: valorDeCampo("punto_abordaje", puntoEfectivo),
+            });
+          }
 
           const claveDocumento = `${pasajero.ref_cliente}:documento`;
           const claveNacimiento = `${pasajero.ref_cliente}:fecha_nacimiento`;
@@ -133,7 +156,9 @@ export function PanelPasajeros({
       {pasajeros.some((pasajero) => pasajero.respuestas["tiene_alergias"] === true) ? (
         <p className="flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-medium text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100">
           <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          <span>Hay pasajeros con alergias o condiciones médicas. Revísalas antes de la salida.</span>
+          <span>
+            Hay pasajeros con alergias o condiciones médicas. Revísalas antes de la salida.
+          </span>
         </p>
       ) : null}
     </section>

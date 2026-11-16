@@ -39,6 +39,12 @@ export interface VerificacionPagoProps {
   onVolverAPago: () => void;
   /** La reserva se cerró: se pasa a P-12. */
   onReservaCerrada: () => void;
+  /**
+   * `false` cuando el reporte de pago del cliente está desactivado (flag
+   * `reporte_pago_cliente`): no se ofrecen botones de reporte ni corrección,
+   * la agencia gestiona el pago desde el panel.
+   */
+  permiteReportar?: boolean | undefined;
   refCorta?: string | undefined;
   nombreTour?: string | undefined;
 }
@@ -48,6 +54,7 @@ export function VerificacionPago({
   onConfirmada,
   onVolverAPago,
   onReservaCerrada,
+  permiteReportar = true,
   refCorta,
   nombreTour,
 }: VerificacionPagoProps) {
@@ -103,16 +110,19 @@ export function VerificacionPago({
     return () => window.clearTimeout(id);
   }, [confirmado, onConfirmada, reducido]);
 
-  // El rechazo devuelve al cliente a P-08 con un mensaje.
+  // El rechazo devuelve al cliente a P-08 con un mensaje (sólo si él reporta).
   useEffect(() => {
-    if (!rechazado) return;
+    if (!rechazado || !permiteReportar) return;
     const id = window.setTimeout(() => onVolverAPago(), reducido ? 200 : 2600);
     return () => window.clearTimeout(id);
-  }, [onVolverAPago, rechazado, reducido]);
+  }, [onVolverAPago, permiteReportar, rechazado, reducido]);
 
   const pago = useMemo(() => ordenarPorFecha(pagos)[0] ?? null, [pagos]);
   const aprobado = useMemo(
-    () => pagos.filter((item) => item.estado === "aprobado").reduce((suma, item) => suma + Number.parseFloat(item.monto || "0"), 0),
+    () =>
+      pagos
+        .filter((item) => item.estado === "aprobado")
+        .reduce((suma, item) => suma + Number.parseFloat(item.monto || "0"), 0),
     [pagos],
   );
   const recibido = Number.parseFloat(saldoUsd) + aprobado;
@@ -142,8 +152,12 @@ export function VerificacionPago({
 
   return (
     <PublicShell
-      titulo="Recibimos tu reporte de pago"
-      subtitulo="Estamos verificando tu pago con la agencia. Te avisamos en cuanto esté listo."
+      titulo={permiteReportar ? "Recibimos tu reporte de pago" : "Estamos verificando tu pago"}
+      subtitulo={
+        permiteReportar
+          ? "Estamos verificando tu pago con la agencia. Te avisamos en cuanto esté listo."
+          : "La agencia registró tu pago y lo está verificando. Te avisamos en cuanto esté listo."
+      }
       pasoActual="pago"
       nombreTour={nombreTour}
       refCorta={refCorta}
@@ -154,7 +168,11 @@ export function VerificacionPago({
           <Banner
             variante="urgencia"
             titulo="No pudimos validar tu pago"
-            mensaje="Te llevamos al formulario de pago para que puedas reportarlo de nuevo."
+            mensaje={
+              permiteReportar
+                ? "Te llevamos al formulario de pago para que puedas reportarlo de nuevo."
+                : "Escríbenos por WhatsApp y lo resolvemos contigo."
+            }
           />
         ) : null}
 
@@ -166,26 +184,44 @@ export function VerificacionPago({
             </h2>
             <p className="mt-1 text-sm leading-relaxed text-foreground/80">
               {pago?.motivo_rechazo
-                ? (ETIQUETA_MOTIVO_RECHAZO[pago.motivo_rechazo] ?? "Revisa los datos y vuelve a reportar el pago")
-                : "Revisa los datos y vuelve a reportar el pago."}
+                ? (ETIQUETA_MOTIVO_RECHAZO[pago.motivo_rechazo] ??
+                  (permiteReportar
+                    ? "Revisa los datos y vuelve a reportar el pago"
+                    : "Escríbenos por WhatsApp y te ayudamos"))
+                : permiteReportar
+                  ? "Revisa los datos y vuelve a reportar el pago."
+                  : "Escríbenos por WhatsApp y te ayudamos a resolverlo."}
             </p>
-            <button
-              type="button"
-              onClick={onVolverAPago}
-              className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <RefreshCw className="h-4 w-4" aria-hidden="true" />
-              <span>Reportar de nuevo</span>
-            </button>
+            {permiteReportar ? (
+              <button
+                type="button"
+                onClick={onVolverAPago}
+                className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                <span>Reportar de nuevo</span>
+              </button>
+            ) : null}
           </section>
         ) : null}
 
         {pideCorreccion && pago ? (
-          <CorreccionPago
-            token={token}
-            pago={pago}
-            onEnviada={() => void consultaPagos.refetch()}
-          />
+          permiteReportar ? (
+            <CorreccionPago
+              token={token}
+              pago={pago}
+              onEnviada={() => void consultaPagos.refetch()}
+            />
+          ) : (
+            <Banner
+              variante="aviso"
+              titulo="Necesitamos un ajuste"
+              mensaje={
+                pago.comentario_validador ??
+                "Revisa el monto o la referencia con la agencia por WhatsApp."
+              }
+            />
+          )
         ) : null}
 
         {/* Resumen del reporte ------------------------------------------ */}
@@ -235,15 +271,21 @@ export function VerificacionPago({
           <Banner
             variante="aviso"
             titulo={`Recibimos ${formatUsd(recibido.toFixed(2))}`}
-            mensaje={`Falta ${formatUsd(saldoUsd)} para confirmar tu reserva. Puedes reportar el resto cuando quieras.`}
+            mensaje={
+              permiteReportar
+                ? `Falta ${formatUsd(saldoUsd)} para confirmar tu reserva. Puedes reportar el resto cuando quieras.`
+                : `Falta ${formatUsd(saldoUsd)} para confirmar tu reserva. La agencia te contactará para coordinar el resto.`
+            }
             accion={
-              <button
-                type="button"
-                onClick={onVolverAPago}
-                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-input bg-card px-3 text-sm font-semibold text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                Reportar el resto
-              </button>
+              permiteReportar ? (
+                <button
+                  type="button"
+                  onClick={onVolverAPago}
+                  className="inline-flex min-h-11 items-center justify-center rounded-xl border border-input bg-card px-3 text-sm font-semibold text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  Reportar el resto
+                </button>
+              ) : undefined
             }
           />
         ) : null}
@@ -255,7 +297,9 @@ export function VerificacionPago({
           </span>
           <div>
             <h2 className="text-sm font-bold text-foreground">¿Cuánto tarda?</h2>
-            <p className="mt-0.5 text-sm leading-relaxed text-muted-foreground">{TIEMPO_RESPUESTA}.</p>
+            <p className="mt-0.5 text-sm leading-relaxed text-muted-foreground">
+              {TIEMPO_RESPUESTA}.
+            </p>
             <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
               Puedes cerrar esta página: tu reserva sigue guardada y aquí vuelves a ver el estado.
             </p>

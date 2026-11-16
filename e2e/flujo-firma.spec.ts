@@ -24,6 +24,10 @@ import { dibujarFirma } from "./helpers/firma";
 const API = process.env["VITE_API_URL"] ?? "http://localhost:3001/api/v1";
 const TOKEN_DEMO = { correo: "admin@rutaclara.ve", password: "demo1234" };
 
+/** PNG de 1×1 px: cumple la política de foto del documento para el setup. */
+const CEDULA_PNG =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
 /** JSON devuelto por la API: se lee con las funciones de abajo, sin `any`. */
 type Json = string | number | boolean | null | Json[] | { [clave: string]: Json };
 
@@ -69,22 +73,39 @@ async function prepararHastaFirma(request: APIRequestContext): Promise<string> {
   const listaFechas = Array.isArray(fechasCrudas)
     ? lista(fechasCrudas)
     : lista(objeto(fechasCrudas)["fechas"]);
-  const fecha = listaFechas.map(objeto).find((f) => texto(f["estado"]) === "publicada");
-  expect(fecha, "hay una fecha publicada para crear la reserva").toBeTruthy();
+  // Fecha publicada y todavía vendible: hoy o posterior y con el corte de
+  // venta (corte_venta_horas antes de la salida) aún no superado.
+  const hoy = new Date().toISOString().slice(0, 10);
+  const ahora = Date.now();
+  const fecha = listaFechas.map(objeto).find((f) => {
+    if (texto(f["estado"]) !== "publicada") return false;
+    const salida = texto(f["fecha_salida"]);
+    if (!salida || salida < hoy) return false;
+    const hora = texto(f["hora_salida"]) || "00:00";
+    const corteHoras = typeof f["corte_venta_horas"] === "number" ? f["corte_venta_horas"] : 0;
+    const cierre = new Date(`${salida}T${hora}:00`).getTime() - corteHoras * 3_600_000;
+    return cierre > ahora;
+  });
+  expect(fecha, "hay una fecha publicada y vendible para crear la reserva").toBeTruthy();
   if (!fecha) return "";
 
-  const creada = objeto(
-    await request
-      .post(API + "/adminfx/reservas", {
-        headers: admin,
-        data: {
-          fecha_tour_id: texto(fecha["id"]),
-          referencia_interna: `E2E-FIRMA-${Date.now()}`,
-        },
-      })
-      .then((r) => r.json() as Promise<Json>),
-  );
+  const respuestaCreacion = await request.post(API + "/adminfx/reservas", {
+    headers: admin,
+    data: {
+      fecha_tour_id: texto(fecha["id"]),
+      referencia_interna: `E2E-FIRMA-${Date.now()}`,
+    },
+  });
+  const jsonCreacion = (await respuestaCreacion.json().catch(() => null)) as Json;
+  // Sin este corte, un422 (fecha cerrada, sin cupo…) se disfraza de token
+  // vacío y el fallo real aparece después como ENLACE_INVALIDO.
+  expect(
+    respuestaCreacion.status(),
+    `crear la reserva: ${JSON.stringify(jsonCreacion)}`,
+  ).toBeLessThan(400);
+  const creada = objeto(jsonCreacion);
   const token = texto(creada["enlace"]).replace("/r/", "");
+  expect(token, "el alta devolvió un enlace usable").toBeTruthy();
 
   const version = async () =>
     numero(
@@ -100,6 +121,12 @@ async function prepararHastaFirma(request: APIRequestContext): Promise<string> {
       fecha_nacimiento: "1990-01-15",
       correo: "firma.e2e@test.ve",
       telefono: "4121234567",
+      // Política: el paso no avanza sin la foto del documento (PNG de 1×1).
+      documento_imagen: {
+        data: CEDULA_PNG,
+        tipo: "image/png",
+        nombre: "cedula.png",
+      },
       version: await version(),
     },
   });
@@ -242,10 +269,11 @@ test("la firma se guarda al primer intento (términos antes de firmar)", async (
     await dibujarFirma(page, page.locator("canvas"));
     await page.getByRole("button", { name: "Firmar y continuar" }).click();
 
-    // El flujo avanza a la pantalla de pago: no hubo rebote a los términos.
-    await expect(
-      page.getByRole("heading", { name: "Instrucciones de pago", exact: true }),
-    ).toBeVisible({ timeout: 30_000 });
+    // Con el reporte de pago del cliente desactivado, el paso «pago» es
+    // informativo: la agencia coordina el pago fuera del formulario.
+    await expect(page.getByRole("heading", { name: "Registro completo", exact: true })).toBeVisible(
+      { timeout: 30_000 },
+    );
     expect(respuestasFirma, "sólo se intentó firmar una vez").toEqual([201]);
   });
 });
@@ -287,9 +315,11 @@ test("si los términos ya se aceptaron en otra sesión, firma directo y guarda (
     await dibujarFirma(page, page.locator("canvas"));
     await page.getByRole("button", { name: "Firmar y continuar" }).click();
 
-    await expect(
-      page.getByRole("heading", { name: "Instrucciones de pago", exact: true }),
-    ).toBeVisible({ timeout: 30_000 });
+    // El enlace va directo a la pantalla informativa de pago (el reporte del
+    // cliente está desactivado): no hubo rebote a los términos.
+    await expect(page.getByRole("heading", { name: "Registro completo", exact: true })).toBeVisible(
+      { timeout: 30_000 },
+    );
     expect(respuestasFirma, "sólo se intentó firmar una vez").toEqual([201]);
   });
 });

@@ -226,6 +226,9 @@ describe("seed — reservas", () => {
   it("cubre todos los estados de reserva y tiene códigos y referencias únicos", () => {
     const estados = new Set(seed.reservas.map((reserva) => reserva.estado));
     for (const estado of Object.keys(PASO_POR_ESTADO) as EstadoReserva[]) {
+      // «pago en verificación» quedó fuera del flujo (el pago nace aprobado
+      // y la reserva se confirma a mano): ya no se siembra.
+      if (estado === "pago_en_verificacion") continue;
       expect(estados.has(estado), `Faltan reservas en estado ${estado}`).toBe(true);
     }
 

@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import { esApiError, type ReportePago } from "@/lib/domain/api";
 import type { MetodoPago, Moneda, Pago, Progreso } from "@/lib/domain/types";
 import { ETIQUETA_METODO_PAGO, formatBs, formatDate, formatUsd } from "@/lib/format";
+import { generarPreview } from "@/lib/imagen";
 import { nuevaClaveIdempotencia } from "../use-reserva";
 import type { ContextoReserva } from "../use-reserva";
 
@@ -834,43 +835,6 @@ async function construirComprobante(archivo: File): Promise<Comprobante> {
     tamano: archivo.size,
     preview,
   };
-}
-
-async function generarPreview(archivo: File): Promise<string> {
-  if (!archivo.type.startsWith("image/")) return "";
-  try {
-    const dataUrl = await leerComoDataUrl(archivo);
-    const imagen = await cargarImagen(dataUrl);
-    const maximo = 480;
-    const escala = Math.min(1, maximo / Math.max(imagen.width, imagen.height));
-    const lienzo = document.createElement("canvas");
-    lienzo.width = Math.max(1, Math.round(imagen.width * escala));
-    lienzo.height = Math.max(1, Math.round(imagen.height * escala));
-    const ctx = lienzo.getContext("2d");
-    if (!ctx) return "";
-    ctx.drawImage(imagen, 0, 0, lienzo.width, lienzo.height);
-    return lienzo.toDataURL("image/jpeg", 0.7);
-  } catch {
-    return "";
-  }
-}
-
-function leerComoDataUrl(archivo: File): Promise<string> {
-  return new Promise((resolver, rechazar) => {
-    const lector = new FileReader();
-    lector.onload = () => resolver(String(lector.result ?? ""));
-    lector.onerror = () => rechazar(new Error("No se pudo leer el archivo"));
-    lector.readAsDataURL(archivo);
-  });
-}
-
-function cargarImagen(dataUrl: string): Promise<HTMLImageElement> {
-  return new Promise((resolver, rechazar) => {
-    const imagen = new Image();
-    imagen.onload = () => resolver(imagen);
-    imagen.onerror = () => rechazar(new Error("No se pudo cargar la imagen"));
-    imagen.src = dataUrl;
-  });
 }
 
 /**

@@ -7,8 +7,17 @@ import { EditorCampo } from "@/components/admin/tours/editor-campo";
 import { ListaCampos } from "@/components/admin/tours/lista-campos";
 import { VisorFormulario } from "@/components/admin/tours/visor-formulario";
 import { BIBLIOTECA_CAMPOS, generarIdCampo } from "@/components/admin/tours/biblioteca-campos";
-import { compararVersiones, validarDefinicion, type ProblemaCampo } from "@/components/admin/tours/validacion";
-import { AYUDA_TIPO_CAMPO, CATEGORIAS, ETIQUETA_CATEGORIA, ETIQUETA_TIPO_CAMPO } from "@/components/admin/tours/tipos-campo";
+import {
+  compararVersiones,
+  validarDefinicion,
+  type ProblemaCampo,
+} from "@/components/admin/tours/validacion";
+import {
+  AYUDA_TIPO_CAMPO,
+  CATEGORIAS,
+  ETIQUETA_CATEGORIA,
+  ETIQUETA_TIPO_CAMPO,
+} from "@/components/admin/tours/tipos-campo";
 import { Aviso } from "@/components/admin/ui/avisos";
 import { DialogoMotivo } from "@/components/admin/ui/dialogo-motivo";
 import { EnlaceAdmin } from "@/components/admin/ui/enlace";
@@ -48,8 +57,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useEsEscritorio } from "@/lib/hooks/use-media-query";
 import { useEstadoGuardado } from "@/lib/hooks/use-conexion";
-import { TIPOS_SOPORTADOS } from "@/lib/domain/form-engine";
+import { TIPOS_SOPORTADOS, esCampoComida, esCampoPuntoSalida } from "@/lib/domain/form-engine";
 import type { CampoDef, Categoria, Formulario, Respuesta, TipoCampo } from "@/lib/domain/types";
+import { formatTime } from "@/lib/format";
 import { api } from "@/lib/api";
 
 export const Route = createFileRoute("/admin/tours/$id/formulario")({
@@ -90,8 +100,12 @@ function ConstructorFormulario() {
   const [categoria, setCategoria] = React.useState<Categoria>("Adulto");
   const [pasajeros, setPasajeros] = React.useState(1);
 
-  const { estado: estadoGuardado, marcarGuardando, marcarGuardado, marcarError } =
-    useEstadoGuardado();
+  const {
+    estado: estadoGuardado,
+    marcarGuardando,
+    marcarGuardado,
+    marcarError,
+  } = useEstadoGuardado();
 
   const { data, isPending, isError, error, refetch } = useQuery({
     queryKey: ["admin", "formulario", id],
@@ -99,6 +113,19 @@ function ConstructorFormulario() {
     enabled: puedeVer,
     retry: false,
   });
+
+  // Flags globales del formulario y catálogo de puntos de salida.
+  const { data: configDatos } = useQuery({
+    queryKey: ["configuracion", "general"],
+    queryFn: () => api.admin.configuracion(),
+    staleTime: 60_000,
+  });
+  const { data: puntosSalida = [] } = useQuery({
+    queryKey: ["puntos-salida"],
+    queryFn: () => api.admin.puntosSalida(),
+    staleTime: 60_000,
+  });
+  const comidasDeshabilitadas = configDatos?.config.comidas_deshabilitadas ?? true;
 
   const formulario: Formulario | null = data?.formulario ?? null;
 
@@ -141,6 +168,29 @@ function ConstructorFormulario() {
 
   const campoSeleccionado = campos.find((campo) => campo.id === seleccionado) ?? null;
 
+  /**
+   * La vista previa muestra el formulario tal como lo verá el cliente: sin la
+   * comida deshabilitada y con las opciones de punto de salida tomadas del
+   * catálogo global.
+   */
+  const camposVistaPrevia = React.useMemo(() => {
+    let lista = campos;
+    if (comidasDeshabilitadas) lista = lista.filter((campo) => !esCampoComida(campo));
+    return lista.map((campo) =>
+      esCampoPuntoSalida(campo)
+        ? {
+            ...campo,
+            opciones: puntosSalida
+              .filter((punto) => punto.activo)
+              .map((punto) => ({
+                valor: punto.clave,
+                label: `${punto.nombre}, ${formatTime(punto.hora)}`,
+              })),
+          }
+        : campo,
+    );
+  }, [campos, comidasDeshabilitadas, puntosSalida]);
+
   const moverCampo = (idCampo: string, destino: number) => {
     setCampos((previos) => {
       const indice = previos.findIndex((campo) => campo.id === idCampo);
@@ -155,9 +205,7 @@ function ConstructorFormulario() {
   };
 
   const actualizarCampo = (campo: CampoDef) => {
-    setCampos((previos) =>
-      previos.map((otro) => (otro.id === campo.id ? campo : otro)),
-    );
+    setCampos((previos) => previos.map((otro) => (otro.id === campo.id ? campo : otro)));
   };
 
   const agregarCampo = (nuevo: CampoDef) => {
@@ -176,7 +224,7 @@ function ConstructorFormulario() {
 
   const vistaPrevia = (
     <VisorFormulario
-      campos={campos}
+      campos={camposVistaPrevia}
       respuestas={respuestas}
       categoria={categoria}
       refPasajero="pasajero-1"
@@ -254,7 +302,22 @@ function ConstructorFormulario() {
         />
       ) : null}
 
-
+      {comidasDeshabilitadas ? (
+        <Aviso tono="aviso" titulo="La selección de comida está deshabilitada" className="mb-4">
+          <span>
+            Las preguntas de comida (almuerzo, menús) no se le piden al cliente mientras la bandera
+            global esté apagada: aquí siguen visibles y editables, marcadas como «Comida». Se
+            reactivan desde{" "}
+            <EnlaceAdmin
+              to="/admin/configuracion/general"
+              className="font-semibold underline underline-offset-4"
+            >
+              Configuración → General
+            </EnlaceAdmin>
+            . Nada se borra.
+          </span>
+        </Aviso>
+      ) : null}
 
       {!puedeVer ? (
         <SinPermiso permiso="tours.ver" accion="ver el formulario de un tour" />
@@ -347,6 +410,7 @@ function ConstructorFormulario() {
                   onSeleccionar={setSeleccionado}
                   onMover={moverCampo}
                   onAgregar={puedeEditar ? () => setAgregarAbierto(true) : undefined}
+                  comidasDeshabilitadas={comidasDeshabilitadas}
                 />
               </Seccion>
 
@@ -377,6 +441,8 @@ function ConstructorFormulario() {
                       campo={campoSeleccionado}
                       campos={campos}
                       bloqueado={false}
+                      puntosSalida={puntosSalida}
+                      comidasDeshabilitadas={comidasDeshabilitadas}
                       problemas={problemas.filter(
                         (problemaCampo) => problemaCampo.campo === campoSeleccionado.id,
                       )}
@@ -617,8 +683,12 @@ function ConstructorFormulario() {
                       onClick={() => agregarCampo(item.crear())}
                       className="w-full rounded-xl border border-border px-3 py-2 text-left hover:bg-accent"
                     >
-                      <span className="block text-sm font-semibold text-foreground">{item.nombre}</span>
-                      <span className="block text-xs text-muted-foreground">{item.descripcion}</span>
+                      <span className="block text-sm font-semibold text-foreground">
+                        {item.nombre}
+                      </span>
+                      <span className="block text-xs text-muted-foreground">
+                        {item.descripcion}
+                      </span>
                     </button>
                   </li>
                 ))}
@@ -657,7 +727,12 @@ function ConstructorFormulario() {
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setAgregarAbierto(false)} className="min-h-11">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setAgregarAbierto(false)}
+              className="min-h-11"
+            >
               Cerrar
             </Button>
           </DialogFooter>
@@ -771,9 +846,12 @@ function ConstructorFormulario() {
 
       {/* ---------------- Editor en móvil ---------------- */}
       {!esEscritorio ? (
-        <Sheet open={campoSeleccionado !== null} onOpenChange={(abierto) => {
-          if (!abierto) setSeleccionado(null);
-        }}>
+        <Sheet
+          open={campoSeleccionado !== null}
+          onOpenChange={(abierto) => {
+            if (!abierto) setSeleccionado(null);
+          }}
+        >
           <SheetContent side="bottom" className="max-h-[92dvh] overflow-y-auto">
             <SheetHeader>
               <SheetTitle>Editar la pregunta</SheetTitle>
@@ -788,6 +866,8 @@ function ConstructorFormulario() {
                   campo={campoSeleccionado}
                   campos={campos}
                   bloqueado={Boolean(publicada)}
+                  puntosSalida={puntosSalida}
+                  comidasDeshabilitadas={comidasDeshabilitadas}
                   problemas={problemas.filter(
                     (problemaCampo) => problemaCampo.campo === campoSeleccionado.id,
                   )}

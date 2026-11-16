@@ -22,14 +22,12 @@ const ESTILOS: Record<EstadoPagoRegistro, EstiloPago> = {
   reportado: {
     etiqueta: "Reportado",
     icono: Hourglass,
-    clases:
-      "border-amber-600/30 bg-amber-500/10 text-amber-900 dark:text-amber-200",
+    clases: "border-amber-600/30 bg-amber-500/10 text-amber-900 dark:text-amber-200",
   },
   aprobado: {
     etiqueta: "Aprobado",
     icono: CircleCheckBig,
-    clases:
-      "border-emerald-600/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300",
+    clases: "border-emerald-600/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300",
   },
   rechazado: {
     etiqueta: "Rechazado",
@@ -39,8 +37,7 @@ const ESTILOS: Record<EstadoPagoRegistro, EstiloPago> = {
   correccion_solicitada: {
     etiqueta: "Corrección solicitada",
     icono: MessageCircleMore,
-    clases:
-      "border-blue-600/30 bg-blue-500/10 text-blue-800 dark:text-blue-300",
+    clases: "border-blue-600/30 bg-blue-500/10 text-blue-800 dark:text-blue-300",
   },
   anulado: {
     etiqueta: "Anulado",

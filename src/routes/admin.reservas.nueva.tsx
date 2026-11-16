@@ -1,12 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { ArrowLeft, CheckCircle2, Copy, Share2, AlertTriangle, Loader2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Copy, Share2, AlertTriangle, Loader2, X } from "lucide-react";
 import { Campo } from "@/components/admin/Campo";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { BotonCargar } from "@/components/admin/BotonCargar";
 import { BotonCopiar } from "@/components/admin/BotonCopiar";
 import { BotonWhatsApp } from "@/components/admin/BotonWhatsApp";
+import { EditorPrecio, type DatosPrecio } from "@/components/admin/reserva";
 import { esApiError } from "@/lib/domain/api";
 import { MARCA } from "@/lib/brand";
 import { toast } from "sonner";
@@ -28,6 +29,8 @@ function CrearEnlace() {
   const [tourId, setTourId] = useState("");
   const [fechaId, setFechaId] = useState("");
   const [referenciaInterna, setReferenciaInterna] = useState("");
+  const [conPrecio, setConPrecio] = useState(false);
+  const [datosPrecio, setDatosPrecio] = useState<DatosPrecio | null>(null);
   const [generando, setGenerando] = useState(false);
   const [resultado, setResultado] = useState<{
     token: string;
@@ -48,12 +51,18 @@ function CrearEnlace() {
   });
 
   const tourSeleccionado = tours?.find((t) => t.id === tourId);
-  const fechasDisponibles = tourId ? fechas?.filter((f) => f.tour_id === tourId && f.estado === "publicada") : [];
+  const fechasDisponibles = tourId
+    ? fechas?.filter((f) => f.tour_id === tourId && f.estado === "publicada")
+    : [];
   const fechaSeleccionada = fechasDisponibles?.find((f) => f.id === fechaId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tourId || !fechaId) return;
+    if (conPrecio && !datosPrecio) {
+      toast.error("Guarda los cargos o ajustes antes de generar el enlace.");
+      return;
+    }
 
     setGenerando(true);
 
@@ -61,6 +70,7 @@ function CrearEnlace() {
       const resp = await api.admin.crearReserva({
         fecha_tour_id: fechaId,
         referencia_interna: referenciaInterna || undefined,
+        ...(datosPrecio ? { lineas: datosPrecio.lineas, ajustes: datosPrecio.ajustes } : {}),
       });
 
       const enlace = `${window.location.origin}${resp.enlace}`;
@@ -91,6 +101,8 @@ function CrearEnlace() {
     setTourId("");
     setFechaId("");
     setReferenciaInterna("");
+    setConPrecio(false);
+    setDatosPrecio(null);
     setResultado(null);
   };
 
@@ -131,11 +143,13 @@ function CrearEnlace() {
                 disabled={loadingTours}
               >
                 <option value="">Selecciona un tour</option>
-                {tours?.filter((t) => t.estado === "activo").map((tour) => (
-                  <option key={tour.id} value={tour.id}>
-                    {tour.nombre}
-                  </option>
-                ))}
+                {tours
+                  ?.filter((t) => t.estado === "activo")
+                  .map((tour) => (
+                    <option key={tour.id} value={tour.id}>
+                      {tour.nombre}
+                    </option>
+                  ))}
               </Campo>
 
               {tourId && loadingFechas && (
@@ -173,7 +187,8 @@ function CrearEnlace() {
               {fechaSeleccionada && (
                 <div className="rounded-xl bg-success/10 p-3">
                   <p className="text-sm font-semibold text-success">
-                    {fechaSeleccionada.cupos_total - fechaSeleccionada.cupos_vendidos} cupos disponibles
+                    {fechaSeleccionada.cupos_total - fechaSeleccionada.cupos_vendidos} cupos
+                    disponibles
                   </p>
                 </div>
               )}
@@ -187,6 +202,68 @@ function CrearEnlace() {
                 placeholder="Nombre o teléfono del cliente"
                 ayuda="Solo para tu referencia interna. El cliente no lo ve."
               />
+
+              <div className="rounded-xl border border-border bg-muted/40 p-3">
+                <Campo
+                  id="con-precio"
+                  label="Cargos o ajustes iniciales (opcional)"
+                  type="checkbox"
+                  checked={conPrecio}
+                  onChange={(e) => {
+                    const activo = (e.target as HTMLInputElement).checked;
+                    setConPrecio(activo);
+                    if (!activo) setDatosPrecio(null);
+                  }}
+                  ayuda="Toldos, recargos por habitación o descuentos. Quedan en la reserva desde el primer momento."
+                >
+                  Agregar cargos, recargos o descuentos
+                </Campo>
+
+                {conPrecio && !datosPrecio ? (
+                  <div className="mt-3 border-t border-border pt-3">
+                    <EditorPrecio
+                      motivoFijo="Alta de reserva con cargos iniciales"
+                      onGuardar={async (datos) => {
+                        setDatosPrecio(datos);
+                        toast.success("Cargos guardados. Se aplicarán al crear el enlace.");
+                      }}
+                    />
+                  </div>
+                ) : null}
+
+                {conPrecio && datosPrecio ? (
+                  <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-success">
+                      <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                      {datosPrecio.lineas.length + datosPrecio.ajustes.length} concepto(s) listo(s)
+                    </div>
+                    <ul className="flex flex-col gap-1 text-xs text-muted-foreground">
+                      {datosPrecio.lineas.map((l, i) => (
+                        <li key={`l-${i}`} className="flex justify-between gap-2">
+                          <span>
+                            {l.concepto} · {l.cantidad} × {l.precio_unit_usd}
+                          </span>
+                        </li>
+                      ))}
+                      {datosPrecio.ajustes.map((a, i) => (
+                        <li key={`a-${i}`} className="flex justify-between gap-2">
+                          <span>
+                            {a.tipo === "descuento" ? "−" : "+"} {a.monto_usd} · {a.motivo}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    <button
+                      type="button"
+                      className="inline-flex min-h-11 items-center gap-1.5 self-start text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
+                      onClick={() => setDatosPrecio(null)}
+                    >
+                      <X className="h-3.5 w-3.5" aria-hidden="true" />
+                      Modificar
+                    </button>
+                  </div>
+                ) : null}
+              </div>
 
               <BotonCargar
                 type="submit"
@@ -224,9 +301,7 @@ function ResultadoEnlace({
       <div className="flex items-center gap-3">
         <CheckCircle2 className="h-8 w-8 text-success" aria-hidden="true" />
         <div>
-          <h2 className="text-xl font-extrabold tracking-tight text-foreground">
-            Enlace generado
-          </h2>
+          <h2 className="text-xl font-extrabold tracking-tight text-foreground">Enlace generado</h2>
           <p className="text-sm text-muted-foreground">
             Este enlace se muestra una sola vez. Cópialo ahora.
           </p>

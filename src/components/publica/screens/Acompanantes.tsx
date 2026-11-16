@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, CircleCheck, Info, Plus, Trash2, TriangleAlert } from "lucide-react";
+import { ChevronDown, CircleCheck, Info, Plus, Trash2 } from "lucide-react";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -10,11 +10,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { Categoria, Pasajero, TipoDocumento } from "@/lib/domain/types";
+import type { Categoria, FotoDocumento, Pasajero, TipoDocumento } from "@/lib/domain/types";
 import { calcularCategorias } from "@/lib/domain/pricing";
+import { MAX_FOTO_DOCUMENTO_MB, prepararFotoDocumento } from "@/lib/imagen";
 import { cn } from "@/lib/utils";
 
-import { BadgeEstado, BirthDateInput, Campo, DialogoConfirmacion } from "../ui";
+import { BirthDateInput, Campo, DialogoConfirmacion, UploadArchivo } from "../ui";
 import type { CategoriaConEdad } from "./Bienvenida";
 import type { ContextoReserva } from "../use-reserva";
 
@@ -31,7 +32,7 @@ export interface AcompanantesProps {
   /** Si el tour exige autorización de viaje para menores. */
   requiereAutorizacionMenores: boolean;
   /** Autoguardado: envía el reemplazo completo de pasajeros. */
-  onGuardar: (pasajeros: Pasajero[]) => void;
+  onGuardar: (pasajeros: Pasajero[]) => void | Promise<void>;
   onContinuar: () => void;
   registrarContinuar?: ((accion: () => void) => void) | undefined;
   erroresServidor?: Record<string, string> | undefined;
@@ -49,6 +50,7 @@ interface ErroresPasajero {
   nombre?: string | undefined;
   documento?: string | undefined;
   fecha_nacimiento?: string | undefined;
+  documento_imagen?: string | undefined;
 }
 function nuevoRef(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -91,6 +93,14 @@ export function Acompanantes({
   const anuncioRef = useRef<HTMLParagraphElement | null>(null);
   const inicializadoRef = useRef(false);
 
+  // Fotos del documento de identidad aún no confirmadas por el servidor: se
+  // envían en cada guardado (el servidor las guarda de forma idempotente)
+  // hasta que responde con el id del archivo.
+  const [fotos, setFotos] = useState<Record<string, FotoDocumento>>({});
+  const [fotoPreview, setFotoPreview] = useState<Record<string, string>>({});
+  const [fotoCargando, setFotoCargando] = useState<string | null>(null);
+  const idAlElegirRef = useRef<Record<string, string | null>>({});
+
   const titular = pasajeros[0];
   const grupo = pasajeros.slice(1);
 
@@ -102,10 +112,50 @@ export function Acompanantes({
   const completo = useMemo(
     () =>
       pasajeros.map((pasajero) =>
-        estaCompleto(pasajero, categorias, fechaSalida, documentoMenores),
+        estaCompleto(
+          pasajero,
+          categorias,
+          fechaSalida,
+          documentoMenores,
+          Boolean(pasajero.documento_imagen_id) || Boolean(fotos[pasajero.ref_cliente]),
+        ),
       ),
-    [pasajeros, categorias, fechaSalida, documentoMenores],
+    [pasajeros, categorias, fechaSalida, documentoMenores, fotos],
   );
+
+  // Refleja en la lista local las fotos que el servidor ya confirmó (para
+  // que la validación y la insignia «Completo» las vean) y deja de
+  // reenviarlas en los guardados siguientes.
+  useEffect(() => {
+    let cambioLista = false;
+    const siguientes = pasajeros.map((pasajero) => {
+      const idServidor =
+        reserva.pasajeros.find((p) => p.ref_cliente === pasajero.ref_cliente)
+          ?.documento_imagen_id ?? null;
+      if (idServidor && idServidor !== (pasajero.documento_imagen_id ?? null)) {
+        cambioLista = true;
+        return { ...pasajero, documento_imagen_id: idServidor };
+      }
+      return pasajero;
+    });
+    if (cambioLista) setPasajeros(siguientes);
+
+    setFotos((previos) => {
+      const claves = Object.keys(previos);
+      if (claves.length === 0) return previos;
+      let cambio = false;
+      const pendientes = { ...previos };
+      for (const ref of claves) {
+        const idServidor =
+          reserva.pasajeros.find((p) => p.ref_cliente === ref)?.documento_imagen_id ?? null;
+        if (idServidor && idServidor !== idAlElegirRef.current[ref]) {
+          delete pendientes[ref];
+          cambio = true;
+        }
+      }
+      return cambio ? pendientes : previos;
+    });
+  }, [pasajeros, reserva.pasajeros]);
 
   // Se abre el primer pasajero incompleto (Spec §5, P-03).
   useEffect(() => {
@@ -116,8 +166,52 @@ export function Acompanantes({
     if (objetivo) setExpandido(objetivo.ref_cliente);
   }, [completo, pasajeros]);
 
+  /** Incluye las fotos pendientes de cada pasajero en el payload. */
+  const conFotos = (lista: Pasajero[]): Pasajero[] =>
+    lista.map((pasajero) => {
+      const foto = fotos[pasajero.ref_cliente];
+      return foto ? { ...pasajero, documento_imagen: foto } : pasajero;
+    });
+
   const guardar = (lista: Pasajero[]) => {
+    onGuardar(conFotos(lista));
+  };
+
+  /** Guarda de inmediato con la foto recién elegida (fuera del estado). */
+  const guardarConFoto = (ref: string, foto: FotoDocumento) => {
+    const lista = pasajeros.map((pasajero) => {
+      const pendiente = pasajero.ref_cliente === ref ? foto : fotos[pasajero.ref_cliente];
+      return pendiente ? { ...pasajero, documento_imagen: pendiente } : pasajero;
+    });
     onGuardar(lista);
+  };
+
+  const elegirFoto = async (ref: string, archivo: File) => {
+    setFotoCargando(ref);
+    try {
+      const foto = await prepararFotoDocumento(archivo);
+      idAlElegirRef.current = {
+        ...idAlElegirRef.current,
+        [ref]: reserva.pasajeros.find((p) => p.ref_cliente === ref)?.documento_imagen_id ?? null,
+      };
+      setFotoPreview((previos) => ({ ...previos, [ref]: foto.data }));
+      setFotos((previos) => ({ ...previos, [ref]: foto }));
+      setErrores((previos) => ({
+        ...previos,
+        [ref]: { ...previos[ref], documento_imagen: undefined },
+      }));
+      guardarConFoto(ref, foto);
+    } catch {
+      setErrores((previos) => ({
+        ...previos,
+        [ref]: {
+          ...previos[ref],
+          documento_imagen: "No pudimos leer la foto. Tómala de nuevo",
+        },
+      }));
+    } finally {
+      setFotoCargando(null);
+    }
   };
 
   /** Aplica un cambio y guarda el reemplazo completo de pasajeros. */
@@ -185,6 +279,11 @@ export function Acompanantes({
       if (repetido) resultado.documento = "Este documento ya está en la reserva";
     }
 
+    // Política: cada pasajero viaja con la foto de su documento de identidad.
+    if (!pasajero.documento_imagen_id && !fotos[pasajero.ref_cliente]) {
+      resultado.documento_imagen = "Sube la foto del documento de identidad";
+    }
+
     return resultado;
   };
 
@@ -216,18 +315,31 @@ export function Acompanantes({
     }));
   };
 
-  const continuar = () => {
+  const continuar = async () => {
     const nuevosErrores: Record<string, ErroresPasajero> = {};
     let total = 0;
     let primerError: string | undefined;
+    let primerCampo: keyof ErroresPasajero = "nombre";
 
     for (const pasajero of pasajeros) {
       const resultado = validarPasajero(pasajero);
-      if (resultado.nombre || resultado.documento || resultado.fecha_nacimiento) {
+      if (
+        resultado.nombre ||
+        resultado.documento ||
+        resultado.fecha_nacimiento ||
+        resultado.documento_imagen
+      ) {
         nuevosErrores[pasajero.ref_cliente] = resultado;
         total += 1;
         if (!primerError) {
           primerError = pasajero.ref_cliente;
+          primerCampo = resultado.nombre
+            ? "nombre"
+            : resultado.documento
+              ? "documento"
+              : resultado.fecha_nacimiento
+                ? "fecha_nacimiento"
+                : "documento_imagen";
           // El pasajero con error se expande para que se vea el problema (UX-16).
           setExpandido(pasajero.ref_cliente);
         }
@@ -251,7 +363,11 @@ export function Acompanantes({
       );
       window.requestAnimationFrame(() => {
         if (primerError) {
-          document.getElementById(`pasajero-${primerError}-nombre`)?.focus();
+          const idControl =
+            primerCampo === "documento_imagen"
+              ? `pasajero-${primerError}-foto`
+              : `pasajero-${primerError}-nombre`;
+          document.getElementById(idControl)?.focus();
         } else {
           document.getElementById("declara-representante")?.focus();
         }
@@ -260,7 +376,9 @@ export function Acompanantes({
     }
 
     setAnuncio("");
-    guardar(pasajeros);
+    // Se espera el guardado (incluidas las fotos) antes de completar el paso:
+    // si no, el servidor rechazaría el paso por falta de las fotos.
+    await Promise.resolve(guardar(pasajeros));
     onContinuar();
   };
 
@@ -315,8 +433,9 @@ export function Acompanantes({
                       : pasajero.nombre || `Pasajero ${indice + 1}`}
                   </span>
                   <span className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
-                    <span>{categoria ?? "Por definir"}</span>
-                    <span aria-hidden="true">·</span>
+                    {categoria === "Infante" ? (
+                      <span className="font-semibold text-success">Sin costo</span>
+                    ) : null}
                     <span className="inline-flex items-center gap-1">
                       {completo[indice] ? (
                         <>
@@ -393,16 +512,12 @@ export function Acompanantes({
                     )}
                   </Campo>
 
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-foreground">Categoría</span>
-                    <BadgeEstado
-                      etiqueta={categoria ?? "Por definir"}
-                      tono={categoria ? "activo" : "neutro"}
-                    />
-                  </div>
-                  {categoria && categorias.length > 0 ? (
-                    <p className="-mt-2 text-xs text-muted-foreground">
-                      {"Se calcula por la edad a la fecha de salida."}
+                  {/* Menores de 5 años: gratis y viajan en piernas de su
+                      representante (no se muestran categorías). */}
+                  {categoria === "Infante" ? (
+                    <p className="flex items-center gap-2 rounded-xl border border-success/40 bg-success/10 px-3 py-2 text-sm font-semibold text-foreground">
+                      <Info className="h-4 w-4 shrink-0 text-success" aria-hidden="true" />
+                      <span>Sin costo · viaja en piernas de su representante</span>
                     </p>
                   ) : null}
 
@@ -478,6 +593,31 @@ export function Acompanantes({
                         />
                       )}
                     </Campo>
+                  </div>
+
+                  {/* Foto del documento de identidad (política de la agencia) */}
+                  <div className="flex flex-col gap-1.5">
+                    <UploadArchivo
+                      id={`pasajero-${pasajero.ref_cliente}-foto`}
+                      etiqueta="Foto del documento de identidad"
+                      ayuda="Toma una foto legible de la cédula o el pasaporte (o adjunta un PDF). Es obligatoria para todos los pasajeros."
+                      acepta="image/jpeg,image/png,image/webp,application/pdf"
+                      maxMB={MAX_FOTO_DOCUMENTO_MB}
+                      captura="environment"
+                      cargando={fotoCargando === pasajero.ref_cliente}
+                      nombreArchivo={
+                        fotos[pasajero.ref_cliente]?.nombre ??
+                        (pasajero.documento_imagen_id ? "Foto del documento" : undefined)
+                      }
+                      previewUrl={fotoPreview[pasajero.ref_cliente]}
+                      error={erroresPasajero?.documento_imagen}
+                      onSeleccionar={(archivo) => void elegirFoto(pasajero.ref_cliente, archivo)}
+                    />
+                    {fotos[pasajero.ref_cliente] ? (
+                      <p className="text-xs text-muted-foreground">Enviando la foto…</p>
+                    ) : pasajero.documento_imagen_id ? (
+                      <p className="text-xs font-medium text-success">Foto del documento lista ✓</p>
+                    ) : null}
                   </div>
 
                   {esMenor && requiereAutorizacionMenores ? (
@@ -573,29 +713,6 @@ export function Acompanantes({
         </section>
       ) : null}
 
-      {/* Tabla de rangos de edad */}
-      {categorias.length > 0 ? (
-        <details className="rounded-2xl border border-border bg-card px-4 py-3">
-          <summary className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-semibold text-foreground">
-            <TriangleAlert className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-            <span className="flex-1">¿Cómo se calcula la categoría?</span>
-            <ChevronDown className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-          </summary>
-          <ul className="mt-2 flex flex-col divide-y divide-border">
-            {categorias.map((categoria) => (
-              <li
-                key={categoria.categoria}
-                className="flex items-center justify-between gap-3 py-2"
-              >
-                <span className="text-sm text-foreground">
-                  {`${categoria.categoria} (${categoria.edad_min} a ${categoria.edad_max} años)`}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </details>
-      ) : null}
-
       <DialogoConfirmacion
         abierto={Boolean(aEliminar)}
         onAbiertoChange={(abierto) => {
@@ -633,6 +750,7 @@ function estaCompleto(
   categorias: CategoriaConEdad[],
   fechaSalida: string | undefined,
   documentoMenores: "opcional" | "obligatorio" | "del_representante",
+  tieneFotoDocumento: boolean,
 ): boolean {
   if (!pasajero.nombre.trim()) return false;
   if (!pasajero.fecha_nacimiento) return false;
@@ -640,6 +758,7 @@ function estaCompleto(
   const documentoExigido =
     categoria === "Niño" ? documentoMenores === "obligatorio" : categoria !== null;
   if (documentoExigido && !pasajero.documento.trim()) return false;
+  if (!tieneFotoDocumento) return false;
   return true;
 }
 

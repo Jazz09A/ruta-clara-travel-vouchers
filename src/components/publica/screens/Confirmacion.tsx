@@ -246,10 +246,14 @@ export function Confirmacion({
                     <p className="truncate text-sm font-bold text-foreground">
                       {`${indice + 1}. ${pasajero.nombre || `Pasajero ${indice + 1}`}`}
                     </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {pasajero.categoria}
-                      {docEnmascarado ? ` · ${docEnmascarado}` : ""}
-                    </p>
+                    {pasajero.categoria === "Infante" ? (
+                      <p className="mt-0.5 text-xs font-semibold text-success">
+                        Sin costo · viaja en piernas de su representante
+                      </p>
+                    ) : null}
+                    {docEnmascarado ? (
+                      <p className="mt-0.5 text-xs text-muted-foreground">{docEnmascarado}</p>
+                    ) : null}
                   </div>
                 </div>
 
@@ -338,7 +342,7 @@ export function Confirmacion({
 
         {totalBs ? (
           <p className="mt-2 text-xs text-muted-foreground">
-            Tasa de hoy; el monto exacto en Bs se fija al reportar tu pago.
+            Tasa de hoy; el monto exacto en Bs se fija al confirmar tu pago.
           </p>
         ) : null}
       </section>

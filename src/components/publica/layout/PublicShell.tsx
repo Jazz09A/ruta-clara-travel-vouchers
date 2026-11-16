@@ -248,7 +248,7 @@ function BannerHold({ restante }: { restante: number }) {
       <Banner
         variante="aviso"
         titulo="Tu cupo vence pronto"
-        mensaje="Reporta tu pago para conservarlo."
+        mensaje="Contacta a la agencia para conservarlo."
       />
     );
   }

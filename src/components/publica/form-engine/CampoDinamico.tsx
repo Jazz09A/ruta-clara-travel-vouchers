@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Info } from "lucide-react";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,7 @@ import type { CampoDef, Respuesta } from "@/lib/domain/types";
 import { cn } from "@/lib/utils";
 
 import { BirthDateInput, Campo, Stepper } from "../ui";
+import { SelectorPuntoSalida } from "./SelectorPuntoSalida";
 
 export interface CampoDinamicoProps {
   campo: CampoDef;
@@ -58,10 +59,7 @@ export function CampoDinamico({
   deshabilitado,
   className,
 }: CampoDinamicoProps) {
-  const opciones = useMemo(
-    () => opcionesDisponibles(campo, agotadas),
-    [campo, agotadas],
-  );
+  const opciones = useMemo(() => opcionesDisponibles(campo, agotadas), [campo, agotadas]);
 
   const id = `campo-${campo.id}`;
 
@@ -134,6 +132,24 @@ export function CampoDinamico({
 
       case "select": {
         const seleccionado = typeof valor === "string" ? valor : "";
+        // El punto de salida se agrupa por ciudad (Guatire, Guarenas,
+        // Caracas) con sombreado neutro; el resto de los `select` conserva
+        // su radio normal.
+        const esPuntoSalida = campo.fuente === "puntos_salida" || campo.id === "punto_abordaje";
+        if (esPuntoSalida && opciones.length > 0) {
+          return (
+            <SelectorPuntoSalida
+              campo={campo}
+              opciones={opciones}
+              seleccionado={seleccionado}
+              onChange={(nuevo) => onChange(nuevo)}
+              onBlur={onBlur}
+              error={error}
+              aviso={aviso}
+              deshabilitado={deshabilitado}
+            />
+          );
+        }
         if (opciones.length <= 5) {
           return (
             <Campo
@@ -202,11 +218,7 @@ export function CampoDinamico({
                 </SelectTrigger>
                 <SelectContent>
                   {opciones.map((opcion) => (
-                    <SelectItem
-                      key={opcion.valor}
-                      value={opcion.valor}
-                      disabled={opcion.agotada}
-                    >
+                    <SelectItem key={opcion.valor} value={opcion.valor} disabled={opcion.agotada}>
                       <span className="flex w-full items-center justify-between gap-3">
                         <span>{opcion.label}</span>
                         {opcion.agotada ? (
@@ -225,7 +237,9 @@ export function CampoDinamico({
       }
 
       case "multiselect": {
-        const actuales = Array.isArray(valor) ? valor.filter((v): v is string => typeof v === "string") : [];
+        const actuales = Array.isArray(valor)
+          ? valor.filter((v): v is string => typeof v === "string")
+          : [];
         return (
           <Campo
             id={id}
@@ -253,9 +267,10 @@ export function CampoDinamico({
                       checked={marcado}
                       disabled={opcion.agotada || deshabilitado}
                       onCheckedChange={(estado) => {
-                        const nuevo = estado === true
-                          ? [...actuales, opcion.valor]
-                          : actuales.filter((v) => v !== opcion.valor);
+                        const nuevo =
+                          estado === true
+                            ? [...actuales, opcion.valor]
+                            : actuales.filter((v) => v !== opcion.valor);
                         onChange(nuevo);
                       }}
                       className="aspect-auto h-auto min-h-11 w-full grid-cols-[auto_1fr] items-center gap-3 rounded-xl border border-input px-3 py-3 text-left text-sm font-medium text-foreground data-[state=checked]:border-primary data-[state=checked]:bg-primary/5"
@@ -277,27 +292,74 @@ export function CampoDinamico({
 
       case "checkbox": {
         const marcado = valor === true;
+        // Tarjeta integrada: casilla real con check visible + etiqueta + hint
+        // en la misma línea (patrón del aviso de privacidad).
+        const descritos = [
+          campo.ayuda ? `${id}-ayuda` : null,
+          aviso ? `${id}-aviso` : null,
+          error ? `${id}-error` : null,
+        ]
+          .filter((valor): valor is string => valor !== null)
+          .join(" ");
         return (
-          <Campo
-            id={id}
-            etiqueta={campo.label}
-            ayuda={campo.ayuda}
-            error={error}
-            aviso={aviso}
-            requerido={campo.obligatorio}
-          >
-            {() => (
+          <div className="flex flex-col gap-1.5">
+            <div
+              className={cn(
+                "flex items-start gap-3 rounded-xl border px-3 py-1.5 transition-colors",
+                marcado
+                  ? "border-success/50 bg-success/10"
+                  : error
+                    ? "border-destructive/60 bg-destructive/5"
+                    : "border-input bg-background",
+              )}
+            >
               <Checkbox
                 id={id}
                 checked={marcado}
                 disabled={deshabilitado}
                 onCheckedChange={(estado) => onChange(estado === true)}
-                className="aspect-auto h-auto min-h-11 w-full grid-cols-[auto_1fr] items-center gap-3 rounded-xl border border-input px-3 py-3 text-left text-sm font-medium text-foreground data-[state=checked]:border-primary data-[state=checked]:bg-primary/5"
+                aria-label={campo.label}
+                aria-describedby={descritos || undefined}
+                aria-invalid={error ? true : undefined}
+                aria-required={campo.obligatorio ? true : undefined}
+                className="mt-3 h-5 w-5"
+              />
+              <label
+                htmlFor={id}
+                className="flex min-h-11 flex-1 cursor-pointer flex-col justify-center py-1"
               >
-                <span className="flex-1">{marcado ? "Sí" : "No"}</span>
-              </Checkbox>
-            )}
-          </Campo>
+                <span className="text-sm font-medium text-foreground">{campo.label}</span>
+                {campo.ayuda ? (
+                  <span
+                    id={`${id}-ayuda`}
+                    className="mt-0.5 text-xs leading-relaxed text-muted-foreground"
+                  >
+                    {campo.ayuda}
+                  </span>
+                ) : null}
+              </label>
+            </div>
+
+            {aviso ? (
+              <p
+                id={`${id}-aviso`}
+                className="flex items-start gap-1.5 text-xs leading-relaxed text-muted-foreground"
+              >
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                <span>{aviso}</span>
+              </p>
+            ) : null}
+
+            {error ? (
+              <p
+                id={`${id}-error`}
+                className="flex items-start gap-1.5 text-xs font-medium leading-relaxed text-destructive"
+              >
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                <span>{error}</span>
+              </p>
+            ) : null}
+          </div>
         );
       }
 

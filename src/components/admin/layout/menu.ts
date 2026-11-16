@@ -31,6 +31,13 @@ export interface ItemMenu {
   grupo: GrupoMenu;
   /** Aparece también en la barra inferior del móvil. */
   barraInferior?: boolean;
+  /**
+   * Ocultado temporalmente del menú (el código queda por si vuelve el flujo).
+   * «Pagos» se oculta porque ya no hay cola de validación: los pagos se
+   * gestionan desde la reserva (panel de pagos) y su historial queda en
+   * `/admin/pagos`, accesible por URL.
+   */
+  oculto?: boolean;
 }
 
 export const MENU: ItemMenu[] = [
@@ -60,6 +67,9 @@ export const MENU: ItemMenu[] = [
     permiso: "pagos.ver",
     grupo: "principal",
     barraInferior: true,
+    // Sin cola de validación el acceso directo sobra: los pagos se gestionan
+    // desde la reserva. Cambia a `false` para volver a mostrarlo.
+    oculto: true,
   },
   {
     id: "salidas",
@@ -128,10 +138,12 @@ export const ETIQUETA_ROL: Record<Rol, string> = {
   GU: "Guía / logística",
 };
 
-/** Ítems que el rol actual puede ver. */
+/** Ítems que el rol actual puede ver (los marcados `oculto` no aparecen). */
 export function menuDelRol(rol: Rol | null): ItemMenu[] {
   if (!rol) return [];
-  return MENU.filter((item) => item.permiso === null || tienePermiso(rol, item.permiso));
+  return MENU.filter(
+    (item) => !item.oculto && (item.permiso === null || tienePermiso(rol, item.permiso)),
+  );
 }
 
 /** ¿La ruta actual corresponde a este ítem del menú? */

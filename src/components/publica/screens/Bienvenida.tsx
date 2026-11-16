@@ -29,8 +29,6 @@ export interface CategoriaConEdad {
 
 export interface BienvenidaProps {
   reserva: ContextoReserva;
-  /** Tarifas por categoría con su rango de edad (RF-2.5). */
-  categorias: CategoriaConEdad[];
   /** Ejecuta `iniciar`; es idempotente. */
   onComenzar: () => void;
   iniciando: boolean;
@@ -43,14 +41,28 @@ export interface BienvenidaProps {
 }
 
 /**
+ * Separa el desglose «Día N …» de las inclusiones de las estadías para
+ * mostrar el día en negrita (p. ej. «Día 2 (retorno 4:00 p. m.) — …»).
+ * El corte es en los dos puntos que SIGUEN al rótulo (`": "`): el de la
+ * hora dentro del rótulo («4:00 p. m.») va pegado al dígito y no cuenta.
+ * El resto de inclusiones se lista igual que siempre.
+ */
+function agruparDias(incluye: string[]): { dia: string | null; texto: string }[] {
+  return incluye.map((item) => {
+    if (!/^Día\s*\d/i.test(item)) return { dia: null, texto: item };
+    const corte = item.indexOf(": ");
+    if (corte < 0) return { dia: null, texto: item };
+    return { dia: item.slice(0, corte), texto: item.slice(corte + 2) };
+  });
+}
+
+/**
  * P-01 — Bienvenida.
  *
  * Objetivo: que el cliente confirme que es el tour correcto y acepte el
  * aviso de privacidad antes de escribir ningún dato (Spec §5, P-01).
- */
-export function Bienvenida({
+ */ export function Bienvenida({
   reserva,
-  categorias,
   onComenzar,
   iniciando,
   errorInicio,
@@ -141,13 +153,16 @@ export function Bienvenida({
         <SeccionDesplegable titulo="Qué incluye y qué no" icono={<Sparkles className="h-4 w-4" />}>
           {tour.incluye.length > 0 ? (
             <ul className="flex flex-col gap-1.5">
-              {tour.incluye.map((item) => (
-                <li key={item} className="flex items-start gap-2 text-sm text-foreground">
+              {agruparDias(tour.incluye).map((linea, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm text-foreground">
                   <CircleCheck
                     className="mt-0.5 h-4 w-4 shrink-0 text-success"
                     aria-hidden="true"
                   />
-                  <span>{item}</span>
+                  <span>
+                    {linea.dia ? <span className="font-semibold">{`${linea.dia} — `}</span> : null}
+                    {linea.texto}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -163,34 +178,6 @@ export function Bienvenida({
             </ul>
           ) : null}
         </SeccionDesplegable>
-      ) : null}
-
-      {/* Categorías por rango de edad (sin precios: el total lo fija la agencia) */}
-      {categorias.length > 0 ? (
-        <section className="rounded-2xl border border-border bg-card p-4">
-          <h2 className="text-base font-bold text-foreground">Categorías por edad</h2>
-          <ul className="mt-3 flex flex-col divide-y divide-border">
-            {categorias.map((categoria) => (
-              <li
-                key={categoria.categoria}
-                className="flex items-center justify-between gap-3 py-2.5"
-              >
-                <span className="min-w-0">
-                  <span className="block text-sm font-semibold text-foreground">
-                    {categoria.categoria}
-                  </span>
-                  <span className="block text-xs text-muted-foreground">
-                    {`De ${categoria.edad_min} a ${categoria.edad_max} años`}
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-2 text-xs text-muted-foreground">
-            La categoría de cada pasajero se calcula con su fecha de nacimiento al día de la salida.
-            El precio total de tu reserva te lo confirma la agencia.
-          </p>
-        </section>
       ) : null}
 
       {/* Política de cancelación resumida */}
@@ -231,30 +218,57 @@ export function Bienvenida({
         </p>
       </section>
 
-      {/* Aceptación del aviso de privacidad */}
-      <section className="rounded-2xl border border-border bg-card p-4">
-        <Checkbox
-          id="acepta-aviso"
-          checked={aceptado}
-          onCheckedChange={(estado) => {
-            setAceptado(estado === true);
-            setTocado(true);
-          }}
-          className="aspect-auto h-auto min-h-11 w-full grid-cols-[auto_1fr] items-center gap-3 rounded-xl border border-input px-3 py-3 text-left text-sm font-medium text-foreground data-[state=checked]:border-primary data-[state=checked]:bg-primary/5"
+      {/* Aceptación del aviso de privacidad (tarjeta integrada) */}
+      <section
+        aria-label="Aviso de privacidad"
+        className="rounded-2xl border border-border bg-card p-4"
+      >
+        <p className="text-base font-bold text-foreground">Aviso de privacidad</p>
+        <div
+          className={cn(
+            "mt-3 flex items-center gap-3 rounded-xl border px-3 py-1.5 transition-colors",
+            tocado && faltaAceptar
+              ? "border-destructive/60 bg-destructive/5"
+              : aceptado
+                ? "border-success/50 bg-success/10"
+                : "border-input bg-background",
+          )}
         >
-          <span className="flex-1">Acepto el aviso de privacidad</span>
-        </Checkbox>
-
-        <button
-          type="button"
-          onClick={() => setAvisoAbierto(true)}
-          className="mt-1 min-h-11 text-sm font-semibold text-primary underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          Ver el aviso de privacidad
-        </button>
+          <Checkbox
+            id="acepta-aviso"
+            checked={aceptado}
+            onCheckedChange={(estado) => {
+              setAceptado(estado === true);
+              setTocado(true);
+            }}
+            className="h-5 w-5"
+            aria-invalid={tocado && faltaAceptar ? true : undefined}
+            aria-describedby={tocado && faltaAceptar ? "acepta-aviso-error" : undefined}
+          />
+          <label
+            htmlFor="acepta-aviso"
+            className="flex min-h-11 flex-1 cursor-pointer items-center gap-2 text-sm font-medium text-foreground"
+          >
+            {aceptado ? (
+              <CircleCheck className="h-4 w-4 shrink-0 text-success" aria-hidden="true" />
+            ) : null}
+            <span>Acepto el aviso de privacidad</span>
+          </label>
+          <button
+            type="button"
+            onClick={() => setAvisoAbierto(true)}
+            className="shrink-0 text-sm font-semibold text-primary underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Leer aviso
+          </button>
+        </div>
 
         {tocado && faltaAceptar ? (
-          <p className="mt-1 text-xs font-medium text-destructive">
+          <p
+            id="acepta-aviso-error"
+            role="alert"
+            className="mt-2 text-xs font-medium text-destructive"
+          >
             Marca la casilla para continuar con tu reserva.
           </p>
         ) : null}

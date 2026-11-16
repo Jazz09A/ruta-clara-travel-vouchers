@@ -52,7 +52,8 @@ export function PanelVoucher({
       >
         <h2 className="text-sm font-bold text-foreground">Voucher</h2>
         <p className="text-sm text-muted-foreground">
-          El voucher se genera cuando el pago queda aprobado y el saldo llega a cero.
+          Todavía no hay voucher. Confirma la reserva (acción de arriba) para asignarle su código y
+          generar el voucher del titular.
         </p>
       </section>
     );

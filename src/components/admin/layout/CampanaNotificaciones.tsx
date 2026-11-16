@@ -8,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { formatRelative } from "@/lib/format";
 import { api, tokenAcceso, WS_URL } from "@/lib/api";
 import type { Notificacion, TipoNotificacion } from "@/lib/domain/types";
+import { rutaNotificacion } from "@/lib/domain/notificaciones";
 import { cn } from "@/lib/utils";
 
 /**
@@ -29,13 +30,6 @@ const ICONO_TIPO: Record<TipoNotificacion, LucideIcon> = {
   reserva: Ticket,
   salida: CalendarDays,
   sistema: Info,
-};
-
-const RUTA_TIPO: Record<TipoNotificacion, string> = {
-  pago: "/admin/pagos",
-  reserva: "/admin/reservas",
-  salida: "/admin/salidas",
-  sistema: "/admin",
 };
 
 const ORDEN_TIPOS: TipoNotificacion[] = ["pago", "reserva", "salida", "sistema"];
@@ -134,10 +128,9 @@ export function CampanaNotificaciones() {
   function abrir(notificacion: Notificacion) {
     persistirLeidas([notificacion.id]);
     setAbierto(false);
-    const destino = notificacion.entidad_id
-      ? `${RUTA_TIPO[notificacion.tipo]}?id=${encodeURIComponent(notificacion.entidad_id)}`
-      : RUTA_TIPO[notificacion.tipo];
-    navegar(destino);
+    // Directo a la entidad relacionada (reserva, pago o salida) o a
+    // Reportes si es una exportación; nunca con `?id=`.
+    navegar(rutaNotificacion(notificacion));
   }
 
   return (

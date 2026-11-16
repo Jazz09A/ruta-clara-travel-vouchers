@@ -214,6 +214,13 @@ const publica: ApiPublica = {
       body: { ...datos, version },
     }),
 
+  datosPorDocumento: (token, body) =>
+    peticion("/public/reserva/datos-por-documento", {
+      metodo: "POST",
+      token,
+      body: { tipo_doc: body.tipo_doc, documento: body.documento },
+    }),
+
   guardarAcompanantes: (token, pasajeros: Pasajero[], version) =>
     peticion("/public/reserva/acompanantes", {
       metodo: "PUT",
@@ -359,6 +366,8 @@ const admin = {
     fecha_tour_id: string;
     referencia_interna?: string;
     estimated_pasajeros?: number;
+    lineas?: { id?: string; concepto: string; cantidad: number; precio_unit_usd: string }[];
+    ajustes?: { id?: string; tipo: "descuento" | "recargo"; monto_usd: string; motivo: string }[];
   }) => peticion("/adminfx/reservas", { metodo: "POST", admin: true, body }),
 
   regenerarEnlace: (id: string, body: { motivo: string }) =>
@@ -377,6 +386,7 @@ const admin = {
     id: string,
     body: {
       motivo: string;
+      justificacion?: string;
       lineas: { id?: string; concepto: string; cantidad: number; precio_unit_usd: string }[];
       ajustes: { id?: string; tipo: "descuento" | "recargo"; monto_usd: string; motivo: string }[];
     },
@@ -401,6 +411,10 @@ const admin = {
   reactivar: (id: string, body: { motivo: string }) =>
     peticion(`/adminfx/reservas/${id}/reactivar`, { metodo: "POST", admin: true, body }),
 
+  /** Confirma la reserva a mano (el titular no reporta el pago) y genera el voucher. */
+  confirmarReserva: (id: string, body: { motivo?: string }) =>
+    peticion(`/adminfx/reservas/${id}/confirmar`, { metodo: "POST", admin: true, body }),
+
   // ── pagos ──────────────────────────────────────────────────────────
   pagos: (filtros: FiltroPagos) =>
     peticion("/adminfx/pagos", { admin: true }, queryParams({ ...filtros })),
@@ -414,6 +428,56 @@ const admin = {
     id: string,
     body: { monto: string; referencia?: string; nota?: string },
   ) => peticion(`/adminfx/pagos/${id}/efectivo`, { metodo: "POST", admin: true, body }),
+
+  registrarPagoReserva: (
+    id: string,
+    body: {
+      metodo_clave: string;
+      monto: string;
+      moneda?: "USD" | "VES" | "USDT";
+      fecha_pago?: string;
+      referencia?: string;
+      nota?: string;
+    },
+  ) =>
+    peticion<{ ok: true; pago_id: string }>(`/adminfx/reservas/${id}/pagos`, {
+      metodo: "POST",
+      admin: true,
+      body,
+    }),
+
+  // ── puntos de salida (catálogo global) ────────────────────────────────
+  puntosSalida: () => peticion("/puntos-salida", { admin: true }),
+
+  crearPuntoSalida: (body: {
+    nombre: string;
+    hora: string;
+    clave?: string;
+    referencia?: string;
+    ciudad?: string;
+    seleccionable?: boolean;
+  }) => peticion("/puntos-salida", { metodo: "POST", admin: true, body }),
+
+  actualizarPuntoSalida: (
+    id: string,
+    body: Partial<{
+      nombre: string;
+      hora: string;
+      clave: string;
+      referencia: string;
+      ciudad: string;
+      seleccionable: boolean;
+      orden: number;
+      activo: boolean;
+    }>,
+  ) => peticion(`/puntos-salida/${id}`, { metodo: "PUT", admin: true, body }),
+
+  eliminarPuntoSalida: (id: string) =>
+    peticion(`/puntos-salida/${id}`, { metodo: "DELETE", admin: true }),
+
+  // ── archivos privados (foto del documento, comprobantes…) ─────────────
+  /** URL firmada de corta vigencia; consultar la foto queda auditado. */
+  urlArchivo: (archivoId: string) => peticion(`/archivos/${archivoId}/url`, { admin: true }),
 
   reembolsar: (id: string, body: { monto: string; metodo: string; motivo: string }) =>
     peticion(`/adminfx/pagos/${id}/reembolso`, { metodo: "POST", admin: true, body }),

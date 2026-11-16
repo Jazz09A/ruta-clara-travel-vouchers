@@ -125,6 +125,35 @@ export interface PuntoAbordaje {
   mapa_url?: string | undefined;
 }
 
+/**
+ * Punto de salida del catálogo global (Guatire, Guarenas, Caracas…).
+ * Compartido por todos los tours y administrable desde Configuración.
+ */
+export interface PuntoSalida {
+  id: string;
+  clave: string;
+  nombre: string;
+  /** Hora estimada de recogida (HH:MM). */
+  hora: string;
+  referencia?: string | null;
+  /** Ciudad del punto (Guatire, Guarenas, Caracas…). */
+  ciudad?: string | null;
+  /**
+   * `false` = sólo se muestra como referencia en el formulario (los puntos
+   * de Caracas se confirman después por el grupo de viaje / WhatsApp):
+   * no puede elegirlo el cliente.
+   */
+  seleccionable?: boolean;
+  orden: number;
+  activo: boolean;
+}
+
+/** Grupo de puntos de referencia (no elegibles) agrupados por ciudad. */
+export interface PuntoReferencia {
+  ciudad: string;
+  puntos: { clave: string; nombre: string; hora: string; referencia?: string | null }[];
+}
+
 export interface Tour {
   id: string;
   nombre: string;
@@ -229,6 +258,15 @@ export interface CampoDef {
   unidad?: string | undefined;
   /** Permite bajar el campo a nivel de pasajero aunque sea `por_reserva`. */
   permite_por_pasajero?: boolean | undefined;
+  /** Marca de origen para opciones dinámicas: `puntos_salida` usa el catálogo global. */
+  fuente?: string | undefined;
+  /**
+   * Puntos del catálogo que NO se pueden elegir (p. ej. los de Caracas),
+   * agrupados por ciudad y mostrados sólo como referencia en el formulario.
+   */
+  puntos_referencia?: PuntoReferencia[] | undefined;
+  /** Agrupación funcional; `comida` se oculta con el flag global de comidas. */
+  grupo?: "comida" | undefined;
 }
 
 export interface FormDefinicion {
@@ -277,6 +315,16 @@ export type TipoDocumento = "V" | "E" | "P" | "OTRO";
 
 export type Respuesta = string | number | boolean | string[] | null;
 
+/**
+ * Foto del documento de identidad lista para enviar: `data` es un data URL
+ * ya comprimido en el navegador (legible y ≤ 5 MB en el servidor).
+ */
+export interface FotoDocumento {
+  data: string;
+  tipo: string;
+  nombre: string;
+}
+
 export interface Pasajero {
   /** Identificador estable generado por el cliente (UUID). */
   ref_cliente: string;
@@ -287,6 +335,10 @@ export interface Pasajero {
   fecha_nacimiento: string; // YYYY-MM-DD
   categoria: Categoria;
   respuestas: Record<string, Respuesta>;
+  /** Id del archivo con la foto del documento (política de la agencia). */
+  documento_imagen_id?: string | null;
+  /** Foto elegida y aún no confirmada por el servidor: se envía en el guardado. */
+  documento_imagen?: FotoDocumento | null;
   /** Solo el titular tiene datos de contacto (Spec §5 P-02). */
   telefono?: string | undefined;
   correo?: string | undefined;
@@ -545,6 +597,16 @@ export interface Configuracion {
   /** URL firmada temporal para el preview en el panel (solo lectura). */
   firma_empresa_url?: string | undefined;
   tour_activo_default: string;
+  /**
+   * Oculta la selección de comida en el formulario público (los campos no se
+   * borran; se reactivan con este mismo flag).
+   */
+  comidas_deshabilitadas?: boolean | undefined;
+  /**
+   * Oculta el paso de pago del cliente: la agencia anota los datos del pago
+   * desde la reserva. El flujo de reporte queda guardado por si se reactiva.
+   */
+  reporte_pago_cliente?: boolean | undefined;
 }
 
 export interface CodigoPromocional {
@@ -605,7 +667,8 @@ export interface DashboardData {
     retenidos: number;
     total: number;
   }[];
-  pagos_por_verificar: { total: number; mas_antiguo_min: number }[];
+  /** Reservas firmadas que la agencia todavía no confirma. */
+  por_confirmar: { total: number; mas_antiguo_min: number }[];
   ingresos_mes_usd: string;
   ventas_por_mes: { mes: string; total_usd: string; reservas: number }[];
   requiere_atencion: {
@@ -667,10 +730,14 @@ export type CodigoError =
   | "TERMINOS_ACTUALIZADOS"
   | "FIRMA_PENDIENTE"
   | "RESERVA_CERRADA"
+  /** El reporte de pago del cliente está desactivado por la agencia. */
+  | "PAGO_CLIENTE_DESACTIVADO"
   | "REFERENCIA_YA_APROBADA"
   | "ENLACE_VENCIDO"
   | "ARCHIVO_GRANDE"
   | "ARCHIVO_TIPO_INVALIDO"
+  /** Punto de salida que no puede elegir el cliente (p. ej. Caracas). */
+  | "PUNTO_NO_SELECCIONABLE"
   | "VALIDACION"
   | "EDAD_NO_COINCIDE_CATEGORIA"
   | "DOCUMENTO_DUPLICADO"
