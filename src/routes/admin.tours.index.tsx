@@ -5,7 +5,6 @@ import { Copy, Filter, Map as MapIcon, Plus, Search, X } from "lucide-react";
 
 import { DialogoActivar } from "@/components/admin/tours/dialogo-activar";
 import { useRequisitosTour } from "@/components/admin/tours/use-requisitos";
-import { AsistenteTour } from "@/components/admin/tours/asistente-tour";
 import { EstadoBadge } from "@/components/admin/ui/estado";
 import { EstadoError } from "@/components/admin/ui/estado-error";
 import { Aviso } from "@/components/admin/ui/avisos";
@@ -93,7 +92,6 @@ function CatalogoTours() {
   const [motivo, setMotivo] = React.useState("");
   const [mensaje, setMensaje] = React.useState("");
   const [problema, setProblema] = React.useState("");
-  const [asistenteAbierto, setAsistenteAbierto] = React.useState(false);
 
   // Los requisitos de activación los calcula el servidor.
   const requisitos = useRequisitosTour(tourActivar?.id ?? null);
@@ -192,8 +190,8 @@ function CatalogoTours() {
     },
   });
 
-  /** El alta de tours es un asistente: el catálogo es la fuente de verdad. */
-  const abrirAsistente = () => setAsistenteAbierto(true);
+  /** El alta de tours es una página: el catálogo es la fuente de verdad. */
+  const abrirAsistente = () => irA("/admin/tours/nuevo");
   const limpiarFiltros = () => {
     setBusqueda("");
     setEstado("");
@@ -671,18 +669,6 @@ function CatalogoTours() {
         activando={activar.isPending}
         onConfirmar={() => {
           if (tourActivar) activar.mutate(tourActivar.id);
-        }}
-      />
-
-      <AsistenteTour
-        abierto={asistenteAbierto}
-        onAbiertoChange={setAsistenteAbierto}
-        onCreado={async (tour) => {
-          setMensaje(
-            `Creamos «${tour.nombre}». Revisa los requisitos y actívalo cuando esté listo.`,
-          );
-          await refrescar();
-          irA(`/admin/tours/${tour.id}`);
         }}
       />
 

@@ -419,7 +419,7 @@ export function EditorTour({
               return (
                 <li
                   key={punto.id || `punto-${indice}`}
-                  className="grid gap-2 rounded-xl border border-border bg-background px-3 py-2 sm:grid-cols-[1fr_8rem]"
+                  className="grid gap-2 rounded-xl border border-border bg-background px-3 py-2 sm:grid-cols-[minmax(0,1fr)_auto]"
                 >
                   <div className="min-w-0">
                     <span className="text-sm font-semibold text-foreground">{punto.nombre}</span>
@@ -434,6 +434,7 @@ export function EditorTour({
                       aria-label={`Hora de recogida en ${punto.nombre}`}
                       type="time"
                       value={punto.hora ?? ""}
+                      className="w-28"
                       disabled={deshabilitado || esCaracas}
                       onChange={(evento) => {
                         const puntos = tour.puntos_abordaje.map((p, i) =>

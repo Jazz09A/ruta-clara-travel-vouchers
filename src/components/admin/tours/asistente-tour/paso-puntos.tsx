@@ -82,7 +82,7 @@ export function PasoPuntos({ documento, onChange, puntos }: PropsPasoPuntos) {
               return (
                 <li
                   key={punto.clave}
-                  className="grid gap-2 rounded-xl border border-border bg-background px-3 py-2 sm:grid-cols-[1fr_8rem_auto]"
+                  className="grid gap-2 rounded-xl border border-border bg-background px-3 py-2 sm:grid-cols-[minmax(0,1fr)_auto]"
                 >
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-foreground">
@@ -98,6 +98,7 @@ export function PasoPuntos({ documento, onChange, puntos }: PropsPasoPuntos) {
                       aria-label={`Hora de recogida en ${ref?.nombre ?? punto.clave}`}
                       type="time"
                       value={punto.hora}
+                      className="w-28"
                       disabled={esCaracas}
                       onChange={(evento) => cambiarHora(punto.clave, evento.target.value)}
                     />

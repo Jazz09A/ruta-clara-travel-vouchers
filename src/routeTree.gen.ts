@@ -47,6 +47,7 @@ import { Route as AdminSalidasIndexRouteImport } from './routes/admin.salidas.in
 import { Route as AdminSalidasIdRouteImport } from './routes/admin.salidas.$id'
 import { Route as AdminToursIndexRouteImport } from './routes/admin.tours.index'
 import { Route as AdminToursIdRouteImport } from './routes/admin.tours.$id'
+import { Route as AdminToursNuevoRouteImport } from './routes/admin.tours.nuevo'
 import { Route as AdminToursIdFormularioRouteImport } from './routes/admin.tours.$id.formulario'
 
 const IndexRoute = IndexRouteImport.update({
@@ -247,6 +248,11 @@ const AdminToursIdRoute = AdminToursIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => AdminToursRoute,
 } as any)
+const AdminToursNuevoRoute = AdminToursNuevoRouteImport.update({
+  id: '/nuevo',
+  path: '/nuevo',
+  getParentRoute: () => AdminToursRoute,
+} as any)
 const AdminToursIdFormularioRoute = AdminToursIdFormularioRouteImport.update({
   id: '/formulario',
   path: '/formulario',
@@ -286,6 +292,7 @@ export interface FileRoutesByFullPath {
   '/admin/reservas/nueva': typeof AdminReservasNuevaRoute
   '/admin/salidas/$id': typeof AdminSalidasIdRoute
   '/admin/tours/$id': typeof AdminToursIdRouteWithChildren
+  '/admin/tours/nuevo': typeof AdminToursNuevoRoute
   '/admin/clientes/': typeof AdminClientesIndexRoute
   '/admin/configuracion/': typeof AdminConfiguracionIndexRoute
   '/admin/pagos/': typeof AdminPagosIndexRoute
@@ -321,6 +328,7 @@ export interface FileRoutesByTo {
   '/admin/reservas/nueva': typeof AdminReservasNuevaRoute
   '/admin/salidas/$id': typeof AdminSalidasIdRoute
   '/admin/tours/$id': typeof AdminToursIdRouteWithChildren
+  '/admin/tours/nuevo': typeof AdminToursNuevoRoute
   '/admin/clientes': typeof AdminClientesIndexRoute
   '/admin/configuracion': typeof AdminConfiguracionIndexRoute
   '/admin/pagos': typeof AdminPagosIndexRoute
@@ -363,6 +371,7 @@ export interface FileRoutesById {
   '/admin/reservas/nueva': typeof AdminReservasNuevaRoute
   '/admin/salidas/$id': typeof AdminSalidasIdRoute
   '/admin/tours/$id': typeof AdminToursIdRouteWithChildren
+  '/admin/tours/nuevo': typeof AdminToursNuevoRoute
   '/admin/clientes/': typeof AdminClientesIndexRoute
   '/admin/configuracion/': typeof AdminConfiguracionIndexRoute
   '/admin/pagos/': typeof AdminPagosIndexRoute
@@ -406,6 +415,7 @@ export interface FileRouteTypes {
     | '/admin/reservas/nueva'
     | '/admin/salidas/$id'
     | '/admin/tours/$id'
+    | '/admin/tours/nuevo'
     | '/admin/clientes/'
     | '/admin/configuracion/'
     | '/admin/pagos/'
@@ -441,6 +451,7 @@ export interface FileRouteTypes {
     | '/admin/reservas/nueva'
     | '/admin/salidas/$id'
     | '/admin/tours/$id'
+    | '/admin/tours/nuevo'
     | '/admin/clientes'
     | '/admin/configuracion'
     | '/admin/pagos'
@@ -482,6 +493,7 @@ export interface FileRouteTypes {
     | '/admin/reservas/nueva'
     | '/admin/salidas/$id'
     | '/admin/tours/$id'
+    | '/admin/tours/nuevo'
     | '/admin/clientes/'
     | '/admin/configuracion/'
     | '/admin/pagos/'
@@ -778,6 +790,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminToursIdRouteImport
       parentRoute: typeof AdminToursRoute
     }
+    '/admin/tours/nuevo': {
+      id: '/admin/tours/nuevo'
+      path: '/nuevo'
+      fullPath: '/admin/tours/nuevo'
+      preLoaderRoute: typeof AdminToursNuevoRouteImport
+      parentRoute: typeof AdminToursRoute
+    }
     '/admin/tours/$id/formulario': {
       id: '/admin/tours/$id/formulario'
       path: '/formulario'
@@ -891,11 +910,13 @@ const AdminToursIdRouteWithChildren = AdminToursIdRoute._addFileChildren(
 
 interface AdminToursRouteChildren {
   AdminToursIdRoute: typeof AdminToursIdRouteWithChildren
+  AdminToursNuevoRoute: typeof AdminToursNuevoRoute
   AdminToursIndexRoute: typeof AdminToursIndexRoute
 }
 
 const AdminToursRouteChildren: AdminToursRouteChildren = {
   AdminToursIdRoute: AdminToursIdRouteWithChildren,
+  AdminToursNuevoRoute: AdminToursNuevoRoute,
   AdminToursIndexRoute: AdminToursIndexRoute,
 }
 
