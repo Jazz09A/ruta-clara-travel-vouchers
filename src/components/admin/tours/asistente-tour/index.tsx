@@ -4,12 +4,11 @@ import { Check, ChevronLeft, ChevronRight, LoaderCircle, Sparkles } from "lucide
 
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
-import type { DocumentoTour, PuntoSalida, Tour } from "@/lib/domain/types";
+import type { DocumentoTour, Tour } from "@/lib/domain/types";
 import { cn } from "@/lib/utils";
 import { PasoContenido } from "./paso-contenido";
 import { PasoDatos } from "./paso-datos";
 import { PasoFechas, type RecurrenciaSalidas } from "./paso-fechas";
-import { PasoPuntos } from "./paso-puntos";
 
 export interface AsistenteTourProps {
   /** Se llama cuando el tour queda creado (para navegar a su ficha). */
@@ -26,12 +25,8 @@ const PASOS = [
     ayuda: "Itinerario, qué incluye y notas internas.",
   },
   {
-    titulo: "Puntos",
-    ayuda: "De dónde sale el bus y a qué hora.",
-  },
-  {
-    titulo: "Fechas y precios",
-    ayuda: "Salidas del tour y precio por categoría.",
+    titulo: "Fechas y precio",
+    ayuda: "Salidas del tour (obligatorias) y precio por persona.",
   },
 ];
 
@@ -50,7 +45,9 @@ function documentoVacio(): DocumentoTour {
     cupos: 40,
     descripcion: "",
     puntos: [],
-    precios: { adulto: undefined, nino: undefined, tercera_edad: undefined, infante: 0 },
+    // Una sola cifra por tour: el backend deriva niño y tercera edad, y el
+    // infante (0-4 años) siempre va en 0.
+    precios: { adulto: undefined },
     fechas: [],
     incluye: [],
     no_incluye: [],
@@ -62,9 +59,12 @@ function documentoVacio(): DocumentoTour {
 /**
  * Asistente de alta de tours: **el catálogo como contrato**.
  *
- * Los cuatro pasos son las cuatro partes del documento de tour
- * (`catalogo-escapate.json`): datos, contenido, puntos y fechas/precios. Al
- * terminar, el tour queda en borrador con su formulario publicado y sus
+ * Los pasos son las partes del documento de tour (`catalogo-escapate.json`):
+ * datos, contenido y fechas/precio. Los **puntos de salida no se preguntan**:
+ * son siempre los del catálogo global (los mismos en todos los formularios) y
+ * el tour los hereda; su hora se puede ajustar en la ficha del tour.
+ *
+ * Al terminar, el tour queda en borrador con su formulario publicado y sus
  * salidas con tarifas: listo para activarse y para que el cliente se registre.
  */
 export function AsistenteTour({ onCreado }: AsistenteTourProps) {
@@ -76,11 +76,6 @@ export function AsistenteTour({ onCreado }: AsistenteTourProps) {
   const { data: configuracion } = useQuery({
     queryKey: ["admin", "configuracion"],
     queryFn: () => api.admin.configuracion(),
-  });
-
-  const { data: puntos } = useQuery({
-    queryKey: ["admin", "puntos-salida"],
-    queryFn: () => api.admin.puntosSalida(),
   });
 
   const { data: tours } = useQuery({
@@ -98,13 +93,13 @@ export function AsistenteTour({ onCreado }: AsistenteTourProps) {
 
   const guardar = useMutation({
     mutationFn: async () => {
+      // Las fechas y el precio van **en el documento**: el tour se crea con
+      // sus salidas y sus tarifas, listo para activarse.
       const { tour } = await api.admin.crearDesdeDocumento(documento);
-      const hayFechas =
-        documento.fechas.length > 0 || Boolean(recurrencia?.desde && recurrencia?.hasta);
-      if (hayFechas) {
+      // Las salidas recurrentes se agregan aparte (el documento es explícito).
+      if (recurrencia?.desde && recurrencia?.hasta) {
         await api.admin.fechasMasivo(tour.id, {
-          fechas: documento.fechas,
-          recurrencia: recurrencia?.desde && recurrencia?.hasta ? recurrencia : null,
+          recurrencia,
           precios: documento.precios,
           cupos_total: documento.cupos ?? 40,
           hora_salida: documento.hora_salida ?? undefined,
@@ -123,9 +118,14 @@ export function AsistenteTour({ onCreado }: AsistenteTourProps) {
     },
   });
 
+  /** Nombre, precio y **salidas** son obligatorios. */
+  const haySalidas =
+    documento.fechas.length > 0 || Boolean(recurrencia?.desde && recurrencia?.hasta);
   const listoParaGuardar =
     documento.nombre.trim() !== "" &&
-    Object.values(documento.precios).some((precio) => precio !== undefined && precio !== null);
+    documento.precios.adulto !== undefined &&
+    documento.precios.adulto !== null &&
+    haySalidas;
 
   const irA = (destino: number) => {
     setError("");
@@ -238,13 +238,6 @@ export function AsistenteTour({ onCreado }: AsistenteTourProps) {
             ) : null}
             {paso === 1 ? <PasoContenido documento={documento} onChange={setDocumento} /> : null}
             {paso === 2 ? (
-              <PasoPuntos
-                documento={documento}
-                onChange={setDocumento}
-                puntos={(puntos ?? []) as PuntoSalida[]}
-              />
-            ) : null}
-            {paso === 3 ? (
               <PasoFechas
                 documento={documento}
                 onChange={setDocumento}
@@ -265,9 +258,9 @@ export function AsistenteTour({ onCreado }: AsistenteTourProps) {
         ) : null}
 
         {paso === PASOS.length - 1 && !listoParaGuardar ? (
-          <p className="text-xs text-muted-foreground">
-            Ponle un nombre y al menos un precio por categoría: son los datos que el cliente
-            necesita para reservar.
+          <p className="text-xs font-medium text-destructive">
+            Para crear el tour hacen falta: el nombre, el precio por persona y al menos una salida
+            (son las que el cliente puede reservar).
           </p>
         ) : null}
 
