@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Copy, Filter, Map as MapIcon, Plus, Search, X } from "lucide-react";
 
 import { DialogoActivar } from "@/components/admin/tours/dialogo-activar";
+import { useRequisitosTour } from "@/components/admin/tours/use-requisitos";
+import { AsistenteTour } from "@/components/admin/tours/asistente-tour";
 import { EstadoBadge } from "@/components/admin/ui/estado";
 import { EstadoError } from "@/components/admin/ui/estado-error";
 import { Aviso } from "@/components/admin/ui/avisos";
@@ -91,8 +93,18 @@ function CatalogoTours() {
   const [motivo, setMotivo] = React.useState("");
   const [mensaje, setMensaje] = React.useState("");
   const [problema, setProblema] = React.useState("");
+  const [asistenteAbierto, setAsistenteAbierto] = React.useState(false);
 
-  const { data: tours, isPending, isError, error, refetch } = useQuery({
+  // Los requisitos de activación los calcula el servidor.
+  const requisitos = useRequisitosTour(tourActivar?.id ?? null);
+
+  const {
+    data: tours,
+    isPending,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["admin", "tours"],
     queryFn: () => api.admin.tours(),
     enabled: puedeVer,
@@ -180,17 +192,8 @@ function CatalogoTours() {
     },
   });
 
-  const crear = useMutation({
-    mutationFn: () => api.admin.guardarTour(null, { nombre: "Tour sin nombre" }),
-    onSuccess: async (tour) => {
-      await refrescar();
-      irA(`/admin/tours/${tour.id}`);
-    },
-    onError: (fallo) => {
-      setProblema(fallo instanceof Error ? fallo.message : "No pudimos crear el tour.");
-    },
-  });
-
+  /** El alta de tours es un asistente: el catálogo es la fuente de verdad. */
+  const abrirAsistente = () => setAsistenteAbierto(true);
   const limpiarFiltros = () => {
     setBusqueda("");
     setEstado("");
@@ -204,27 +207,49 @@ function CatalogoTours() {
       breadcrumb={[{ label: "Panel", to: "/admin" }, { label: "Tours" }]}
       acciones={
         puedeEditar ? (
-          <Button type="button" onClick={() => crear.mutate()} disabled={crear.isPending} className="min-h-11">
+          <Button type="button" onClick={abrirAsistente} className="min-h-11">
             <Plus aria-hidden="true" />
-            {crear.isPending ? "Creando…" : "Nuevo tour"}
+            Nuevo tour
           </Button>
         ) : undefined
       }
     >
       {mensaje ? (
-        <Aviso tono="exito" titulo={mensaje} className="mb-4" acciones={
-          <Button type="button" variant="ghost" size="sm" onClick={() => setMensaje("")} className="min-h-11">
-            Entendido
-          </Button>
-        } />
+        <Aviso
+          tono="exito"
+          titulo={mensaje}
+          className="mb-4"
+          acciones={
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setMensaje("")}
+              className="min-h-11"
+            >
+              Entendido
+            </Button>
+          }
+        />
       ) : null}
 
       {problema ? (
-        <Aviso tono="peligro" titulo={problema} className="mb-4" acciones={
-          <Button type="button" variant="ghost" size="sm" onClick={() => setProblema("")} className="min-h-11">
-            Entendido
-          </Button>
-        } />
+        <Aviso
+          tono="peligro"
+          titulo={problema}
+          className="mb-4"
+          acciones={
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setProblema("")}
+              className="min-h-11"
+            >
+              Entendido
+            </Button>
+          }
+        />
       ) : null}
 
       <Seccion
@@ -308,7 +333,12 @@ function CatalogoTours() {
             </div>
 
             {filtrosActivos > 0 ? (
-              <Button type="button" variant="ghost" onClick={limpiarFiltros} className="min-h-11 self-end">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={limpiarFiltros}
+                className="min-h-11 self-end"
+              >
                 <X aria-hidden="true" />
                 Limpiar filtros
               </Button>
@@ -389,7 +419,7 @@ function CatalogoTours() {
               filtrosActivos > 0
                 ? { etiqueta: "Limpiar filtros", onClick: limpiarFiltros }
                 : puedeEditar
-                  ? { etiqueta: "Crear el primer tour", onClick: () => crear.mutate() }
+                  ? { etiqueta: "Crear el primer tour", onClick: abrirAsistente }
                   : undefined
             }
           />
@@ -400,7 +430,10 @@ function CatalogoTours() {
               {filtrados.map((tour) => {
                 const resumen = resumenPorTour.get(tour.nombre);
                 return (
-                  <li key={tour.id} className="rounded-2xl border border-border bg-card p-4 shadow-card">
+                  <li
+                    key={tour.id}
+                    className="rounded-2xl border border-border bg-card p-4 shadow-card"
+                  >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <EnlaceAdmin
@@ -409,7 +442,9 @@ function CatalogoTours() {
                         >
                           {tour.nombre}
                         </EnlaceAdmin>
-                        <p className="text-xs text-muted-foreground">{ETIQUETA_TIPO_TOUR[tour.tipo]}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {ETIQUETA_TIPO_TOUR[tour.tipo]}
+                        </p>
                       </div>
                       <EstadoBadge estado={tour.estado} />
                     </div>
@@ -630,10 +665,24 @@ function CatalogoTours() {
           }
         }}
         tour={tourActivar}
+        requisitos={requisitos.data?.requisitos ?? []}
+        cargandoRequisitos={requisitos.isPending}
         bloqueos={bloqueos}
         activando={activar.isPending}
         onConfirmar={() => {
           if (tourActivar) activar.mutate(tourActivar.id);
+        }}
+      />
+
+      <AsistenteTour
+        abierto={asistenteAbierto}
+        onAbiertoChange={setAsistenteAbierto}
+        onCreado={async (tour) => {
+          setMensaje(
+            `Creamos «${tour.nombre}». Revisa los requisitos y actívalo cuando esté listo.`,
+          );
+          await refrescar();
+          irA(`/admin/tours/${tour.id}`);
         }}
       />
 

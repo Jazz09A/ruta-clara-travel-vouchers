@@ -6,15 +6,28 @@ interface CampoProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "
   label?: string;
   ayuda?: string;
   error?: string;
-  type?: "text" | "email" | "password" | "number" | "select" | "checkbox" | "textarea";
+  type?: "text" | "email" | "password" | "number" | "select" | "checkbox" | "textarea" | "date";
   children?: React.ReactNode;
   value?: string;
-  onChange?: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
+  onChange?: (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
+  ) => void;
   /** Filas del textarea (solo `type="textarea"`). */
   rows?: number | undefined;
 }
 
-export function Campo({ label, ayuda, error, className, id, type = "text", children, value, onChange, ...props }: CampoProps) {
+export function Campo({
+  label,
+  ayuda,
+  error,
+  className,
+  id,
+  type = "text",
+  children,
+  value,
+  onChange,
+  ...props
+}: CampoProps) {
   return (
     <div className="space-y-1.5">
       {label && (
@@ -81,12 +94,8 @@ export function Campo({ label, ayuda, error, className, id, type = "text", child
           {...(props as React.InputHTMLAttributes<HTMLInputElement>)}
         />
       )}
-      {ayuda && !error && (
-        <p className="text-xs text-muted-foreground">{ayuda}</p>
-      )}
-      {error && (
-        <p className="text-xs text-destructive">{error}</p>
-      )}
+      {ayuda && !error && <p className="text-xs text-muted-foreground">{ayuda}</p>}
+      {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
 }

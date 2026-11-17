@@ -10,7 +10,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { PoliticaCancelacion, TramoCancelacion } from "@/lib/domain/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DialogoConfirmacion } from "@/components/core/DialogoConfirmacion";
+import { DialogoConfirmacion } from "@/components/admin/DialogoConfirmacion";
 
 export const Route = createFileRoute("/admin/configuracion/politicas")({
   head: () => ({
@@ -88,6 +88,7 @@ function PoliticasCancelacion() {
     const politica: Partial<PoliticaCancelacion> = {
       id: editando.id,
       nombre: formData.get("nombre") as string,
+      clave: (formData.get("clave") as string)?.trim() || null,
       tramos,
     };
 
@@ -115,17 +116,27 @@ function PoliticasCancelacion() {
     setEditando({ ...editando, tramos: nuevosTramos });
   };
 
-  const actualizarTramo = (index: number, campo: keyof TramoCancelacion, valor: string | number) => {
+  const actualizarTramo = (
+    index: number,
+    campo: keyof TramoCancelacion,
+    valor: string | number,
+  ) => {
     if (!editando) return;
     const nuevosTramos = [...editando.tramos];
-    nuevosTramos[index] = { ...nuevosTramos[index], [campo]: valor };
+    const actual = nuevosTramos[index];
+    if (!actual) return;
+    nuevosTramos[index] = { ...actual, [campo]: valor } as TramoCancelacion;
     setEditando({ ...editando, tramos: nuevosTramos });
   };
 
   return (
     <AdminShell
       titulo="Políticas de cancelación"
-      breadcrumb={[{ label: "Panel", to: "/admin" }, { label: "Configuración", to: "/admin/configuracion" }, { label: "Políticas de cancelación" }]}
+      breadcrumb={[
+        { label: "Panel", to: "/admin" },
+        { label: "Configuración", to: "/admin/configuracion" },
+        { label: "Políticas de cancelación" },
+      ]}
     >
       <div className="mx-auto w-full max-w-4xl">
         <Link
@@ -143,15 +154,29 @@ function PoliticasCancelacion() {
           <Button
             type="button"
             className="min-h-11 w-full sm:w-auto"
-            onClick={() => setEditando({
-              id: "",
-              nombre: "",
-              tramos: [
-                { dias_desde_salida: 7, porcentaje_reembolso: 100, descripcion: "Más de 7 días antes" },
-                { dias_desde_salida: 3, porcentaje_reembolso: 50, descripcion: "Entre 3 y 7 días antes" },
-                { dias_desde_salida: 0, porcentaje_reembolso: 0, descripcion: "Menos de 3 días antes" },
-              ],
-            })}
+            onClick={() =>
+              setEditando({
+                id: "",
+                nombre: "",
+                tramos: [
+                  {
+                    dias_desde_salida: 7,
+                    porcentaje_reembolso: 100,
+                    descripcion: "Más de 7 días antes",
+                  },
+                  {
+                    dias_desde_salida: 3,
+                    porcentaje_reembolso: 50,
+                    descripcion: "Entre 3 y 7 días antes",
+                  },
+                  {
+                    dias_desde_salida: 0,
+                    porcentaje_reembolso: 0,
+                    descripcion: "Menos de 3 días antes",
+                  },
+                ],
+              })
+            }
           >
             <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
             Nueva política
@@ -195,7 +220,9 @@ function PoliticasCancelacion() {
                           className="flex items-center justify-between rounded-lg bg-muted/30 p-3"
                         >
                           <div className="flex-1">
-                            <p className="text-sm font-medium text-foreground">{tramo.descripcion}</p>
+                            <p className="text-sm font-medium text-foreground">
+                              {tramo.descripcion}
+                            </p>
                             <p className="mt-1 text-xs text-muted-foreground">
                               {tramo.dias_desde_salida}+ días antes de la salida
                             </p>
@@ -238,16 +265,15 @@ function PoliticasCancelacion() {
         {/* Modal de edición */}
         {editando && (
           <DialogoConfirmacion
-            open={!!editando}
-            onOpenChange={(abierto) => {
+            abierto={!!editando}
+            onAbiertoCambia={(abierto) => {
               if (!abierto) setEditando(null);
             }}
             titulo={editando.id ? "Editar política" : "Nueva política"}
             descripcion="Configura los tramos y porcentajes de reembolso"
             textoConfirmar="Guardar"
-            variante="default"
-            loading={mutationGuardar.isPending}
-            motivo={undefined}
+            cargando={mutationGuardar.isPending}
+            onConfirmar={() => setEditando(null)}
           >
             <form onSubmit={handleGuardar} className="space-y-4">
               <Campo
@@ -259,15 +285,19 @@ function PoliticasCancelacion() {
                 required
               />
 
+              <Campo
+                id="clave"
+                label="Clave"
+                type="text"
+                defaultValue={editando.clave ?? ""}
+                placeholder="Ej: full_day"
+                ayuda="Así la referencia un tour en el catálogo (full_day, multi_dia)."
+              />
+
               <div>
                 <div className="mb-3 flex items-center justify-between">
                   <label className="text-sm font-semibold">Tramos de reembolso</label>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={agregarTramo}
-                  >
+                  <Button type="button" variant="outline" size="sm" onClick={agregarTramo}>
                     <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
                     Agregar tramo
                   </Button>
@@ -282,7 +312,9 @@ function PoliticasCancelacion() {
                           label="Días desde salida"
                           type="number"
                           value={tramo.dias_desde_salida.toString()}
-                          onChange={(e) => actualizarTramo(idx, "dias_desde_salida", parseInt(e.target.value, 10))}
+                          onChange={(e) =>
+                            actualizarTramo(idx, "dias_desde_salida", parseInt(e.target.value, 10))
+                          }
                           min="0"
                           required
                         />
@@ -291,7 +323,13 @@ function PoliticasCancelacion() {
                           label="Porcentaje %"
                           type="number"
                           value={tramo.porcentaje_reembolso.toString()}
-                          onChange={(e) => actualizarTramo(idx, "porcentaje_reembolso", parseInt(e.target.value, 10))}
+                          onChange={(e) =>
+                            actualizarTramo(
+                              idx,
+                              "porcentaje_reembolso",
+                              parseInt(e.target.value, 10),
+                            )
+                          }
                           min="0"
                           max="100"
                           required
@@ -326,11 +364,7 @@ function PoliticasCancelacion() {
               <input type="hidden" name="tramos_count" value={editando.tramos.length} />
 
               <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setEditando(null)}
-                >
+                <Button type="button" variant="outline" onClick={() => setEditando(null)}>
                   Cancelar
                 </Button>
                 <BotonCargar
@@ -347,16 +381,15 @@ function PoliticasCancelacion() {
 
         {/* Diálogo de eliminación */}
         <DialogoConfirmacion
-          open={!!dialogoEliminar}
-          onOpenChange={(abierto) => {
+          abierto={!!dialogoEliminar}
+          onAbiertoCambia={(abierto) => {
             if (!abierto) setDialogoEliminar(null);
           }}
           titulo="Eliminar política de cancelación"
           descripcion="Esta acción no se puede deshacer. La política será eliminada permanentemente."
           textoConfirmar="Eliminar"
-          variante="destructive"
-          loading={mutationEliminar.isPending}
-          motivo={undefined}
+          destructivo
+          cargando={mutationEliminar.isPending}
           onConfirmar={() => {
             if (dialogoEliminar) handleEliminar(dialogoEliminar);
           }}

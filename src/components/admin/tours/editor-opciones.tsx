@@ -31,7 +31,12 @@ function valorDesdeEtiqueta(etiqueta: string): string {
  * Cada opción puede llevar un **cupo propio** (RF-3.5): el cliente solo ve
  * «Agotado», el admin ve el número.
  */
-export function EditorOpciones({ opciones, onChange, conPrecio = false, className }: EditorOpcionesProps) {
+export function EditorOpciones({
+  opciones,
+  onChange,
+  conPrecio = false,
+  className,
+}: EditorOpcionesProps) {
   const actualizar = (indice: number, cambios: Partial<OpcionCampo>) => {
     onChange(opciones.map((opcion, i) => (i === indice ? { ...opcion, ...cambios } : opcion)));
   };

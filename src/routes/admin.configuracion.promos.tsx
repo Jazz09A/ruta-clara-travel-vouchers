@@ -1,6 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowLeft, Tag, Plus, Pencil, Trash2, Percent, DollarSign, Calendar, Users } from "lucide-react";
+import {
+  ArrowLeft,
+  Tag,
+  Plus,
+  Pencil,
+  Trash2,
+  Percent,
+  DollarSign,
+  Calendar,
+  Users,
+} from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { Campo } from "@/components/admin/Campo";
 import { BotonCargar } from "@/components/admin/BotonCargar";
@@ -10,7 +20,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { CodigoPromocional } from "@/lib/domain/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DialogoConfirmacion } from "@/components/core/DialogoConfirmacion";
+import { DialogoConfirmacion } from "@/components/admin/DialogoConfirmacion";
 import { formatRelative } from "@/lib/format";
 
 export const Route = createFileRoute("/admin/configuracion/promos")({
@@ -76,7 +86,7 @@ function CodigosPromocionales() {
       vigente_desde: formData.get("vigente_desde") as string,
       vigente_hasta: formData.get("vigente_hasta") as string,
       usos_max: parseInt(formData.get("usos_max") as string, 10),
-      tour_id: formData.get("tour_id") as string || undefined,
+      tour_id: (formData.get("tour_id") as string) || undefined,
       activo: formData.get("activo") === "true",
     };
 
@@ -98,7 +108,11 @@ function CodigosPromocionales() {
   return (
     <AdminShell
       titulo="Códigos promocionales"
-      breadcrumb={[{ label: "Panel", to: "/admin" }, { label: "Configuración", to: "/admin/configuracion" }, { label: "Códigos promocionales" }]}
+      breadcrumb={[
+        { label: "Panel", to: "/admin" },
+        { label: "Configuración", to: "/admin/configuracion" },
+        { label: "Códigos promocionales" },
+      ]}
     >
       <div className="mx-auto w-full max-w-4xl">
         <Link
@@ -116,17 +130,20 @@ function CodigosPromocionales() {
           <Button
             type="button"
             className="min-h-11 w-full sm:w-auto"
-            onClick={() => setEditando({
-              id: "",
-              codigo: "",
-              tipo: "porcentaje",
-              valor: 10,
-              vigente_desde: new Date().toISOString().split("T")[0],
-              vigente_hasta: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-              usos_max: 100,
-              usos: 0,
-              activo: true,
-            })}
+            onClick={() =>
+              setEditando({
+                id: "",
+                codigo: "",
+                tipo: "porcentaje",
+                valor: 10,
+                vigente_desde: new Date().toISOString().split("T")[0] ?? "",
+                vigente_hasta:
+                  new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0] ?? "",
+                usos_max: 100,
+                usos: 0,
+                activo: true,
+              })
+            }
           >
             <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
             Nuevo código
@@ -161,17 +178,15 @@ function CodigosPromocionales() {
                         <Tag className="h-5 w-5" aria-hidden="true" />
                       </span>
                       <div>
-                        <h3 className="text-lg font-bold text-foreground uppercase">{promo.codigo}</h3>
+                        <h3 className="text-lg font-bold text-foreground uppercase">
+                          {promo.codigo}
+                        </h3>
                         <div className="mt-1 flex flex-wrap gap-2">
                           <Badge variant={promo.activo ? "default" : "secondary"}>
                             {promo.activo ? "Activo" : "Inactivo"}
                           </Badge>
-                          {esExpirado(promo) && (
-                            <Badge variant="destructive">Expirado</Badge>
-                          )}
-                          <Badge variant="outline">
-                            {promo.tipo === "porcentaje" ? "%" : "$"}
-                          </Badge>
+                          {esExpirado(promo) && <Badge variant="destructive">Expirado</Badge>}
+                          <Badge variant="outline">{promo.tipo === "porcentaje" ? "%" : "$"}</Badge>
                         </div>
                       </div>
                     </div>
@@ -181,7 +196,10 @@ function CodigosPromocionales() {
                         {promo.tipo === "porcentaje" ? (
                           <Percent className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                         ) : (
-                          <DollarSign className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                          <DollarSign
+                            className="h-4 w-4 text-muted-foreground"
+                            aria-hidden="true"
+                          />
                         )}
                         <div>
                           <p className="text-xs text-muted-foreground">Descuento</p>
@@ -214,9 +232,7 @@ function CodigosPromocionales() {
                       {promo.tour_id && (
                         <div>
                           <p className="text-xs text-muted-foreground">Tour específico</p>
-                          <p className="text-sm font-semibold text-foreground">
-                            {promo.tour_id}
-                          </p>
+                          <p className="text-sm font-semibold text-foreground">{promo.tour_id}</p>
                         </div>
                       )}
                     </div>
@@ -249,16 +265,15 @@ function CodigosPromocionales() {
         {/* Modal de edición */}
         {editando && (
           <DialogoConfirmacion
-            open={!!editando}
-            onOpenChange={(abierto) => {
+            abierto={!!editando}
+            onAbiertoCambia={(abierto) => {
               if (!abierto) setEditando(null);
             }}
             titulo={editando.id ? "Editar código promocional" : "Nuevo código promocional"}
             descripcion="Configura los detalles del descuento"
             textoConfirmar="Guardar"
-            variante="default"
-            loading={mutationGuardar.isPending}
-            motivo={undefined}
+            onConfirmar={() => setEditando(null)}
+            cargando={mutationGuardar.isPending}
           >
             <form onSubmit={handleGuardar} className="space-y-4">
               <Campo
@@ -290,7 +305,11 @@ function CodigosPromocionales() {
                 min="0"
                 step={editando.tipo === "porcentaje" ? "1" : "0.01"}
                 required
-                ayuda={editando.tipo === "porcentaje" ? "Porcentaje de descuento (0-100)" : "Monto en USD"}
+                ayuda={
+                  editando.tipo === "porcentaje"
+                    ? "Porcentaje de descuento (0-100)"
+                    : "Monto en USD"
+                }
               />
 
               <Campo
@@ -340,11 +359,7 @@ function CodigosPromocionales() {
               </Campo>
 
               <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setEditando(null)}
-                >
+                <Button type="button" variant="outline" onClick={() => setEditando(null)}>
                   Cancelar
                 </Button>
                 <BotonCargar
@@ -361,16 +376,15 @@ function CodigosPromocionales() {
 
         {/* Diálogo de eliminación */}
         <DialogoConfirmacion
-          open={!!dialogoEliminar}
-          onOpenChange={(abierto) => {
+          abierto={!!dialogoEliminar}
+          onAbiertoCambia={(abierto) => {
             if (!abierto) setDialogoEliminar(null);
           }}
           titulo="Desactivar código promocional"
           descripcion="El código dejará de estar disponible para nuevos clientes, pero los usos existentes se mantienen."
           textoConfirmar="Desactivar"
-          variante="destructive"
-          loading={mutationEliminar.isPending}
-          motivo={undefined}
+          destructivo
+          cargando={mutationEliminar.isPending}
           onConfirmar={() => {
             if (dialogoEliminar) handleEliminar(dialogoEliminar);
           }}

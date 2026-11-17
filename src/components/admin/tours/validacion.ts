@@ -69,7 +69,10 @@ export function validarDefinicion(campos: CampoDef[]): ProblemaCampo[] {
       });
     }
 
-    if ((campo.tipo === "select" || campo.tipo === "multiselect") && (campo.opciones?.length ?? 0) === 0) {
+    if (
+      (campo.tipo === "select" || campo.tipo === "multiselect") &&
+      (campo.opciones?.length ?? 0) === 0
+    ) {
       problemas.push({
         campo: campo.id,
         mensaje: "Agrega al menos una opción.",

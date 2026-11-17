@@ -10,7 +10,9 @@ const TZ_AGENCIA = "America/Caracas";
 /** Convierte "12.50" | "12,50" | 12.5 a un decimal en string canónico. */
 export function toDecimalString(value: string | number | null | undefined): string {
   if (value === null || value === undefined || value === "") return "0.00";
-  const normalizado = String(value).replace(",", ".").replace(/[^0-9.-]/g, "");
+  const normalizado = String(value)
+    .replace(",", ".")
+    .replace(/[^0-9.-]/g, "");
   const n = Number.parseFloat(normalizado);
   if (Number.isNaN(n)) return "0.00";
   return n.toFixed(2);

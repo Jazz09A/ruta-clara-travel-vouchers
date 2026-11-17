@@ -100,6 +100,14 @@ function ConstructorFormulario() {
   const [categoria, setCategoria] = React.useState<Categoria>("Adulto");
   const [pasajeros, setPasajeros] = React.useState(1);
 
+  // Comparación de versiones publicadas (pestaña «Versiones»).
+  const [versionComparadaA, setVersionComparadaA] = React.useState("");
+  const [versionComparadaB, setVersionComparadaB] = React.useState("");
+
+  // Publicación de la versión.
+  const [publicarAbierto, setPublicarAbierto] = React.useState(false);
+  const [confirmoAdvertencias, setConfirmoAdvertencias] = React.useState(false);
+
   const {
     estado: estadoGuardado,
     marcarGuardando,
@@ -128,6 +136,17 @@ function ConstructorFormulario() {
   const comidasDeshabilitadas = configDatos?.config.comidas_deshabilitadas ?? true;
 
   const formulario: Formulario | null = data?.formulario ?? null;
+
+  /** Historial de versiones del formulario (el servidor las devuelve). */
+  const versiones: Formulario[] = React.useMemo(() => data?.versiones ?? [], [data?.versiones]);
+
+  /** Diferencias entre las dos versiones elegidas. */
+  const comparacion = React.useMemo(() => {
+    const a = versiones.find((v) => String(v.version) === versionComparadaA);
+    const b = versiones.find((v) => String(v.version) === versionComparadaB);
+    if (!a || !b) return null;
+    return compararVersiones(a.definicion.campos ?? [], b.definicion.campos ?? []);
+  }, [versiones, versionComparadaA, versionComparadaB]);
 
   React.useEffect(() => {
     if (!data || preparado) return;
@@ -167,6 +186,26 @@ function ConstructorFormulario() {
   }, [campos, preparado, modo]);
 
   const campoSeleccionado = campos.find((campo) => campo.id === seleccionado) ?? null;
+
+  /** Versión publicada vigente (la que ve el cliente). */
+  const publicada = versiones.find((version) => version.estado === "publicada") ?? null;
+  /** Número de la versión que se publicaría (borrador o la siguiente). */
+  const versionBorrador =
+    versiones.find((version) => version.estado === "borrador")?.version ??
+    (publicada?.version ?? 0) + 1;
+
+  const publicar = useMutation({
+    mutationFn: () => api.admin.publicarFormulario(id),
+    onSuccess: () => {
+      setPublicarAbierto(false);
+      setConfirmoAdvertencias(false);
+      setMensaje("Publicamos la versión del formulario.");
+      void refetch();
+    },
+    onError: (fallo) => {
+      setProblema(fallo instanceof Error ? fallo.message : "No pudimos publicar el formulario.");
+    },
+  });
 
   /**
    * La vista previa muestra el formulario tal como lo verá el cliente: sin la
@@ -246,21 +285,34 @@ function ConstructorFormulario() {
       ]}
       acciones={
         puedeEditar ? (
-          <Button
-            type="button"
-            variant="outline"
-            className="min-h-11"
-            onClick={() => {
-              if (bloqueantes.length > 0) {
-                setProblema("Corrige los errores bloqueantes antes de continuar.");
-                return;
-              }
-              setMensaje("Formulario guardado correctamente.");
-            }}
-          >
-            <Save aria-hidden="true" />
-            Guardar
-          </Button>
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11"
+              onClick={() => {
+                if (bloqueantes.length > 0) {
+                  setProblema("Corrige los errores bloqueantes antes de continuar.");
+                  return;
+                }
+                setMensaje("Formulario guardado correctamente.");
+              }}
+            >
+              <Save aria-hidden="true" />
+              Guardar
+            </Button>
+            <Button
+              type="button"
+              className="min-h-11"
+              onClick={() => {
+                setConfirmoAdvertencias(false);
+                setPublicarAbierto(true);
+              }}
+            >
+              <Rocket aria-hidden="true" />
+              Publicar
+            </Button>
+          </>
         ) : undefined
       }
     >
@@ -551,7 +603,7 @@ function ConstructorFormulario() {
                       <tr key={version.id} className="border-b last:border-0">
                         <td className="px-3 py-2 font-semibold">{version.version}</td>
                         <td className="px-3 py-2">
-                          <EstadoBadge estado={version.estado} />
+                          <EstadoBadge estado={version.estado ?? "borrador"} />
                         </td>
                         <td className="px-3 py-2">
                           {version.publicada_en

@@ -25,8 +25,11 @@ import {
 import type {
   Auditoria,
   CampoDef,
+  CategoriasPrecio,
   Configuracion,
   DashboardData,
+  DocumentoPunto,
+  DocumentoTour,
   EstadoReserva,
   FechaTour,
   Formulario,
@@ -36,6 +39,7 @@ import type {
   Pasajero,
   PlantillaMensaje,
   PoliticaCancelacion,
+  RequisitoTour,
   Respuesta,
   Reserva,
   TasaCambio,
@@ -530,6 +534,60 @@ const admin = {
   guardarFormulario: (tour_id: string, body: { definicion: { campos: CampoDef[] } }) =>
     peticion(`/adminfx/tours/${tour_id}/formulario`, { metodo: "POST", admin: true, body }),
 
+  /** Publica la versión del formulario (crea la n+1 y archiva la anterior). */
+  publicarFormulario: (tour_id: string) =>
+    peticion(`/adminfx/tours/${tour_id}/formulario/publicar`, { metodo: "POST", admin: true }),
+
+  // ── documento de tour (el catálogo como contrato) ───────────────────
+
+  /** Documento del tour con la forma de `catalogo-escapate.json`. */
+  documentoTour: (id: string) =>
+    peticion<DocumentoTour>(`/adminfx/tours/${id}/documento`, { admin: true }),
+
+  /** Crea un tour a partir de su documento. */
+  crearDesdeDocumento: (body: Partial<DocumentoTour>) =>
+    peticion("/adminfx/tours/documento", { metodo: "POST", admin: true, body }),
+
+  /** Guarda el documento de un tour existente. */
+  guardarDocumento: (id: string, body: Partial<DocumentoTour>) =>
+    peticion(`/adminfx/tours/${id}/documento`, { metodo: "PUT", admin: true, body }),
+
+  /** Crea varias salidas con sus tarifas (fechas explícitas o recurrentes). */
+  fechasMasivo: (
+    id: string,
+    body: {
+      fechas?: string[];
+      recurrencia?: { dia_semana?: number; desde?: string; hasta?: string } | null;
+      precios?: Partial<Record<CategoriasPrecio, number>> | null;
+      cupos_total?: number | null;
+      hora_salida?: string | null;
+      corte_venta_horas?: number | null;
+      estado?: "borrador" | "publicada";
+      actualizar_precios?: boolean;
+    },
+  ) => peticion(`/adminfx/tours/${id}/fechas-masivo`, { metodo: "POST", admin: true, body }),
+
+  /** Publica el formulario base del tour (punto de salida, almuerzo, alergias). */
+  formularioPlantilla: (id: string) =>
+    peticion(`/adminfx/tours/${id}/formulario/plantilla`, { metodo: "POST", admin: true }),
+
+  /** Horarios de recogida de los puntos de este tour. */
+  guardarPuntos: (id: string, puntos: DocumentoPunto[]) =>
+    peticion(`/adminfx/tours/${id}/puntos-abordaje`, {
+      metodo: "PUT",
+      admin: true,
+      body: { puntos },
+    }),
+
+  /** Requisitos de activación: los calcula el servidor. */
+  requisitosTour: (id: string) =>
+    peticion<{ ok: boolean; requisitos: RequisitoTour[] }>(`/adminfx/tours/${id}/requisitos`, {
+      admin: true,
+    }),
+
+  /** Exporta todo el catálogo con la forma del JSON de referencia. */
+  exportarCatalogo: () => peticion("/adminfx/catalogo/documento", { admin: true }),
+
   // ── salidas ────────────────────────────────────────────────────────
   salidas: (params?: { mes?: string; tour_id?: string }) =>
     peticion(
@@ -572,7 +630,7 @@ const admin = {
   registrarTasa: (body: { valor: string }) =>
     peticion("/adminfx/tasas", { metodo: "POST", admin: true, body }),
 
-  guardarMetodoPago: (body: Partial<MetodoPago> & { id?: string }) =>
+  guardarMetodoPago: (body: Omit<Partial<MetodoPago>, "id"> & { id?: string }) =>
     peticion("/adminfx/metodos-pago", { metodo: "POST", admin: true, body }),
 
   publicarTerminos: (body: { titulo: string; cuerpo: string }) =>

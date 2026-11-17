@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import {
   CalendarDays,
+  CalendarRange,
   ChevronDown,
   CircleCheck,
   Clock,
@@ -79,6 +80,20 @@ function agruparDias(incluye: string[]): { dia: string | null; texto: string }[]
   const fechaSalida = fecha?.fecha_salida;
   const horaSalida = fecha?.hora_salida;
   const puntoAbordaje = tour?.puntos_abordaje?.[0];
+  /** "3 días / 2 noches" (la duración es dato del tour). */
+  const duracionTexto =
+    tour?.duracion_dias || tour?.duracion_noches
+      ? [
+          tour.duracion_dias
+            ? `${tour.duracion_dias} día${tour.duracion_dias === 1 ? "" : "s"}`
+            : null,
+          tour.duracion_noches
+            ? `${tour.duracion_noches} noche${tour.duracion_noches === 1 ? "" : "s"}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" / ")
+      : null;
 
   const faltaAceptar = !aceptado;
 
@@ -119,7 +134,22 @@ function agruparDias(incluye: string[]): { dia: string | null; texto: string }[]
             <div className="flex items-center gap-2">
               <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
               <dt className="sr-only">Punto de abordaje</dt>
-              <dd className="font-semibold text-foreground">{puntoAbordaje.nombre}</dd>
+              <dd className="font-semibold text-foreground">
+                {puntoAbordaje.nombre}
+                {puntoAbordaje.confirmar_hora ? (
+                  <span className="font-normal text-muted-foreground"> (por confirmar)</span>
+                ) : null}
+              </dd>
+            </div>
+          ) : null}
+          {duracionTexto ? (
+            <div className="flex items-center gap-2">
+              <CalendarRange
+                className="h-4 w-4 shrink-0 text-muted-foreground"
+                aria-hidden="true"
+              />
+              <dt className="sr-only">Duración del viaje</dt>
+              <dd className="font-semibold text-foreground">{duracionTexto}</dd>
             </div>
           ) : null}
         </dl>
@@ -129,11 +159,13 @@ function agruparDias(incluye: string[]): { dia: string | null; texto: string }[]
       {tour && tour.itinerario.length > 0 ? (
         <SeccionDesplegable titulo="Itinerario del día" icono={<ListOrdered className="h-4 w-4" />}>
           <ol className="flex flex-col gap-3">
-            {tour.itinerario.map((bloque) => (
-              <li key={`${bloque.hora}-${bloque.titulo}`} className="flex gap-3">
-                <span className="w-14 shrink-0 text-xs font-bold tabular-nums text-muted-foreground">
-                  {bloque.hora}
-                </span>
+            {tour.itinerario.map((bloque, indice) => (
+              <li key={`${bloque.hora ?? ""}-${bloque.titulo}-${indice}`} className="flex gap-3">
+                {bloque.hora ? (
+                  <span className="w-14 shrink-0 text-xs font-bold tabular-nums text-muted-foreground">
+                    {bloque.hora}
+                  </span>
+                ) : null}
                 <span className="min-w-0">
                   <span className="block text-sm font-semibold text-foreground">
                     {bloque.titulo}

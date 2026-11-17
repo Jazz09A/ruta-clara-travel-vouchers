@@ -1,6 +1,6 @@
 import { CircleCheckBig, TriangleAlert } from "lucide-react";
 
-import { PanelRequisitos, calcularRequisitos } from "@/components/admin/tours/panel-requisitos";
+import { PanelRequisitos } from "@/components/admin/tours/panel-requisitos";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -10,13 +10,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { Tour } from "@/lib/domain/types";
+import type { RequisitoTour, Tour } from "@/lib/domain/types";
 
 export interface DialogoActivarProps {
   abierto: boolean;
   onAbiertoChange: (abierto: boolean) => void;
   /** Tour que se quiere activar (null si no hay ninguno). */
   tour: Tour | null;
+  /** Requisitos que calcula el servidor. */
+  requisitos: RequisitoTour[];
+  /** `true` mientras se consultan los requisitos. */
+  cargandoRequisitos?: boolean;
   /** Bloqueos devueltos por el servidor (explican por qué no se pudo activar). */
   bloqueos: string[];
   /** `true` mientras se ejecuta la activación. */
@@ -28,18 +32,20 @@ export interface DialogoActivarProps {
  * Diálogo de activación de un tour (Spec 9.9).
  *
  * Muestra la **lista de requisitos** pendientes (política de cancelación,
- * términos publicados). Si el servidor devuelve bloqueos, se explican aquí
- * y la activación no se da por hecha.
+ * términos publicados, formulario publicado, salidas con tarifas). Si el
+ * servidor devuelve bloqueos, se explican aquí y la activación no se da por
+ * hecha.
  */
 export function DialogoActivar({
   abierto,
   onAbiertoChange,
   tour,
+  requisitos,
+  cargandoRequisitos = false,
   bloqueos,
   activando,
   onConfirmar,
 }: DialogoActivarProps) {
-  const requisitos = tour ? calcularRequisitos(tour) : [];
   const pendientes = requisitos.filter((requisito) => !requisito.ok);
   const listo = requisitos.length > 0 && pendientes.length === 0;
 
@@ -47,14 +53,16 @@ export function DialogoActivar({
     <Dialog open={abierto} onOpenChange={onAbiertoChange}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-base font-bold">Activar {tour?.nombre ?? "tour"}</DialogTitle>
+          <DialogTitle className="text-base font-bold">
+            Activar {tour?.nombre ?? "tour"}
+          </DialogTitle>
           <DialogDescription>
             Un tour activo aparece en el catálogo público y puede recibir reservas. Revisa los
             requisitos antes de continuar.
           </DialogDescription>
         </DialogHeader>
 
-        <PanelRequisitos requisitos={requisitos} />
+        <PanelRequisitos requisitos={requisitos} cargando={cargandoRequisitos} />
 
         {bloqueos.length > 0 ? (
           <ul className="space-y-2" aria-live="assertive">
@@ -90,7 +98,7 @@ export function DialogoActivar({
           <Button
             type="button"
             onClick={onConfirmar}
-            disabled={!listo || bloqueos.length > 0 || activando}
+            disabled={!listo || bloqueos.length > 0 || activando || cargandoRequisitos}
             aria-busy={activando || undefined}
             className="min-h-11"
           >

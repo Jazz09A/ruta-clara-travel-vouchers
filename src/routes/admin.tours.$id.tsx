@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarPlus, ListChecks, Save, Settings2, Plus, Trash2, Edit } from "lucide-react";
 
 import { DialogoActivar } from "@/components/admin/tours/dialogo-activar";
+import { useRequisitosTour } from "@/components/admin/tours/use-requisitos";
 import { DialogoFecha } from "@/components/admin/tours/dialogo-fecha";
 import { DialogoTarifa } from "@/components/admin/tours/dialogo-tarifa";
 import { ContadorCupos } from "@/components/admin/tours/contador-cupos";
@@ -27,7 +28,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ETIQUETA_TIPO_TOUR, formatDate, formatTime, formatUsd } from "@/lib/format";
-import type { FechaTour, Tarifa, Tour } from "@/lib/domain/types";
+import type { DocumentoPunto, FechaTour, Tarifa, Tour } from "@/lib/domain/types";
 import { api } from "@/lib/api";
 
 export const Route = createFileRoute("/admin/tours/$id")({
@@ -66,6 +67,16 @@ function FichaTour() {
     enabled: puedeVer,
   });
 
+  // Los requisitos de activación los calcula el servidor.
+  const requisitos = useRequisitosTour(id);
+
+  const { data: todosTours } = useQuery({
+    queryKey: ["admin", "tours"],
+    queryFn: () => api.admin.tours(),
+    enabled: puedeVer,
+    staleTime: 60_000,
+  });
+
   const { data: configuracion } = useQuery({
     queryKey: ["admin", "configuracion"],
     queryFn: () => api.admin.configuracion(),
@@ -90,6 +101,17 @@ function FichaTour() {
     },
     onError: (fallo) => {
       setProblema(fallo instanceof Error ? fallo.message : "No pudimos guardar el tour.");
+    },
+  });
+
+  // El horario de recogida es **por tour**: se guarda aparte del resto.
+  const guardarPuntos = useMutation({
+    mutationFn: (puntos: DocumentoPunto[]) => api.admin.guardarPuntos(id, puntos),
+    onSuccess: async () => {
+      await refrescar();
+    },
+    onError: (fallo) => {
+      setProblema(fallo instanceof Error ? fallo.message : "No pudimos guardar los puntos.");
     },
   });
 
@@ -185,6 +207,15 @@ function FichaTour() {
       setProblema(fallo instanceof Error ? fallo.message : "No pudimos cerrar la salida.");
     },
   });
+
+  // Familias ya usadas en el catálogo (sugerencias del editor).
+  const familias = React.useMemo(() => {
+    const set = new Set<string>();
+    for (const otro of todosTours ?? []) {
+      if (otro.familia) set.add(otro.familia);
+    }
+    return [...set].sort((a, b) => a.localeCompare(b, "es"));
+  }, [todosTours]);
 
   const tour = data?.tour ?? borrador;
   const fechas = data?.fechas ?? [];
@@ -334,6 +365,9 @@ function FichaTour() {
                 politicas={configuracion?.politicas ?? []}
                 terminos={configuracion?.terminos ?? []}
                 puedeEditar={puedeEditar}
+                familias={familias}
+                guardandoPuntos={guardarPuntos.isPending}
+                onGuardarPuntos={(puntos) => guardarPuntos.mutate(puntos)}
               />
             </Seccion>
           </TabsContent>
@@ -536,6 +570,8 @@ function FichaTour() {
           }
         }}
         tour={tourActivar}
+        requisitos={requisitos.data?.requisitos ?? []}
+        cargandoRequisitos={requisitos.isPending}
         bloqueos={bloqueos}
         activando={activar.isPending}
         onConfirmar={() => {

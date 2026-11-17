@@ -34,6 +34,7 @@ import type {
   CampoDef,
   CodigoError,
   Categoria,
+  CategoriasPrecio,
   Configuracion,
   DetalleError,
   EstadoReserva,
@@ -72,6 +73,53 @@ import type { SeedData } from "./seed";
 // ---------------------------------------------------------------------------
 // Utilidades internas
 // ---------------------------------------------------------------------------
+
+/** Slug estable (misma clave que usa el catálogo). */
+function slugify(texto: string): string {
+  return String(texto ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
+
+/** Categoría del frontend → clave del catálogo ( → ). */
+function categoriaABe(categoria: string): CategoriasPrecio {
+  return (
+    (
+      {
+        Adulto: "adulto",
+        Niño: "nino",
+        "Tercera Edad": "tercera_edad",
+        Infante: "infante",
+      } as Record<string, CategoriasPrecio>
+    )[categoria] ?? "adulto"
+  );
+}
+
+/** Clave del catálogo → categoría del frontend (`adulto` → `Adulto`). */
+function categoriaAFe(clave: string): Categoria {
+  return (
+    (
+      {
+        adulto: "Adulto",
+        nino: "Niño",
+        tercera_edad: "Tercera Edad",
+        infante: "Infante",
+      } as Record<string, Categoria>
+    )[clave] ?? "Adulto"
+  );
+}
+
+/** Rangos de edad por categoría (los mismos del catálogo). */
+const RANGOS_EDAD: Record<CategoriasPrecio, { min: number; max: number }> = {
+  adulto: { min: 18, max: 120 },
+  nino: { min: 5, max: 11 },
+  tercera_edad: { min: 61, max: 120 },
+  infante: { min: 0, max: 4 },
+};
 
 const IDEMPORALIDAD = new Map<string, unknown>();
 
@@ -2581,6 +2629,339 @@ const admin: ApiSurface["admin"] = {
     return { ok: bloqueos.length === 0, bloqueos };
   },
 
+  // ── documento de tour (el catálogo como contrato) ───────────────────
+
+  async documentoTour(id) {
+    const datos = db();
+    const tour = datos.tours.find((t) => t.id === id);
+    if (!tour) throw err(404, "NO_ENCONTRADO", "No encontramos ese tour.");
+    const fechas = datos.fechas
+      .filter((f) => f.tour_id === id)
+      .sort((a, b) => a.fecha_salida.localeCompare(b.fecha_salida));
+    const politica = datos.politicas.find((p) => p.id === tour.politica_cancelacion_id);
+    const terminos = datos.terminos.find((t) => t.id === tour.terminos_version_id);
+    const primera = fechas[0];
+    const tarifas = primera ? datos.tarifas.filter((t) => t.fecha_tour_id === primera.id) : [];
+    const precios: Partial<Record<CategoriasPrecio, number>> = {};
+    for (const t of tarifas) precios[categoriaABe(t.categoria)] = Number(t.precio_usd);
+    return {
+      clave: tour.clave ?? slugify(tour.nombre),
+      nombre: tour.nombre,
+      tipo: tour.tipo,
+      duracion: { dias: tour.duracion_dias ?? null, noches: tour.duracion_noches ?? null },
+      familia: tour.familia ?? null,
+      politica: politica?.clave ?? null,
+      terminos: terminos?.clave ?? null,
+      hora_salida: tour.hora_salida ?? null,
+      reserva_usd: tour.reserva_usd ?? null,
+      cupos: tour.cupos ?? null,
+      descripcion: tour.descripcion ?? null,
+      puntos: tour.puntos_abordaje.map((p) => ({
+        clave: p.clave ?? p.id,
+        hora: p.hora,
+        confirmar_hora: p.confirmar_hora === true,
+      })),
+      precios,
+      fechas: fechas.map((f) => f.fecha_salida),
+      incluye: tour.incluye,
+      no_incluye: tour.no_incluye,
+      itinerario: tour.itinerario,
+      notas: tour.notas ?? [],
+    };
+  },
+
+  async crearDesdeDocumento(body) {
+    const datos = db();
+    const nuevo = await api.admin.guardarTour(null, {
+      nombre: body.nombre ?? "Tour sin nombre",
+      tipo: body.tipo ?? "full_day",
+      descripcion: body.descripcion ?? "",
+      itinerario: (body.itinerario ?? []).map((b) => ({
+        hora: b.hora ?? "",
+        titulo: b.titulo,
+        detalle: b.detalle,
+      })),
+      incluye: body.incluye ?? [],
+      no_incluye: body.no_incluye ?? [],
+      notas: body.notas ?? [],
+    });
+    await api.admin.guardarDocumento(nuevo.id, body);
+    return { tour: nuevo, documento: await api.admin.documentoTour(nuevo.id) };
+  },
+
+  async guardarDocumento(id, body) {
+    const datos = db();
+    const i = datos.tours.findIndex((t) => t.id === id);
+    if (i < 0) throw err(404, "NO_ENCONTRADO", "No encontramos ese tour.");
+    const tour = datos.tours[i];
+    if (!tour) throw err(404, "NO_ENCONTRADO", "No encontramos ese tour.");
+    tour.nombre = body.nombre ?? tour.nombre;
+    tour.tipo = body.tipo ?? tour.tipo;
+    tour.clave = body.clave ?? slugify(tour.nombre);
+    tour.familia = body.familia ?? undefined;
+    tour.duracion_dias = body.duracion?.dias ?? null;
+    tour.duracion_noches = body.duracion?.noches ?? null;
+    tour.hora_salida = body.hora_salida ?? undefined;
+    tour.cupos = body.cupos ?? null;
+    tour.reserva_usd = body.reserva_usd ?? null;
+    tour.descripcion = body.descripcion ?? "";
+    tour.itinerario = (body.itinerario ?? []).map((b) => ({
+      hora: b.hora ?? "",
+      titulo: b.titulo,
+      detalle: b.detalle,
+    }));
+    tour.incluye = body.incluye ?? [];
+    tour.no_incluye = body.no_incluye ?? [];
+    tour.notas = body.notas ?? [];
+    if (body.puntos) {
+      tour.puntos_abordaje = body.puntos.map((p) => {
+        const ref = datos.puntos_salida.find((x) => x.clave === p.clave);
+        const esCaracas = (ref?.ciudad ?? "").toLowerCase().includes("caracas");
+        return {
+          id: p.clave,
+          clave: p.clave,
+          nombre: ref?.nombre ?? p.clave,
+          hora: p.hora,
+          referencia_ubicacion: ref?.referencia ?? "",
+          confirmar_hora: p.confirmar_hora === true || esCaracas,
+        };
+      });
+    }
+    if (body.politica) {
+      const pol = datos.politicas.find((p) => p.clave === body.politica);
+      if (pol) tour.politica_cancelacion_id = pol.id;
+    }
+    if (body.terminos) {
+      const term = datos.terminos.find((t) => t.clave === body.terminos);
+      if (term) tour.terminos_version_id = term.id;
+    }
+    return { tour, documento: await api.admin.documentoTour(id) };
+  },
+
+  async fechasMasivo(id, body) {
+    const datos = db();
+    const tour = datos.tours.find((t) => t.id === id);
+    if (!tour) throw err(404, "NO_ENCONTRADO", "No encontramos ese tour.");
+
+    const lista = new Set<string>();
+    for (const f of body.fechas ?? []) {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(f)) lista.add(f);
+    }
+    const rec = body.recurrencia;
+    if (rec?.desde && rec?.hasta) {
+      const dia = rec.dia_semana ?? 5;
+      const desde = new Date(`${rec.desde}T00:00:00Z`);
+      const hasta = new Date(`${rec.hasta}T00:00:00Z`);
+      if (!Number.isNaN(desde.getTime()) && !Number.isNaN(hasta.getTime()) && hasta >= desde) {
+        const cursor = new Date(desde);
+        while (cursor.getUTCDay() !== dia) cursor.setUTCDate(cursor.getUTCDate() - 1);
+        while (cursor <= hasta) {
+          lista.add(cursor.toISOString().slice(0, 10));
+          cursor.setUTCDate(cursor.getUTCDate() + 7);
+        }
+      }
+    }
+
+    const precios = body.precios ?? {};
+    const hora = body.hora_salida ?? tour.hora_salida ?? "08:00";
+    const cupos = body.cupos_total ?? tour.cupos ?? 20;
+    const corte = body.corte_venta_horas ?? 12;
+    const estado = body.estado ?? "publicada";
+    let creadas = 0;
+    let actualizadas = 0;
+    let tarifasCreadas = 0;
+
+    for (const fecha of [...lista].sort()) {
+      let existente = datos.fechas.find((f) => f.tour_id === id && f.fecha_salida === fecha);
+      if (!existente) {
+        existente = {
+          id: `fec_${Math.random().toString(36).slice(2, 8)}`,
+          tour_id: id,
+          fecha_salida: fecha,
+          hora_salida: hora,
+          cupos_total: cupos,
+          cupos_retenidos: 0,
+          cupos_vendidos: 0,
+          estado,
+          corte_venta_horas: corte,
+          opciones_cupo: [],
+        };
+        datos.fechas.push(existente);
+        creadas += 1;
+      } else {
+        existente.hora_salida = hora;
+        existente.cupos_total = cupos;
+        existente.corte_venta_horas = corte;
+        existente.estado = estado;
+        actualizadas += 1;
+      }
+      for (const [categoria, valor] of Object.entries(precios)) {
+        if (valor === undefined || valor === null) continue;
+        const precio = categoria === "infante" ? "0.00" : Number(valor).toFixed(2);
+        const tarifa = datos.tarifas.find(
+          (t) => t.fecha_tour_id === existente!.id && t.categoria === categoriaAFe(categoria),
+        );
+        if (!tarifa) {
+          const rango = RANGOS_EDAD[categoria as CategoriasPrecio] ?? { min: 0, max: 120 };
+          datos.tarifas.push({
+            id: `tar_${existente.id}_${categoria}`,
+            fecha_tour_id: existente.id,
+            categoria: categoriaAFe(categoria),
+            edad_min: rango.min,
+            edad_max: rango.max,
+            precio_usd: precio,
+          });
+          tarifasCreadas += 1;
+        } else if (body.actualizar_precios) {
+          tarifa.precio_usd = precio;
+        }
+      }
+    }
+
+    return {
+      fechas: datos.fechas.filter((f) => f.tour_id === id),
+      creadas,
+      actualizadas,
+      tarifas_creadas: tarifasCreadas,
+    };
+  },
+
+  async formularioPlantilla(id) {
+    const datos = db();
+    const tour = datos.tours.find((t) => t.id === id);
+    if (!tour) throw err(404, "NO_ENCONTRADO", "No encontramos ese tour.");
+    const existente = datos.formularios.find((f) => f.tour_id === id);
+    if (existente) return { ya_publicada: true, version: 1 };
+    const opciones = datos.puntos_salida
+      .filter((p) => p.activo && p.seleccionable !== false)
+      .map((p) => ({ valor: p.clave, label: p.nombre }));
+    const campos: CampoDef[] = [
+      {
+        id: "punto_abordaje",
+        label: "Punto de salida",
+        ayuda: "Elige dónde subes al bus.",
+        tipo: "select",
+        alcance: "por_reserva",
+        permite_por_pasajero: true,
+        obligatorio: true,
+        opciones,
+      },
+    ];
+    datos.formularios.push({
+      id: `form_${id}`,
+      tour_id: id,
+      definicion: { campos },
+      actualizado_en: ahoraIso(),
+    });
+    return { ya_publicada: false, version: 1 };
+  },
+
+  async guardarPuntos(id, puntos) {
+    const datos = db();
+    const tour = datos.tours.find((t) => t.id === id);
+    if (!tour) throw err(404, "NO_ENCONTRADO", "No encontramos ese tour.");
+    tour.puntos_abordaje = puntos.map((p) => {
+      const ref = datos.puntos_salida.find((x) => x.clave === p.clave);
+      const esCaracas = (ref?.ciudad ?? "").toLowerCase().includes("caracas");
+      return {
+        id: p.clave,
+        clave: p.clave,
+        nombre: ref?.nombre ?? p.clave,
+        hora: p.hora,
+        referencia_ubicacion: ref?.referencia ?? "",
+        confirmar_hora: p.confirmar_hora === true || esCaracas,
+      };
+    });
+    return tour;
+  },
+
+  async requisitosTour(id) {
+    const datos = db();
+    const tour = datos.tours.find((t) => t.id === id);
+    if (!tour) throw err(404, "NO_ENCONTRADO", "No encontramos ese tour.");
+    const fechas = datos.fechas.filter((f) => f.tour_id === id);
+    const publicadas = fechas.filter((f) => f.estado === "publicada");
+    const incompletas = publicadas.filter(
+      (f) => datos.tarifas.filter((t) => t.fecha_tour_id === f.id).length < 4,
+    );
+    const formulario = datos.formularios.find((f) => f.tour_id === id);
+    const requisitos = [
+      {
+        clave: "politica",
+        titulo: "Política de cancelación",
+        ok: Boolean(tour.politica_cancelacion_id),
+        detalle: tour.politica_cancelacion_id
+          ? "El tour ya tiene una política asociada."
+          : "Falta asociar una política de cancelación al tour.",
+      },
+      {
+        clave: "terminos",
+        titulo: "Términos y condiciones",
+        ok: Boolean(tour.terminos_version_id),
+        detalle: tour.terminos_version_id
+          ? "Los términos están publicados y se mostrarán al cliente."
+          : "Falta publicar los términos y condiciones.",
+      },
+      {
+        clave: "formulario",
+        titulo: "Formulario del tour",
+        ok: Boolean(formulario),
+        detalle: formulario
+          ? "El formulario está publicado: el cliente puede responderlo."
+          : "Falta publicar el formulario del tour (punto de salida, almuerzo, alergias…).",
+      },
+      {
+        clave: "puntos",
+        titulo: "Puntos de abordaje",
+        ok: tour.puntos_abordaje.length > 0,
+        detalle:
+          tour.puntos_abordaje.length > 0
+            ? `${tour.puntos_abordaje.length} punto(s) con su horario de recogida.`
+            : "Falta asignar al menos un punto de salida con su hora.",
+      },
+      {
+        clave: "salidas",
+        titulo: "Salidas publicadas",
+        ok: publicadas.length > 0,
+        detalle:
+          publicadas.length > 0
+            ? `${publicadas.length} salida(s) publicada(s).`
+            : "Falta publicar al menos una salida: sin salidas el cliente no puede reservar.",
+      },
+      {
+        clave: "tarifas",
+        titulo: "Tarifas de cada salida",
+        ok: incompletas.length === 0,
+        detalle:
+          incompletas.length === 0
+            ? "Todas las salidas publicadas tienen las cuatro categorías de precio."
+            : `${incompletas.length} salida(s) publicada(s) no tienen las cuatro tarifas.`,
+      },
+    ];
+    return { ok: requisitos.every((r) => r.ok), requisitos };
+  },
+
+  async exportarCatalogo() {
+    const datos = db();
+    const tours = [];
+    for (const tour of datos.tours) {
+      tours.push(await api.admin.documentoTour(tour.id));
+    }
+    return {
+      version: 2,
+      origen: "Panel de reservas · catálogo exportado",
+      politicas: datos.politicas.map((p) => ({ clave: p.clave ?? p.nombre, nombre: p.nombre })),
+      terminos: datos.terminos.map((t) => ({ clave: t.clave ?? t.titulo, nombre: t.titulo })),
+      puntos_salida: datos.puntos_salida.map((p) => ({
+        clave: p.clave,
+        ciudad: p.ciudad ?? undefined,
+        nombre: p.nombre,
+        seleccionable: p.seleccionable,
+      })),
+      tours,
+    };
+  },
+
   async fechas(tour_id) {
     if (!tour_id) return db().fechas;
     return db().fechas.filter((f) => f.tour_id === tour_id);
@@ -2737,6 +3118,13 @@ const admin: ApiSurface["admin"] = {
       return { formulario: null };
     }
     return { formulario };
+  },
+
+  async publicarFormulario(tour_id) {
+    const datos = db();
+    const formulario = datos.formularios.find((f) => f.tour_id === tour_id);
+    if (!formulario) throw err(404, "NO_ENCONTRADO", "Este tour no tiene formulario.");
+    return { version: 1, estado: "publicada" };
   },
 
   async guardarFormulario(tour_id, body) {

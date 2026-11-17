@@ -26,4 +26,10 @@
   archivos por rutas estáticas públicas.
 - Vouchers y exportaciones XLSX se generan async vía `outbox_evento` +
   `JobsService` (tick 60 s en dev).
+- El alta de tours usa el **documento de tour** (la forma de
+  `backend/catalogo-escapate.json`): `backend/src/modules/catalogo/documento.ts`
+  es la lógica compartida entre el panel y el importador por CLI. La hora de
+  recogida es **por tour** (`tour_punto_abordaje`), no la del catálogo global.
+- Los requisitos para activar un tour los calcula el servidor
+  (`GET /adminfx/tours/{id}/requisitos`); el panel sólo los muestra.
 <!-- DEVIN:END -->

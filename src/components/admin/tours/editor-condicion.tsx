@@ -77,8 +77,7 @@ export function EditorCondicion({ campo, campos, onChange, className }: EditorCo
   });
 
   const descartados = campos.filter(
-    (otro) =>
-      otro.id !== campo.id && !candidatos.some((candidato) => candidato.id === otro.id),
+    (otro) => otro.id !== campo.id && !candidatos.some((candidato) => candidato.id === otro.id),
   );
 
   const cambiarDependencia = (idCampo: string) => {
@@ -199,9 +198,7 @@ export function EditorCondicion({ campo, campos, onChange, className }: EditorCo
 
       {dependencia && operador !== "no_vacio" ? (
         <div className="space-y-2 rounded-xl border border-border bg-muted/30 p-3">
-          <p className="text-xs text-muted-foreground">
-            Valor de «{dependencia.label}»:
-          </p>
+          <p className="text-xs text-muted-foreground">Valor de «{dependencia.label}»:</p>
 
           {operador === "en" ? (
             <ul className="space-y-2">
@@ -275,15 +272,17 @@ export function EditorCondicion({ campo, campos, onChange, className }: EditorCo
           <summary className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-muted-foreground">
             <CircleHelp className="h-3.5 w-3.5" aria-hidden="true" />
             {descartados.length}{" "}
-            {descartados.length === 1 ? "campo no puede ser dependencia" : "campos no pueden ser dependencia"}
+            {descartados.length === 1
+              ? "campo no puede ser dependencia"
+              : "campos no pueden ser dependencia"}
           </summary>
           <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
             {descartados.map((otro) => (
               <li key={otro.id} className="flex items-start gap-1.5">
                 <TriangleAlert className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
                 <span>
-                  «{otro.label}» ({ETIQUETA_ALCANCE[otro.alcance]}): se responde en un ámbito distinto
-                  al de este campo o forma un ciclo.
+                  «{otro.label}» ({ETIQUETA_ALCANCE[otro.alcance]}): se responde en un ámbito
+                  distinto al de este campo o forma un ciclo.
                 </span>
               </li>
             ))}

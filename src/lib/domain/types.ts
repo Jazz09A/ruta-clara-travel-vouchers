@@ -119,10 +119,14 @@ export interface BloqueItinerario {
 
 export interface PuntoAbordaje {
   id: string;
+  /** Clave del catálogo global de puntos (`guatire_castillejo`…). */
+  clave?: string;
   nombre: string;
   hora: string;
   referencia_ubicacion?: string | undefined;
   mapa_url?: string | undefined;
+  /** `true` = la hora se confirma después (Caracas: «punto por confirmar»). */
+  confirmar_hora?: boolean | undefined;
 }
 
 /**
@@ -157,7 +161,22 @@ export interface PuntoReferencia {
 export interface Tour {
   id: string;
   nombre: string;
+  /** Clave estable del catálogo (slug). */
+  clave?: string;
   tipo: TipoTour;
+  /** Región o destino (Higuerote, Chuspa, Mérida…). */
+  familia?: string;
+  /** Duración del viaje en días y noches. */
+  duracion_dias?: number | null;
+  duracion_noches?: number | null;
+  /** Hora de salida del tour (las salidas la heredan). */
+  hora_salida?: string;
+  /** Cupos que ofrece el tour por salida. */
+  cupos?: number | null;
+  /** Monto de la reserva por persona que fija el catálogo. */
+  reserva_usd?: number | null;
+  /** Avisos internos del catálogo (no se muestran al cliente). */
+  notas?: string[];
   descripcion: string;
   itinerario: BloqueItinerario[];
   incluye: string[];
@@ -169,6 +188,59 @@ export interface Tour {
   terminos_version_id: string;
   formulario_id: string;
   fecha_creacion: string;
+}
+
+// ---------------------------------------------------------------------------
+// Documento de tour: el catálogo como contrato
+// ---------------------------------------------------------------------------
+
+export interface DocumentoPunto {
+  clave: string;
+  /** Hora de recogida **de este tour**. */
+  hora: string;
+  /** `true` = la hora se confirma después (Caracas). */
+  confirmar_hora?: boolean;
+}
+
+export interface DocumentoItinerario {
+  /** Opcional: el catálogo transcribe la hora dentro del `detalle`. */
+  hora?: string;
+  titulo: string;
+  detalle: string;
+}
+
+export type CategoriasPrecio = "adulto" | "nino" | "tercera_edad" | "infante";
+
+/** Documento con la misma forma que `catalogo-escapate.json`. */
+export interface DocumentoTour {
+  clave: string;
+  nombre: string;
+  tipo: TipoTour;
+  duracion?: { dias?: number | null; noches?: number | null };
+  familia?: string | null;
+  /** Clave de la política de cancelación (Configuración). */
+  politica?: string | null;
+  /** Clave de la plantilla de términos (Configuración). */
+  terminos?: string | null;
+  hora_salida?: string | null;
+  reserva_usd?: number | null;
+  cupos?: number | null;
+  descripcion?: string | null;
+  puntos: DocumentoPunto[];
+  precios: Partial<Record<CategoriasPrecio, number>>;
+  fechas: string[];
+  incluye: string[];
+  no_incluye: string[];
+  itinerario: DocumentoItinerario[];
+  notas: string[];
+}
+
+/** Requisito de activación de un tour (lo calcula el servidor). */
+export interface RequisitoTour {
+  clave: string;
+  titulo: string;
+  detalle: string;
+  ok: boolean;
 }
 
 export type EstadoFecha = "borrador" | "publicada" | "cerrada" | "cancelada";
@@ -276,8 +348,15 @@ export interface FormDefinicion {
 export interface Formulario {
   id: string;
   tour_id: string;
+  /** Número de versión (1, 2, 3…). */
+  version?: number;
+  /** Estado de la versión en el servidor. */
+  estado?: "borrador" | "publicada" | "archivada";
   definicion: FormDefinicion;
   actualizado_en: string;
+  publicada_en?: string | null;
+  autor?: string | null;
+  hash?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -555,6 +634,10 @@ export interface VersionTerminos {
   publicada_en: string;
   activa: boolean;
   hash: string;
+  /** Clave de la plantilla a la que pertenece (`escapate-v1`). */
+  clave?: string | null;
+  /** Id de la plantilla (para asociarla a un tour). */
+  plantilla_id?: string | null;
 }
 
 export interface TramoCancelacion {
@@ -565,6 +648,8 @@ export interface TramoCancelacion {
 
 export interface PoliticaCancelacion {
   id: string;
+  /** Clave estable con la que un tour la referencia (`full_day`). */
+  clave?: string | null;
   nombre: string;
   tramos: TramoCancelacion[];
 }

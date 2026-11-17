@@ -1,6 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowLeft, Users, Plus, Pencil, Shield, CheckCircle2, XCircle, ShieldCheck } from "lucide-react";
+import {
+  ArrowLeft,
+  Users,
+  Plus,
+  Pencil,
+  Shield,
+  CheckCircle2,
+  XCircle,
+  ShieldCheck,
+} from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { Campo } from "@/components/admin/Campo";
 import { BotonCargar } from "@/components/admin/BotonCargar";
@@ -11,7 +20,7 @@ import type { Usuario, Rol, Permiso } from "@/lib/domain/types";
 import { PERMISOS_POR_ROL, tienePermiso } from "@/lib/domain/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DialogoConfirmacion } from "@/components/core/DialogoConfirmacion";
+import { DialogoConfirmacion } from "@/components/admin/DialogoConfirmacion";
 
 const ETIQUETA_ROL: Record<Rol, string> = {
   SA: "Super Admin",
@@ -95,7 +104,11 @@ function UsuariosPermisos() {
   return (
     <AdminShell
       titulo="Usuarios y permisos"
-      breadcrumb={[{ label: "Panel", to: "/admin" }, { label: "Configuración", to: "/admin/configuracion" }, { label: "Usuarios y permisos" }]}
+      breadcrumb={[
+        { label: "Panel", to: "/admin" },
+        { label: "Configuración", to: "/admin/configuracion" },
+        { label: "Usuarios y permisos" },
+      ]}
     >
       <div className="mx-auto w-full max-w-5xl">
         <Link
@@ -113,13 +126,15 @@ function UsuariosPermisos() {
           <Button
             type="button"
             className="min-h-11 w-full sm:w-auto"
-            onClick={() => setEditando({
-              id: "",
-              nombre: "",
-              correo: "",
-              rol: "OP",
-              activo: true,
-            })}
+            onClick={() =>
+              setEditando({
+                id: "",
+                nombre: "",
+                correo: "",
+                rol: "OP",
+                activo: true,
+              })
+            }
           >
             <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
             Nuevo usuario
@@ -137,9 +152,7 @@ function UsuariosPermisos() {
           ) : usuarios.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
               <Users className="mx-auto h-12 w-12 text-muted-foreground" aria-hidden="true" />
-              <p className="mt-4 text-sm text-muted-foreground">
-                No hay usuarios configurados
-              </p>
+              <p className="mt-4 text-sm text-muted-foreground">No hay usuarios configurados</p>
             </div>
           ) : (
             usuarios.map((usuario) => (
@@ -192,16 +205,15 @@ function UsuariosPermisos() {
         {/* Modal de edición */}
         {editando && (
           <DialogoConfirmacion
-            open={!!editando}
-            onOpenChange={(abierto) => {
+            abierto={!!editando}
+            onAbiertoCambia={(abierto) => {
               if (!abierto) setEditando(null);
             }}
             titulo={editando.id ? "Editar usuario" : "Nuevo usuario"}
             descripcion="Configura los datos y permisos del usuario"
             textoConfirmar="Guardar"
-            variante="default"
-            loading={mutationGuardar.isPending}
-            motivo={undefined}
+            onConfirmar={() => setEditando(null)}
+            cargando={mutationGuardar.isPending}
           >
             <form onSubmit={handleGuardar} className="space-y-4">
               <Campo
@@ -269,11 +281,7 @@ function UsuariosPermisos() {
               </Campo>
 
               <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setEditando(null)}
-                >
+                <Button type="button" variant="outline" onClick={() => setEditando(null)}>
                   Cancelar
                 </Button>
                 <BotonCargar

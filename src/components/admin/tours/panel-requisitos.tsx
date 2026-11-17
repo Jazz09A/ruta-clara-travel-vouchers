@@ -1,68 +1,38 @@
 import { CircleCheckBig, CircleX } from "lucide-react";
 
-import type { Tour } from "@/lib/domain/types";
+import type { RequisitoTour } from "@/lib/domain/types";
 import { cn } from "@/lib/utils";
 
-export interface Requisito {
-  ok: boolean;
-  titulo: string;
-  detalle: string;
-}
-
-/**
- * Requisitos que faltan para activar un tour (Spec 9.9).
- *
- * El servidor es la autoridad: esta lista es la vista previa que el operador
- * ve antes de intentar la activación.
- */
-export function calcularRequisitos(tour: Tour): Requisito[] {
-  const terminosOk = tour.terminos_version_id.trim() !== "";
-
-  return [
-    {
-      ok: tour.politica_cancelacion_id.trim() !== "",
-      titulo: "Política de cancelación",
-      detalle:
-        tour.politica_cancelacion_id.trim() !== ""
-          ? "El tour ya tiene una política asociada."
-          : "Falta asociar una política de cancelación al tour.",
-    },
-    {
-      ok: terminosOk,
-      titulo: "Términos y condiciones",
-      detalle: terminosOk
-        ? "Los términos están publicados y se mostrarán al cliente."
-        : "Falta publicar los términos y condiciones.",
-    },
-  ];
-}
-
 export interface PanelRequisitosProps {
-  requisitos: Requisito[];
+  requisitos: RequisitoTour[];
   className?: string | undefined;
+  /** `true` mientras se consultan los requisitos. */
+  cargando?: boolean | undefined;
 }
 
 /**
- * Lista de requisitos pendientes para activar un tour.
+ * Lista de requisitos pendientes para activar un tour (Spec 9.9).
  *
  * El estado nunca se comunica solo con color: cada requisito lleva icono +
  * texto.
  */
-export function PanelRequisitos({ requisitos, className }: PanelRequisitosProps) {
+export function PanelRequisitos({ requisitos, className, cargando }: PanelRequisitosProps) {
   const pendientes = requisitos.filter((requisito) => !requisito.ok).length;
 
   return (
     <div className={cn("space-y-2", className)}>
       <p className="text-sm font-semibold text-foreground">
-        {pendientes === 0
-          ? "Todo listo para activar este tour"
-          : `Faltan ${pendientes} ${pendientes === 1 ? "requisito" : "requisitos"} para activar`}
+        {cargando
+          ? "Comprobando los requisitos…"
+          : pendientes === 0
+            ? "Todo listo para activar este tour"
+            : `Faltan ${pendientes} ${pendientes === 1 ? "requisito" : "requisitos"} para activar`}
       </p>
 
       <ul className="space-y-2">
         {requisitos.map((requisito) => (
           <li
-            key={requisito.titulo}
+            key={requisito.clave}
             className={cn(
               "flex items-start gap-2 rounded-xl border px-3 py-2 text-sm",
               requisito.ok

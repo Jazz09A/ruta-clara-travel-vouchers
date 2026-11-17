@@ -4,7 +4,6 @@ import { Plus, Trash2 } from "lucide-react";
 import { Campo } from "@/components/admin/ui/campo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -14,7 +13,12 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ETIQUETA_TIPO_TOUR } from "@/lib/format";
-import type { PoliticaCancelacion, Tour, VersionTerminos } from "@/lib/domain/types";
+import type {
+  DocumentoPunto,
+  PoliticaCancelacion,
+  Tour,
+  VersionTerminos,
+} from "@/lib/domain/types";
 
 export interface EditorTourProps {
   tour: Tour;
@@ -23,6 +27,12 @@ export interface EditorTourProps {
   terminos: VersionTerminos[];
   /** `false` deja los campos en solo lectura (rol sin permiso de edición). */
   puedeEditar: boolean;
+  /** Guarda el horario de recogida de cada punto (hora **de este tour**). */
+  onGuardarPuntos?: (puntos: DocumentoPunto[]) => void;
+  /** `true` mientras se guardan los puntos. */
+  guardandoPuntos?: boolean;
+  /** Familias ya usadas en el catálogo (sugerencias). */
+  familias?: string[];
 }
 
 /** Convierte un texto multilínea en una lista de elementos sin vacíos. */
@@ -36,10 +46,20 @@ function lineasALista(texto: string): string[] {
 /**
  * Editor de los datos del tour (RF-1.1).
  *
- * Nombre, tipo, descripción, itinerario, incluye / no incluye, imágenes,
- * puntos de abordaje, política de cancelación y versión de términos.
+ * Nombre, tipo, duración, familia, descripción, itinerario, incluye / no
+ * incluye, imágenes, puntos de abordaje (con su hora), política de
+ * cancelación, versión de términos, cupos, hora de salida, reserva y notas.
  */
-export function EditorTour({ tour, onChange, politicas, terminos, puedeEditar }: EditorTourProps) {
+export function EditorTour({
+  tour,
+  onChange,
+  politicas,
+  terminos,
+  puedeEditar,
+  onGuardarPuntos,
+  guardandoPuntos,
+  familias = [],
+}: EditorTourProps) {
   const deshabilitado = !puedeEditar;
 
   return (
@@ -55,10 +75,167 @@ export function EditorTour({ tour, onChange, politicas, terminos, puedeEditar }:
         )}
       </Campo>
 
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Campo id="tour-tipo" etiqueta="Tipo de tour" requerido>
+          {(props) => (
+            <Select
+              value={tour.tipo}
+              disabled={deshabilitado}
+              onValueChange={(valor) => onChange({ ...tour, tipo: valor as Tour["tipo"] })}
+            >
+              <SelectTrigger {...props} className="min-h-11">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(["full_day", "fin_de_semana", "multi_dia"] as const).map((tipo) => (
+                  <SelectItem key={tipo} value={tipo}>
+                    {ETIQUETA_TIPO_TOUR[tipo]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </Campo>
+
+        <Campo
+          id="tour-familia"
+          etiqueta="Familia o destino"
+          ayuda="Agrupa el tour en el catálogo (Morrocoy, Chuspa, Mérida…)."
+        >
+          {(props) => (
+            <>
+              <Input
+                {...props}
+                list="familias-tour"
+                value={tour.familia ?? ""}
+                readOnly={deshabilitado}
+                onChange={(evento) => onChange({ ...tour, familia: evento.target.value })}
+              />
+              <datalist id="familias-tour">
+                {familias.map((familia) => (
+                  <option key={familia} value={familia} />
+                ))}
+              </datalist>
+            </>
+          )}
+        </Campo>
+      </div>
+
+      <fieldset className="space-y-3 rounded-xl border border-border p-3">
+        <legend className="px-1 text-sm font-semibold text-foreground">Duración y operación</legend>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Campo id="tour-dias" etiqueta="Días">
+            {(props) => (
+              <Input
+                {...props}
+                type="number"
+                min={0}
+                max={30}
+                inputMode="numeric"
+                value={tour.duracion_dias ?? 0}
+                readOnly={deshabilitado}
+                onChange={(evento) =>
+                  onChange({
+                    ...tour,
+                    duracion_dias: Number.parseInt(evento.target.value, 10) || 0,
+                  })
+                }
+              />
+            )}
+          </Campo>
+
+          <Campo id="tour-noches" etiqueta="Noches">
+            {(props) => (
+              <Input
+                {...props}
+                type="number"
+                min={0}
+                max={30}
+                inputMode="numeric"
+                value={tour.duracion_noches ?? 0}
+                readOnly={deshabilitado}
+                onChange={(evento) =>
+                  onChange({
+                    ...tour,
+                    duracion_noches: Number.parseInt(evento.target.value, 10) || 0,
+                  })
+                }
+              />
+            )}
+          </Campo>
+
+          <Campo id="tour-hora" etiqueta="Hora de salida">
+            {(props) => (
+              <Input
+                {...props}
+                type="time"
+                value={tour.hora_salida ?? ""}
+                readOnly={deshabilitado}
+                onChange={(evento) => onChange({ ...tour, hora_salida: evento.target.value })}
+              />
+            )}
+          </Campo>
+
+          <Campo id="tour-cupos" etiqueta="Cupos por salida">
+            {(props) => (
+              <Input
+                {...props}
+                type="number"
+                min={1}
+                max={200}
+                inputMode="numeric"
+                value={tour.cupos ?? ""}
+                readOnly={deshabilitado}
+                onChange={(evento) =>
+                  onChange({ ...tour, cupos: Number.parseInt(evento.target.value, 10) || 0 })
+                }
+              />
+            )}
+          </Campo>
+        </div>
+
+        <Campo
+          id="tour-reserva"
+          etiqueta="Reserva por persona (USD)"
+          ayuda="Monto de la reserva que fija el catálogo (20, 50, 75, 100). Es informativo."
+        >
+          {(props) => (
+            <Input
+              {...props}
+              type="number"
+              min={0}
+              step="0.01"
+              inputMode="decimal"
+              value={tour.reserva_usd ?? ""}
+              readOnly={deshabilitado}
+              onChange={(evento) =>
+                onChange({
+                  ...tour,
+                  reserva_usd: evento.target.value === "" ? null : Number(evento.target.value),
+                })
+              }
+            />
+          )}
+        </Campo>
+      </fieldset>
+
+      <Campo id="tour-descripcion" etiqueta="Descripción">
+        {(props) => (
+          <Textarea
+            {...props}
+            rows={3}
+            value={tour.descripcion ?? ""}
+            readOnly={deshabilitado}
+            onChange={(evento) => onChange({ ...tour, descripcion: evento.target.value })}
+          />
+        )}
+      </Campo>
+
       <fieldset className="space-y-3 rounded-xl border border-border p-3">
         <legend className="px-1 text-sm font-semibold text-foreground">Itinerario</legend>
         <p className="text-xs text-muted-foreground">
-          El orden de la lista es el orden del día. Escribe la hora en formato 24 h.
+          El orden de la lista es el orden del día. La hora es opcional (en el catálogo suele ir
+          dentro del detalle).
         </p>
 
         <ul className="space-y-2">
@@ -70,7 +247,7 @@ export function EditorTour({ tour, onChange, politicas, terminos, puedeEditar }:
               <Input
                 aria-label={`Hora del bloque ${indice + 1}`}
                 type="time"
-                value={bloque.hora}
+                value={bloque.hora ?? ""}
                 readOnly={deshabilitado}
                 onChange={(evento) =>
                   onChange({
@@ -137,7 +314,7 @@ export function EditorTour({ tour, onChange, politicas, terminos, puedeEditar }:
           onClick={() =>
             onChange({
               ...tour,
-              itinerario: [...tour.itinerario, { hora: "08:00", titulo: "", detalle: "" }],
+              itinerario: [...tour.itinerario, { hora: "", titulo: "", detalle: "" }],
             })
           }
           className="min-h-11"
@@ -146,6 +323,56 @@ export function EditorTour({ tour, onChange, politicas, terminos, puedeEditar }:
           Agregar bloque
         </Button>
       </fieldset>
+
+      <Campo
+        id="tour-incluye"
+        etiqueta="Qué incluye"
+        ayuda="Una línea por elemento. En las estadías se escribe «Día 1: …»."
+      >
+        {(props) => (
+          <Textarea
+            {...props}
+            rows={4}
+            value={tour.incluye.join("\n")}
+            readOnly={deshabilitado}
+            onChange={(evento) => onChange({ ...tour, incluye: lineasALista(evento.target.value) })}
+          />
+        )}
+      </Campo>
+
+      <Campo
+        id="tour-no-incluye"
+        etiqueta="Qué no incluye"
+        ayuda="Una línea por elemento (toldos, consumos personales…)."
+      >
+        {(props) => (
+          <Textarea
+            {...props}
+            rows={3}
+            value={tour.no_incluye.join("\n")}
+            readOnly={deshabilitado}
+            onChange={(evento) =>
+              onChange({ ...tour, no_incluye: lineasALista(evento.target.value) })
+            }
+          />
+        )}
+      </Campo>
+
+      <Campo
+        id="tour-notas"
+        etiqueta="Notas internas"
+        ayuda="Avisos para la agencia (ajustes por edad, horarios de la noche…). El cliente nunca las ve."
+      >
+        {(props) => (
+          <Textarea
+            {...props}
+            rows={3}
+            value={(tour.notas ?? []).join("\n")}
+            readOnly={deshabilitado}
+            onChange={(evento) => onChange({ ...tour, notas: lineasALista(evento.target.value) })}
+          />
+        )}
+      </Campo>
 
       <Campo
         id="tour-imagenes"
@@ -176,7 +403,8 @@ export function EditorTour({ tour, onChange, politicas, terminos, puedeEditar }:
           >
             Configuración → Puntos de salida
           </Link>
-          .
+          . La <strong>hora de recogida es de este tour</strong>: el mismo punto se recoge a
+          distinta hora según el viaje.
         </p>
         <ul className="space-y-2">
           {tour.puntos_abordaje.length === 0 ? (
@@ -184,17 +412,55 @@ export function EditorTour({ tour, onChange, politicas, terminos, puedeEditar }:
               No hay puntos de salida activos. Créalos en la configuración.
             </li>
           ) : (
-            tour.puntos_abordaje.map((punto, indice) => (
-              <li
-                key={punto.id || `punto-${indice}`}
-                className="grid gap-1 rounded-xl border border-border bg-background px-3 py-2 sm:grid-cols-[1fr_auto]"
-              >
-                <span className="text-sm font-semibold text-foreground">{punto.nombre}</span>
-                <span className="text-xs text-muted-foreground">{`Recogida ${punto.hora}`}</span>
-              </li>
-            ))
+            tour.puntos_abordaje.map((punto, indice) => {
+              const esCaracas =
+                punto.confirmar_hora === true ||
+                (punto.nombre ?? "").toLowerCase().includes("caracas");
+              return (
+                <li
+                  key={punto.id || `punto-${indice}`}
+                  className="grid gap-2 rounded-xl border border-border bg-background px-3 py-2 sm:grid-cols-[1fr_8rem]"
+                >
+                  <div className="min-w-0">
+                    <span className="text-sm font-semibold text-foreground">{punto.nombre}</span>
+                    {punto.referencia_ubicacion ? (
+                      <span className="block text-xs text-muted-foreground">
+                        {punto.referencia_ubicacion}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      aria-label={`Hora de recogida en ${punto.nombre}`}
+                      type="time"
+                      value={punto.hora ?? ""}
+                      disabled={deshabilitado || esCaracas}
+                      onChange={(evento) => {
+                        const puntos = tour.puntos_abordaje.map((p, i) =>
+                          i === indice ? { ...p, hora: evento.target.value } : p,
+                        );
+                        onChange({ ...tour, puntos_abordaje: puntos });
+                        onGuardarPuntos?.(
+                          puntos.map((p) => ({
+                            clave: p.clave ?? p.id,
+                            hora: p.hora ?? "",
+                            confirmar_hora: p.confirmar_hora,
+                          })),
+                        );
+                      }}
+                    />
+                    {esCaracas ? (
+                      <span className="text-xs text-muted-foreground">por confirmar</span>
+                    ) : null}
+                  </div>
+                </li>
+              );
+            })
           )}
         </ul>
+        {guardandoPuntos ? (
+          <p className="text-xs text-muted-foreground">Guardando el horario de recogida…</p>
+        ) : null}
       </fieldset>
 
       <div className="grid gap-4 sm:grid-cols-2">

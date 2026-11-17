@@ -76,9 +76,7 @@ export function useCuentaRegresiva(
       return;
     }
     // Congela el valor del momento en que se activa el estado.
-    setValorCongelado((previo) =>
-      previo ?? Math.max(0, expiraMs - (Date.now() + desfase)),
-    );
+    setValorCongelado((previo) => previo ?? Math.max(0, expiraMs - (Date.now() + desfase)));
   }, [hayFecha, congelado, pausado, expiraMs, desfase]);
 
   React.useEffect(() => {
@@ -89,9 +87,7 @@ export function useCuentaRegresiva(
 
   const ahoraServidor = Date.now() + desfase;
 
-  const msRestantes = !hayFecha
-    ? 0
-    : (valorCongelado ?? Math.max(0, expiraMs - ahoraServidor));
+  const msRestantes = !hayFecha ? 0 : (valorCongelado ?? Math.max(0, expiraMs - ahoraServidor));
 
   const refrescar = React.useCallback(() => {
     if (!hayFecha) return;

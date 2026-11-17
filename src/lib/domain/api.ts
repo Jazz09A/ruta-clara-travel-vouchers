@@ -3,10 +3,13 @@ import type {
   Auditoria,
   CampoDef,
   Categoria,
+  CategoriasPrecio,
   CodigoError,
   Configuracion,
   DashboardData,
   DetalleError,
+  DocumentoPunto,
+  DocumentoTour,
   EstadoReserva,
   Exportacion,
   FechaTour,
@@ -20,6 +23,7 @@ import type {
   PoliticaCancelacion,
   Progreso,
   PuntoSalida,
+  RequisitoTour,
   Reserva,
   ResumenReserva,
   Respuesta,
@@ -497,13 +501,47 @@ export interface ApiAdmin {
   guardarTarifa(body: Partial<Tarifa> & { id?: string }): Promise<Tarifa>;
   eliminarTarifa(id: string): Promise<{ ok: true }>;
 
-  formulario(tour_id: string): Promise<{ formulario: Formulario | null }>;
+  formulario(tour_id: string): Promise<{ formulario: Formulario | null; versiones?: Formulario[] }>;
   guardarFormulario(
     tour_id: string,
     body: { definicion: { campos: CampoDef[] } },
   ): Promise<{
     errores: { campo: string; mensaje: string; nivel: "bloqueante" | "advertencia" }[];
   }>;
+  publicarFormulario(tour_id: string): Promise<{ version: number; estado: string }>;
+
+  // ── documento de tour (el catálogo como contrato) ───────────────────
+
+  documentoTour(id: string): Promise<DocumentoTour>;
+  crearDesdeDocumento(
+    body: Partial<DocumentoTour>,
+  ): Promise<{ tour: Tour; documento: DocumentoTour }>;
+  guardarDocumento(
+    id: string,
+    body: Partial<DocumentoTour>,
+  ): Promise<{ tour: Tour; documento: DocumentoTour }>;
+  fechasMasivo(
+    id: string,
+    body: {
+      fechas?: string[];
+      recurrencia?: { dia_semana?: number; desde?: string; hasta?: string } | null;
+      precios?: Partial<Record<CategoriasPrecio, number>> | null;
+      cupos_total?: number | null;
+      hora_salida?: string | null;
+      corte_venta_horas?: number | null;
+      estado?: "borrador" | "publicada";
+      actualizar_precios?: boolean;
+    },
+  ): Promise<{
+    fechas: FechaTour[];
+    creadas: number;
+    actualizadas: number;
+    tarifas_creadas: number;
+  }>;
+  formularioPlantilla(id: string): Promise<{ ya_publicada: boolean; version: number }>;
+  guardarPuntos(id: string, puntos: DocumentoPunto[]): Promise<Tour>;
+  requisitosTour(id: string): Promise<{ ok: boolean; requisitos: RequisitoTour[] }>;
+  exportarCatalogo(): Promise<unknown>;
 
   salidas(params?: { mes?: string; tour_id?: string }): Promise<
     {
@@ -594,7 +632,7 @@ export interface ApiAdmin {
   }>;
   guardarConfiguracion(body: Partial<Configuracion>): Promise<Configuracion>;
   registrarTasa(body: { valor: string }): Promise<TasaCambio>;
-  guardarMetodoPago(body: Partial<MetodoPago> & { id?: string }): Promise<MetodoPago>;
+  guardarMetodoPago(body: Omit<Partial<MetodoPago>, "id"> & { id?: string }): Promise<MetodoPago>;
   publicarTerminos(body: { titulo: string; cuerpo: string }): Promise<VersionTerminos>;
   guardarPlantilla(body: Partial<PlantillaMensaje> & { id?: string }): Promise<PlantillaMensaje>;
   guardarPolitica(

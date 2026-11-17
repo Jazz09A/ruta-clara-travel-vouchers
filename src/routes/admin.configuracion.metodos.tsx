@@ -10,7 +10,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { MetodoPago } from "@/lib/domain/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DialogoConfirmacion } from "@/components/core/DialogoConfirmacion";
+import { DialogoConfirmacion } from "@/components/admin/DialogoConfirmacion";
 
 export const Route = createFileRoute("/admin/configuracion/metodos")({
   head: () => ({
@@ -99,7 +99,11 @@ function MetodosPago() {
   return (
     <AdminShell
       titulo="Métodos de pago"
-      breadcrumb={[{ label: "Panel", to: "/admin" }, { label: "Configuración", to: "/admin/configuracion" }, { label: "Métodos de pago" }]}
+      breadcrumb={[
+        { label: "Panel", to: "/admin" },
+        { label: "Configuración", to: "/admin/configuracion" },
+        { label: "Métodos de pago" },
+      ]}
     >
       <div className="mx-auto w-full max-w-4xl">
         <Link
@@ -211,16 +215,15 @@ function MetodosPago() {
         {/* Modal de edición */}
         {editando && (
           <DialogoConfirmacion
-            open={!!editando}
-            onOpenChange={(abierto) => {
+            abierto={!!editando}
+            onAbiertoCambia={(abierto) => {
               if (!abierto) setEditando(null);
             }}
             titulo={`Editar ${editando.nombre}`}
             descripcion="Modifica los datos del método de pago"
             textoConfirmar="Guardar cambios"
-            variante="default"
-            loading={mutationGuardar.isPending}
-            motivo={undefined}
+            onConfirmar={() => setEditando(null)}
+            cargando={mutationGuardar.isPending}
           >
             <form onSubmit={handleGuardar} className="space-y-4">
               <Campo
@@ -295,11 +298,7 @@ function MetodosPago() {
               />
 
               <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setEditando(null)}
-                >
+                <Button type="button" variant="outline" onClick={() => setEditando(null)}>
                   Cancelar
                 </Button>
                 <BotonCargar
@@ -316,16 +315,15 @@ function MetodosPago() {
 
         {/* Diálogo de eliminación */}
         <DialogoConfirmacion
-          open={!!dialogoEliminar}
-          onOpenChange={(abierto) => {
+          abierto={!!dialogoEliminar}
+          onAbiertoCambia={(abierto) => {
             if (!abierto) setDialogoEliminar(null);
           }}
           titulo="Desactivar método de pago"
           descripcion="El método de pago dejará de estar disponible para los clientes, pero no se eliminará permanentemente."
           textoConfirmar="Desactivar"
-          variante="destructive"
-          loading={mutationEliminar.isPending}
-          motivo={undefined}
+          destructivo
+          cargando={mutationEliminar.isPending}
           onConfirmar={() => {
             if (dialogoEliminar) handleEliminar(dialogoEliminar);
           }}

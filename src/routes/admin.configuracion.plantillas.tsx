@@ -10,7 +10,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { PlantillaMensaje } from "@/lib/domain/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DialogoConfirmacion } from "@/components/core/DialogoConfirmacion";
+import { DialogoConfirmacion } from "@/components/admin/DialogoConfirmacion";
 
 export const Route = createFileRoute("/admin/configuracion/plantillas")({
   head: () => ({
@@ -57,7 +57,7 @@ function PlantillasMensaje() {
       clave: formData.get("clave") as string,
       nombre: formData.get("nombre") as string,
       cuerpo: formData.get("cuerpo") as string,
-      variables: formData.get("variables") as string
+      variables: (formData.get("variables") as string)
         ? (formData.get("variables") as string).split(",").map((v) => v.trim())
         : [],
     };
@@ -74,7 +74,11 @@ function PlantillasMensaje() {
   return (
     <AdminShell
       titulo="Plantillas de mensaje"
-      breadcrumb={[{ label: "Panel", to: "/admin" }, { label: "Configuración", to: "/admin/configuracion" }, { label: "Plantillas de mensaje" }]}
+      breadcrumb={[
+        { label: "Panel", to: "/admin" },
+        { label: "Configuración", to: "/admin/configuracion" },
+        { label: "Plantillas de mensaje" },
+      ]}
     >
       <div className="mx-auto w-full max-w-4xl">
         <Link
@@ -92,13 +96,15 @@ function PlantillasMensaje() {
           <Button
             type="button"
             className="min-h-11 w-full sm:w-auto"
-            onClick={() => setEditando({
-              id: "",
-              clave: "",
-              nombre: "",
-              variables: [],
-              cuerpo: "",
-            })}
+            onClick={() =>
+              setEditando({
+                id: "",
+                clave: "",
+                nombre: "",
+                variables: [],
+                cuerpo: "",
+              })
+            }
           >
             <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
             Nueva plantilla
@@ -115,7 +121,10 @@ function PlantillasMensaje() {
             </div>
           ) : plantillas.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
-              <MessageSquare className="mx-auto h-12 w-12 text-muted-foreground" aria-hidden="true" />
+              <MessageSquare
+                className="mx-auto h-12 w-12 text-muted-foreground"
+                aria-hidden="true"
+              />
               <p className="mt-4 text-sm text-muted-foreground">
                 No hay plantillas de mensaje configuradas
               </p>
@@ -141,8 +150,12 @@ function PlantillasMensaje() {
                       </div>
 
                       <div className="mt-4 rounded-lg bg-muted/30 p-3">
-                        <p className="text-xs font-semibold text-muted-foreground">Cuerpo del mensaje</p>
-                        <p className="mt-1 text-sm text-foreground whitespace-pre-wrap">{plantilla.cuerpo}</p>
+                        <p className="text-xs font-semibold text-muted-foreground">
+                          Cuerpo del mensaje
+                        </p>
+                        <p className="mt-1 text-sm text-foreground whitespace-pre-wrap">
+                          {plantilla.cuerpo}
+                        </p>
                       </div>
 
                       {plantilla.variables.length > 0 && (
@@ -174,16 +187,15 @@ function PlantillasMensaje() {
         {/* Modal de edición */}
         {editando && (
           <DialogoConfirmacion
-            open={!!editando}
-            onOpenChange={(abierto) => {
+            abierto={!!editando}
+            onAbiertoCambia={(abierto) => {
               if (!abierto) setEditando(null);
             }}
             titulo={editando.id ? "Editar plantilla" : "Nueva plantilla"}
             descripcion="Configura los datos de la plantilla de mensaje"
             textoConfirmar="Guardar"
-            variante="default"
-            loading={mutationGuardar.isPending}
-            motivo={undefined}
+            onConfirmar={() => setEditando(null)}
+            cargando={mutationGuardar.isPending}
           >
             <form onSubmit={handleGuardar} className="space-y-4">
               <Campo
@@ -225,11 +237,7 @@ function PlantillasMensaje() {
               />
 
               <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setEditando(null)}
-                >
+                <Button type="button" variant="outline" onClick={() => setEditando(null)}>
                   Cancelar
                 </Button>
                 <BotonCargar
