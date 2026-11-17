@@ -144,11 +144,22 @@ function ConfiguracionGeneral() {
 
           <form onSubmit={handleGuardar} className="mt-6 space-y-4">
             <Campo
-              id="hold_horas"
-              label="Tiempo de hold (horas)"
+              id="minutos_inactividad"
+              label="Tiempo de hold al iniciar el registro (minutos)"
               type="number"
-              defaultValue="24"
-              ayuda="Tiempo que el cupo queda reservado tras iniciar el registro"
+              defaultValue={config ? String(config.minutos_inactividad ?? 30) : "30"}
+              ayuda="Tiempo que el cupo queda reservado desde que el cliente inicia el registro, mientras llena el formulario. Cada paso guardado lo renueva."
+              min="5"
+              max="240"
+              required
+            />
+
+            <Campo
+              id="hold_horas"
+              label="Tiempo de hold tras confirmar la reserva (horas)"
+              type="number"
+              defaultValue={config ? String(config.hold_horas ?? 24) : "24"}
+              ayuda="Cuando el cliente confirma el resumen se da más tiempo: el cupo queda reservado estas horas a la espera del pago."
               min="1"
               max="72"
               required
