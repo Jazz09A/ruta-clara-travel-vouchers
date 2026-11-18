@@ -28,8 +28,7 @@ export interface PublicShellProps {
   onAtras?: (() => void) | undefined;
   mostrarAtras?: boolean | undefined;
   accionPrincipal?:
-    | { etiqueta: string; onClick: () => void; loading?: boolean; disabled?: boolean }
-    | undefined;
+    { etiqueta: string; onClick: () => void; loading?: boolean; disabled?: boolean } | undefined;
   children: ReactNode;
 
   // --- Extensiones documentadas -------------------------------------------
@@ -109,8 +108,7 @@ export function PublicShell({
   const restante = useRestanteMs(expiraEn, desfaseServidorMs);
 
   const mensajeWhatsapp =
-    whatsappMensaje ??
-    `Hola, necesito ayuda con mi reserva${refCorta ? ` ${refCorta}` : ""}`;
+    whatsappMensaje ?? `Hola, necesito ayuda con mi reserva${refCorta ? ` ${refCorta}` : ""}`;
 
   return (
     <div className="flex min-h-dvh flex-col bg-background pb-28 lg:pb-0">
@@ -145,13 +143,9 @@ export function PublicShell({
         <ProgressSteps pasos={pasos} pasoActual={pasoActual} onNavegar={onNavegarPaso} />
       ) : null}
 
-      {expiraEn && !pagoPorValidar ? (
-        <BannerHold restante={restante} />
-      ) : null}
+      {expiraEn && !pagoPorValidar ? <BannerHold restante={restante} /> : null}
 
-      {pagoPorValidar ? (
-        <Banner variante="info" mensaje="Estamos verificando tu pago" />
-      ) : null}
+      {pagoPorValidar ? <Banner variante="info" mensaje="Estamos verificando tu pago" /> : null}
 
       {mensajeReanudacion ? (
         <div className="border-b border-border bg-secondary px-4 py-3">
@@ -184,7 +178,10 @@ export function PublicShell({
 
       <footer className="mx-auto w-full max-w-lg px-4 pt-6 text-xs leading-relaxed text-muted-foreground lg:max-w-2xl">
         <div className="flex items-start gap-2 rounded-2xl border border-border bg-card px-4 py-3">
-          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <ShieldCheck
+            className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+            aria-hidden="true"
+          />
           <div>
             <p className="font-semibold text-foreground">
               {`Aviso de privacidad${versionAvisoPrivacidad ? ` (versión ${versionAvisoPrivacidad})` : ""}`}
@@ -192,9 +189,7 @@ export function PublicShell({
             <p className="mt-0.5">
               {`Usamos tus datos sólo para completar y gestionar esta reserva. ${MARCA.nombreCompleto}.`}
             </p>
-            <p className="mt-0.5">
-              {`${MARCA.email} · ${MARCA.direccion}`}
-            </p>
+            <p className="mt-0.5">{`${MARCA.email} · ${MARCA.direccion}`}</p>
           </div>
         </div>
       </footer>
@@ -207,11 +202,7 @@ export function PublicShell({
         className="fixed bottom-24 right-4 z-30 shadow-lg lg:bottom-6"
       />
 
-      <ActionBar
-        accionPrincipal={accionPrincipal}
-        onAtras={onAtras}
-        mostrarAtras={mostrarAtras}
-      >
+      <ActionBar accionPrincipal={accionPrincipal} onAtras={onAtras} mostrarAtras={mostrarAtras}>
         {zonaAccion}
       </ActionBar>
     </div>
@@ -223,6 +214,13 @@ export function PublicShell({
  * Menos de 2 h → advertencia; menos de 10 min → urgencia con `MM:SS`.
  */
 function BannerHold({ restante }: { restante: number }) {
+  // La ventana puede ser corta (inactividad al iniciar el registro) o larga
+  // (hold tras confirmar la reserva): el aviso se dispara a mitad de la
+  // ventana observada y nunca más tarde de las 2 h del Spec 4.6.
+  const ventanaRef = useRef(0);
+  if (restante > ventanaRef.current) ventanaRef.current = restante;
+  const umbralAviso = Math.min(MS_2_HORAS, ventanaRef.current / 2);
+
   if (restante <= 0) {
     return (
       <Banner
@@ -243,7 +241,7 @@ function BannerHold({ restante }: { restante: number }) {
     );
   }
 
-  if (restante < MS_2_HORAS) {
+  if (restante < umbralAviso) {
     return (
       <Banner
         variante="aviso"

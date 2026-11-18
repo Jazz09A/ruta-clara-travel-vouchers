@@ -201,7 +201,11 @@ export function Terminos({
             className="max-h-[45vh] overflow-y-auto overscroll-contain px-4 py-3 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {cuerpo}
-            <div ref={centinelaRef} aria-hidden="true" className="h-2 w-full" />
+            {/* Centinela: al entrar en el viewport, el texto se leyó. Con
+                `h-16` queda holgura frente al `rootMargin` de -50 px (con
+                `h-2` el margen de intersección era de ~2 px y el observer no
+                llegaba a dispararse al final del scroll). */}
+            <div ref={centinelaRef} aria-hidden="true" className="h-16 w-full -mt-14" />
             <p className="mt-4 flex items-center gap-2 text-xs font-semibold text-success">
               <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
               <span>Fin de los términos y condiciones</span>

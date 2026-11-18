@@ -53,6 +53,13 @@ export function ContadorRegresivo({
 
   const [anuncio, setAnuncio] = React.useState("");
 
+  // La ventana puede ser corta (inactividad al iniciar el registro) o larga
+  // (hold tras confirmar): el aviso se dispara a mitad de la ventana
+  // observada y nunca más tarde de las 2 h (Spec 4.6).
+  const ventanaRef = React.useRef(0);
+  if (msRestantes > ventanaRef.current) ventanaRef.current = msRestantes;
+  const umbralAviso = Math.min(UMBRAL_AVISO, ventanaRef.current / 2);
+
   React.useEffect(() => {
     if (expirado) {
       setAnuncio("El tiempo para completar la reserva vencio");
@@ -62,17 +69,17 @@ export function ContadorRegresivo({
       setAnuncio("Quedan menos de 10 minutos");
       return;
     }
-    if (msRestantes <= UMBRAL_AVISO) {
-      setAnuncio("Quedan menos de 2 horas");
+    if (msRestantes <= umbralAviso) {
+      setAnuncio("El tiempo del cupo está por vencer");
       return;
     }
     setAnuncio("");
-  }, [msRestantes, expirado]);
+  }, [msRestantes, expirado, umbralAviso]);
 
   if (!expiraEn) return null;
 
   const urgente = expirado || msRestantes <= UMBRAL_URGENTE;
-  const aviso = !urgente && msRestantes <= UMBRAL_AVISO;
+  const aviso = !urgente && msRestantes <= umbralAviso;
 
   const tono = urgente
     ? "border-red-200 bg-red-50 text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
