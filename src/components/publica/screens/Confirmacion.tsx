@@ -68,30 +68,6 @@ export function Confirmacion({
 
   const cuposPocos = typeof resumen?.cupos_restantes === "number" && resumen.cupos_restantes <= 5;
 
-  const ejemploReembolso = useMemo(() => {
-    const tramos = reserva.politica_cancelacion?.tramos;
-    const fechaSalida = reserva.fecha?.fecha_salida;
-    if (!tramos || tramos.length === 0 || !fechaSalida) return null;
-
-    const salida = new Date(`${fechaSalida}T00:00:00Z`).getTime();
-    const hoy = Date.now();
-    const dias = Math.max(0, Math.ceil((salida - hoy) / 86_400_000));
-
-    let tramo = tramos[tramos.length - 1];
-    for (const candidato of tramos) {
-      if (dias >= candidato.dias_desde_salida) tramo = candidato;
-    }
-    if (!tramo) return null;
-
-    const porcentaje = tramo.porcentaje_reembolso;
-    const monto = Number.parseFloat(total) * (porcentaje / 100);
-    return {
-      dias,
-      tramo,
-      porcentaje,
-      monto: isNaN(monto) ? 0 : monto,
-    };
-  }, [reserva.fecha?.fecha_salida, reserva.politica_cancelacion?.tramos, total]);
 
   const confirmar = async (totalVisto: string) => {
     if (!aceptaPolitica) {
@@ -351,6 +327,10 @@ export function Confirmacion({
       {reserva.politica_cancelacion && reserva.politica_cancelacion.tramos.length > 0 ? (
         <section className="rounded-2xl border border-border bg-card p-4">
           <h2 className="text-base font-bold text-foreground">Política de cancelación</h2>
+          <p className="mt-3 rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">
+            Si cancelas la reserva, no se devuelve ningún monto por temas de logística y políticas
+            de la empresa.
+          </p>
           <ul className="mt-3 flex flex-col gap-2">
             {reserva.politica_cancelacion.tramos.map((tramo) => (
               <li key={tramo.dias_desde_salida} className="text-sm">
@@ -365,12 +345,6 @@ export function Confirmacion({
               </li>
             ))}
           </ul>
-
-          {ejemploReembolso ? (
-            <p className="mt-3 rounded-xl bg-secondary px-3 py-2 text-xs text-secondary-foreground">
-              {`Ejemplo: si cancelas hoy (faltan ${ejemploReembolso.dias} días), te devolvemos ${ejemploReembolso.porcentaje}% del total, unos ${formatUsd(String(ejemploReembolso.monto))}.`}
-            </p>
-          ) : null}
         </section>
       ) : null}
 

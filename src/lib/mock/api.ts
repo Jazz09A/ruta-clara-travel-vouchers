@@ -1382,12 +1382,26 @@ const publica: ApiSurface["publica"] = {
         integridad: "ok",
         preview: body.firma_png_base64.slice(0, 200),
       };
-      r.estado = "pendiente_pago";
-      r.paso_actual = "pago";
+      r.estado = "confirmada";
+      r.paso_actual = "confirmada";
+      r.expira_en = null;
       r.terminos_version_id = body.version_terminos_id;
+      // La firma cierra el registro: cupo vendido + voucher (sin paso de pago).
+      venderCupos(r);
+      if (!r.voucher) {
+        r.voucher = {
+          id: `vou_${r.id}`,
+          version: 1,
+          estado: "generando",
+          vigente: true,
+          generado_en: ahoraIso(),
+          verif_token: `qr_${r.id}`,
+        };
+        db().verificaciones[`qr_${r.id}`] = r.id;
+      }
       tocar(r);
       console.log("Firma guardada, reserva actualizada a:", r.estado, r.paso_actual);
-      notificar("reserva", "Registro completado", `${r.codigo} firmó los términos.`, r.id);
+      notificar("reserva", "Reserva confirmada", `${r.codigo} firmó los términos.`, r.id);
       const resultado: ResultadoFirma = {
         ok: true,
         hash_imagen: r.firma.hash_imagen,
@@ -1856,6 +1870,27 @@ const admin: ApiSurface["admin"] = {
 
   async crearReserva(body) {
     const datos = db();
+    // El pago es obligatorio para generar el enlace (la reserva nace pagada).
+    if (!body.pago) {
+      throw err(422, "VALIDACION", "Registra el pago para generar el enlace.", {
+        detalles: [{ campo: "pago", mensaje: "El pago de la reserva es obligatorio." }],
+      });
+    }
+    const metodo = datos.metodos_pago.find(
+      (m) => m.id === body.pago.metodo_clave && m.activo,
+    );
+    if (!metodo) {
+      throw err(422, "VALIDACION", "Elige un método de pago activo.", {
+        detalles: [{ campo: "pago.metodo_clave", mensaje: "Método de pago no disponible." }],
+      });
+    }
+    const montoPago = Number(String(body.pago.monto).replace(",", "."));
+    if (!Number.isFinite(montoPago) || montoPago <= 0) {
+      throw err(422, "VALIDACION", "Escribe un monto válido.", {
+        detalles: [{ campo: "pago.monto", mensaje: "Monto inválido." }],
+      });
+    }
+
     const fecha = datos.fechas.find((f) => f.id === body.fecha_tour_id);
     if (!fecha) throw err(404, "NO_ENCONTRADO", "No encontramos esa salida.");
     if (fecha.estado !== "publicada") {
@@ -1929,6 +1964,29 @@ const admin: ApiSurface["admin"] = {
 
     datos.reservas.unshift(reserva);
     datos.enlaces[token] = id;
+
+    // Pago al crear el enlace: queda aprobado (la reserva nace pagada).
+    const pagoAlta: Pago = {
+      id: `pgo_${(datos.pagos.length + 1).toString(36)}`,
+      reserva_id: reserva.id,
+      metodo: metodo.id,
+      monto: toDecimalString(montoPago),
+      moneda: "USD",
+      tasa: null,
+      fecha_pago: body.pago.fecha_pago || ahoraIso().slice(0, 10),
+      referencia: body.pago.referencia?.trim() || "",
+      estado: "aprobado",
+      alertas: [],
+      registrado_por: "Operador",
+      validado_por: "Operador",
+      validado_en: ahoraIso(),
+      creado_en: ahoraIso(),
+    };
+    datos.pagos.unshift(pagoAlta);
+    const pagadoAlta = Number.parseFloat(totalPagado(reserva));
+    const totalAlta = Number.parseFloat(reserva.total_usd || "0");
+    reserva.saldo_usd = Math.max(0, totalAlta - pagadoAlta).toFixed(2);
+    reserva.estado_pago = totalAlta > 0 && pagadoAlta < totalAlta ? "parcial" : "pagado";
 
     const operador = datos.usuarios.find((u) => u.rol === "OP") ?? datos.usuarios[0];
     if (operador) {

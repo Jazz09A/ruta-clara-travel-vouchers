@@ -343,6 +343,15 @@ export interface ApiAdmin {
     ajustes?:
       | { id?: string; tipo: "descuento" | "recargo"; monto_usd: string; motivo: string }[]
       | undefined;
+    /** Pago registrado al crear el enlace: la reserva nace pagada. Obligatorio. */
+    pago: {
+      metodo_clave: string;
+      monto: string;
+      moneda?: string | undefined;
+      fecha_pago?: string | undefined;
+      referencia?: string | undefined;
+      nota?: string | undefined;
+    };
   }): Promise<{
     reserva: Reserva;
     enlace: string;

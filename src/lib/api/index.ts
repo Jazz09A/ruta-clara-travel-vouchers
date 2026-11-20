@@ -372,6 +372,14 @@ const admin = {
     estimated_pasajeros?: number;
     lineas?: { id?: string; concepto: string; cantidad: number; precio_unit_usd: string }[];
     ajustes?: { id?: string; tipo: "descuento" | "recargo"; monto_usd: string; motivo: string }[];
+    pago: {
+      metodo_clave: string;
+      monto: string;
+      moneda?: string;
+      fecha_pago?: string;
+      referencia?: string;
+      nota?: string;
+    };
   }) => peticion("/adminfx/reservas", { metodo: "POST", admin: true, body }),
 
   regenerarEnlace: (id: string, body: { motivo: string }) =>

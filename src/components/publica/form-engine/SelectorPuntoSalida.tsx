@@ -4,6 +4,7 @@ import { MessageCircle } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import type { CampoDef, OpcionCampo, PuntoReferencia } from "@/lib/domain/types";
 import { cn } from "@/lib/utils";
+import { t } from "@/lib/i18n/es";
 
 import { Campo } from "../ui";
 
@@ -180,6 +181,9 @@ export function SelectorPuntoSalida({
               </ul>
             </div>
           ))}
+          <p className="mt-3 text-xs text-muted-foreground">
+            {t("hora_salida_aviso")}
+          </p>
         </div>
       )}
     </Campo>

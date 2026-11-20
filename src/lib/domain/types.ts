@@ -385,8 +385,6 @@ export type PasoActual =
   | "resumen"
   | "terminos"
   | "firma"
-  | "pago"
-  | "verificacion"
   | "confirmada"
   | "cerrada";
 

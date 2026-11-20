@@ -24,6 +24,7 @@ import type {
 } from "@/lib/domain/types";
 import { formatDate, formatTime, formatUsd, plural } from "@/lib/format";
 import { MARCA } from "@/lib/brand";
+import { t } from "@/lib/i18n/es";
 
 import { PublicShell } from "../layout/PublicShell";
 import { BadgeEstado, Banner, BotonWhatsApp, useTituloPantalla } from "../ui";
@@ -270,6 +271,10 @@ export function Voucher({
                 </div>
               </div>
             ) : null}
+            <p className="flex items-start gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
+              <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+              <span>{t("hora_salida_aviso")}</span>
+            </p>
             {salida.punto ? (
               <div className="flex items-start gap-3">
                 <MapPin
@@ -300,6 +305,10 @@ export function Voucher({
                 </div>
               </div>
             ) : null}
+            <p className="flex items-start gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
+              <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+              <span>{t("hora_salida_aviso")}</span>
+            </p>
             <div className="flex items-start gap-3">
               <Users className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
               <div>

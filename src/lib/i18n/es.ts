@@ -66,6 +66,7 @@ export const DICCIONARIO = {
   desplazate: "Desplázate hasta el final para continuar",
   terminos_leidos: "He leído y acepto los términos y condiciones",
   leer_terminos: "Leer términos y condiciones",
+  hora_salida_aviso: "La hora de salida se confirma en el grupo de WhatsApp",
 
   // Admin
   cerrar_sesion: "Cerrar sesión",

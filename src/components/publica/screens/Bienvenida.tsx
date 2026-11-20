@@ -16,6 +16,7 @@ import { formatDate, formatTime } from "@/lib/format";
 import { ETAPAS_RESERVA } from "@/lib/brand";
 import type { Categoria } from "@/lib/domain/types";
 import { cn } from "@/lib/utils";
+import { t } from "@/lib/i18n/es";
 
 import { BotonCargar, BotonWhatsApp, SheetBottom } from "../ui";
 import type { ContextoReserva } from "../use-reserva";
@@ -128,6 +129,12 @@ function agruparDias(incluye: string[]): { dia: string | null; texto: string }[]
               <Clock className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
               <dt className="sr-only">Hora de salida</dt>
               <dd className="font-semibold text-foreground">{formatTime(horaSalida)}</dd>
+            </div>
+          ) : null}
+          {horaSalida ? (
+            <div className="flex items-start gap-1.5 text-xs text-muted-foreground col-span-full">
+              <span className="mt-0.5 h-1 w-1 shrink-0 rounded-full bg-muted-foreground" aria-hidden="true" />
+              <span>{t("hora_salida_aviso")}</span>
             </div>
           ) : null}
           {puntoAbordaje ? (

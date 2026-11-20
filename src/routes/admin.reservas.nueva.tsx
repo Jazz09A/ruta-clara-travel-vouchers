@@ -31,6 +31,10 @@ function CrearEnlace() {
   const [referenciaInterna, setReferenciaInterna] = useState("");
   const [conPrecio, setConPrecio] = useState(false);
   const [datosPrecio, setDatosPrecio] = useState<DatosPrecio | null>(null);
+  const [pagoMetodo, setPagoMetodo] = useState("");
+  const [pagoMonto, setPagoMonto] = useState("");
+  const [pagoReferencia, setPagoReferencia] = useState("");
+  const [pagoFecha, setPagoFecha] = useState(hoyISO());
   const [generando, setGenerando] = useState(false);
   const [resultado, setResultado] = useState<{
     token: string;
@@ -50,6 +54,13 @@ function CrearEnlace() {
     queryFn: () => api.admin.fechas(""),
   });
 
+  const { data: configuracion } = useQuery({
+    queryKey: ["admin", "configuracion"],
+    queryFn: () => api.admin.configuracion(),
+  });
+  const metodosActivos =
+    configuracion?.metodos.filter((m) => m.activo).sort((a, b) => a.orden - b.orden) ?? [];
+
   const tourSeleccionado = tours?.find((t) => t.id === tourId);
   const fechasDisponibles = tourId
     ? fechas?.filter((f) => f.tour_id === tourId && f.estado === "publicada")
@@ -63,6 +74,20 @@ function CrearEnlace() {
       toast.error("Guarda los cargos o ajustes antes de generar el enlace.");
       return;
     }
+    // La reserva nace pagada: el pago es obligatorio para generar el enlace.
+    if (!pagoMetodo) {
+      toast.error("Elige el método de pago.");
+      return;
+    }
+    const monto = Number(pagoMonto.replace(",", "."));
+    if (!Number.isFinite(monto) || monto <= 0) {
+      toast.error("Escribe un monto válido en USD.");
+      return;
+    }
+    if (!pagoFecha) {
+      toast.error("Indica la fecha del pago.");
+      return;
+    }
 
     setGenerando(true);
 
@@ -71,6 +96,13 @@ function CrearEnlace() {
         fecha_tour_id: fechaId,
         referencia_interna: referenciaInterna || undefined,
         ...(datosPrecio ? { lineas: datosPrecio.lineas, ajustes: datosPrecio.ajustes } : {}),
+        pago: {
+          metodo_clave: pagoMetodo,
+          monto: monto.toFixed(2),
+          moneda: "USD",
+          fecha_pago: pagoFecha,
+          ...(pagoReferencia.trim() ? { referencia: pagoReferencia.trim() } : {}),
+        },
       });
 
       const enlace = `${window.location.origin}${resp.enlace}`;
@@ -103,6 +135,10 @@ function CrearEnlace() {
     setReferenciaInterna("");
     setConPrecio(false);
     setDatosPrecio(null);
+    setPagoMetodo("");
+    setPagoMonto("");
+    setPagoReferencia("");
+    setPagoFecha(hoyISO());
     setResultado(null);
   };
 
@@ -265,11 +301,72 @@ function CrearEnlace() {
                 ) : null}
               </div>
 
+              <div className="rounded-xl border border-border bg-muted/40 p-3">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-extrabold text-foreground">Pago de la reserva</h3>
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary">
+                    Obligatorio
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  La reserva nace pagada. El cliente sólo completa su registro y descarga el
+                  voucher.
+                </p>
+
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <Campo
+                    id="pago-metodo"
+                    label="Método de pago"
+                    type="select"
+                    value={pagoMetodo}
+                    onChange={(e) => setPagoMetodo(e.target.value)}
+                    required
+                  >
+                    <option value="">Selecciona</option>
+                    {metodosActivos.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.nombre}
+                      </option>
+                    ))}
+                  </Campo>
+
+                  <Campo
+                    id="pago-monto"
+                    label="Monto (USD)"
+                    type="number"
+                    value={pagoMonto}
+                    onChange={(e) => setPagoMonto(e.target.value)}
+                    placeholder="0.00"
+                    min="0"
+                    step="0.01"
+                    required
+                  />
+
+                  <Campo
+                    id="pago-referencia"
+                    label="Referencia (opcional)"
+                    type="text"
+                    value={pagoReferencia}
+                    onChange={(e) => setPagoReferencia(e.target.value)}
+                    placeholder="N.º de transferencia, depósito…"
+                  />
+
+                  <Campo
+                    id="pago-fecha"
+                    label="Fecha del pago"
+                    type="date"
+                    value={pagoFecha}
+                    onChange={(e) => setPagoFecha(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
               <BotonCargar
                 type="submit"
                 cargando={generando}
                 className="w-full"
-                disabled={!tourId || !fechaId}
+                disabled={!tourId || !fechaId || !pagoMetodo || !pagoMonto}
               >
                 Generar enlace
               </BotonCargar>
@@ -369,6 +466,13 @@ function ResultadoEnlace({
       </div>
     </div>
   );
+}
+
+function hoyISO(): string {
+  const d = new Date();
+  const mes = String(d.getMonth() + 1).padStart(2, "0");
+  const dia = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mes}-${dia}`;
 }
 
 function mensajeDeError(error: unknown): string {

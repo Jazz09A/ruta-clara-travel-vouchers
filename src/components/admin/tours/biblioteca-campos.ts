@@ -151,4 +151,23 @@ export const BIBLIOTECA_CAMPOS: CampoBiblioteca[] = [
       unidad: "persona",
     }),
   },
+  {
+    clave: "sabor_desayuno",
+    nombre: "Sabor del desayuno",
+    descripcion: "Multiselect: cazón, molida, pollo, queso (pueden pedir 2 empanadas de sabores distintos)",
+    crear: () => ({
+      id: generarIdCampo("sabor_desayuno"),
+      label: "¿Qué sabor de empanada deseas?",
+      ayuda: "Selecciona uno o dos sabores de empanada para cada pasajero.",
+      tipo: "multiselect",
+      alcance: "por_pasajero",
+      obligatorio: false,
+      opciones: [
+        { valor: "cazon", label: "Cazón" },
+        { valor: "molida", label: "Molida" },
+        { valor: "pollo", label: "Pollo" },
+        { valor: "queso", label: "Queso" },
+      ],
+    }),
+  },
 ];

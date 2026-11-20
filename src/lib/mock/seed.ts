@@ -334,6 +334,20 @@ const CAMPOS_ROQUES_V2: CamposFormulario = [
       { valor: "pasta", label: "Pasta" },
     ],
   },
+  {
+    id: "sabor_desayuno",
+    label: "Sabor del desayuno",
+    ayuda: "Selecciona el sabor de empanada para cada pasajero.",
+    tipo: "multiselect",
+    alcance: "por_pasajero",
+    obligatorio: false,
+    opciones: [
+      { valor: "cazon", label: "Cazón" },
+      { valor: "molida", label: "Molida" },
+      { valor: "pollo", label: "Pollo" },
+      { valor: "queso", label: "Queso" },
+    ],
+  },
 ];
 
 function crearFormularios(ahora: number): Formulario[] {
@@ -348,11 +362,27 @@ function crearFormularios(ahora: number): Formulario[] {
       id: "form_merida",
       tour_id: "tour_merida",
       definicion: {
-        campos: camposSimples([
-          { valor: "altamira", label: "Altamira, 5:00 a. m." },
-          { valor: "plaza_caracas", label: "Plaza Caracas, 5:15 a. m." },
-          { valor: "el_paraiso", label: "El Paraíso, 5:00 a. m." },
-        ]),
+        campos: [
+          ...camposSimples([
+            { valor: "altamira", label: "Altamira, 5:00 a. m." },
+            { valor: "plaza_caracas", label: "Plaza Caracas, 5:15 a. m." },
+            { valor: "el_paraiso", label: "El Paraíso, 5:00 a. m." },
+          ]),
+          {
+            id: "sabor_desayuno",
+            label: "Sabor del desayuno",
+            ayuda: "Selecciona el sabor de empanada para cada pasajero.",
+            tipo: "multiselect",
+            alcance: "por_pasajero",
+            obligatorio: false,
+            opciones: [
+              { valor: "cazon", label: "Cazón" },
+              { valor: "molida", label: "Molida" },
+              { valor: "pollo", label: "Pollo" },
+              { valor: "queso", label: "Queso" },
+            ],
+          },
+        ],
       },
       actualizado_en: fechaIso(ahora, -95),
     },
@@ -360,10 +390,26 @@ function crearFormularios(ahora: number): Formulario[] {
       id: "form_colonia",
       tour_id: "tour_colonia",
       definicion: {
-        campos: camposSimples([
-          { valor: "altamira", label: "Altamira, 5:30 a. m." },
-          { valor: "plaza_caracas", label: "Plaza Caracas, 5:45 a. m." },
-        ]),
+        campos: [
+          ...camposSimples([
+            { valor: "altamira", label: "Altamira, 5:30 a. m." },
+            { valor: "plaza_caracas", label: "Plaza Caracas, 5:45 a. m." },
+          ]),
+          {
+            id: "sabor_desayuno",
+            label: "Sabor del desayuno",
+            ayuda: "Selecciona el sabor de empanada para cada pasajero.",
+            tipo: "multiselect",
+            alcance: "por_pasajero",
+            obligatorio: false,
+            opciones: [
+              { valor: "cazon", label: "Cazón" },
+              { valor: "molida", label: "Molida" },
+              { valor: "pollo", label: "Pollo" },
+              { valor: "queso", label: "Queso" },
+            ],
+          },
+        ],
       },
       actualizado_en: fechaIso(ahora, -60),
     },
@@ -371,10 +417,26 @@ function crearFormularios(ahora: number): Formulario[] {
       id: "form_lacosta",
       tour_id: "tour_lacosta",
       definicion: {
-        campos: camposSimples([
-          { valor: "altamira", label: "Altamira, 5:00 a. m." },
-          { valor: "petare", label: "Petare, 5:30 a. m." },
-        ]),
+        campos: [
+          ...camposSimples([
+            { valor: "altamira", label: "Altamira, 5:00 a. m." },
+            { valor: "petare", label: "Petare, 5:30 a. m." },
+          ]),
+          {
+            id: "sabor_desayuno",
+            label: "Sabor del desayuno",
+            ayuda: "Selecciona el sabor de empanada para cada pasajero.",
+            tipo: "multiselect",
+            alcance: "por_pasajero",
+            obligatorio: false,
+            opciones: [
+              { valor: "cazon", label: "Cazón" },
+              { valor: "molida", label: "Molida" },
+              { valor: "pollo", label: "Pollo" },
+              { valor: "queso", label: "Queso" },
+            ],
+          },
+        ],
       },
       actualizado_en: fechaIso(ahora, -9),
     },
@@ -429,6 +491,7 @@ function crearTours(ahora: number): Tour[] {
         "Entrada y uso del muelle de Los Roques",
         "Guía acompañante durante todo el recorrido",
         "Botiquín de primeros auxilios a bordo",
+        "Empanadas de sabor a elección",
       ],
       no_incluye: [
         "Bebidas adicionales y consumos personales",
@@ -506,6 +569,7 @@ function crearTours(ahora: number): Tour[] {
         "Desayuno y cena del primer día",
         "Almuerzo del primer día según selección",
         "Guía durante todo el recorrido",
+        "Empanadas de sabor a elección",
       ],
       no_incluye: [
         "Almuerzos y cenas no incluidos en el plan",
@@ -630,7 +694,12 @@ function crearTours(ahora: number): Tour[] {
         { hora: "15:30", titulo: "Playa de Agua de Caro", detalle: "Día libre de playa." },
         { hora: "17:00", titulo: "Regreso", detalle: "Partida hacia Caracas." },
       ],
-      incluye: ["Transporte ida y vuelta desde Caracas", "Una noche de alojamiento", "Desayuno"],
+      incluye: [
+        "Transporte ida y vuelta desde Caracas",
+        "Una noche de alojamiento",
+        "Desayuno",
+        "Empanadas de sabor a elección",
+      ],
       no_incluye: ["Almuerzos y cenas", "Actividades recreativas con costo", "Propinas"],
       imagenes: ["https://picsum.photos/seed/lacosta1/1200/800"],
       puntos_abordaje: [
@@ -921,7 +990,7 @@ El titular declara ser mayor de 18 años, firma en nombre propio y de sus acompa
 
 ## 3. Cancelaciones y reembolsos
 
-La cancelación debe solicitarse antes de la salida. El reembolso se calcula con la tabla escalonada de la política de cancelación del tour: con más de 7 días se devuelve el 100 %, entre 3 y 7 días el 50 % y con menos de 3 días no hay reembolso. El saldo no reembolsable cubre servicios ya contratados con proveedores.
+Si cancelas la reserva, no se devuelve ningún monto por temas de logística y políticas de la empresa. La política de cancelación del tour establece 0 % de reembolso en todos los tramos, ya que los servicios se contratan con anticipación y no admiten devoluciones.
 
 ## 4. Uso de datos personales
 
@@ -945,7 +1014,7 @@ El titular declara ser mayor de 18 años y entrega datos veraces de todos los pa
 
 ## 3. Cancelaciones y reembolsos
 
-La cancelación se calcula con la tabla escalonada de la política de cancelación del tour.
+Si cancelas la reserva, no se devuelve ningún monto por temas de logística y políticas de la empresa. La política establece 0 % de reembolso en todos los tramos.
 
 ## 4. Uso de datos personales
 
@@ -983,6 +1052,8 @@ function crearTerminos(ahora: number): VersionTerminos[] {
 }
 
 function crearPoliticas(): PoliticaCancelacion[] {
+  const SIN_REEMBOLSO = "No reembolsable — logística y políticas de la empresa";
+
   return [
     {
       id: "pol_roques",
@@ -990,18 +1061,18 @@ function crearPoliticas(): PoliticaCancelacion[] {
       tramos: [
         {
           dias_desde_salida: 7,
-          porcentaje_reembolso: 100,
-          descripcion: "Más de 7 días antes de la salida: reembolso del 100 %.",
+          porcentaje_reembolso: 0,
+          descripcion: SIN_REEMBOLSO,
         },
         {
           dias_desde_salida: 3,
-          porcentaje_reembolso: 50,
-          descripcion: "Entre 3 y 7 días antes de la salida: reembolso del 50 %.",
+          porcentaje_reembolso: 0,
+          descripcion: SIN_REEMBOLSO,
         },
         {
           dias_desde_salida: 0,
           porcentaje_reembolso: 0,
-          descripcion: "Con menos de 3 días de anticipación: no hay reembolso.",
+          descripcion: SIN_REEMBOLSO,
         },
       ],
     },
@@ -1011,23 +1082,23 @@ function crearPoliticas(): PoliticaCancelacion[] {
       tramos: [
         {
           dias_desde_salida: 15,
-          porcentaje_reembolso: 100,
-          descripcion: "Más de 15 días antes de la salida: reembolso del 100 %.",
+          porcentaje_reembolso: 0,
+          descripcion: SIN_REEMBOLSO,
         },
         {
           dias_desde_salida: 7,
-          porcentaje_reembolso: 75,
-          descripcion: "Entre 7 y 15 días antes de la salida: reembolso del 75 %.",
+          porcentaje_reembolso: 0,
+          descripcion: SIN_REEMBOLSO,
         },
         {
           dias_desde_salida: 3,
-          porcentaje_reembolso: 50,
-          descripcion: "Entre 3 y 7 días antes de la salida: reembolso del 50 %.",
+          porcentaje_reembolso: 0,
+          descripcion: SIN_REEMBOLSO,
         },
         {
           dias_desde_salida: 0,
           porcentaje_reembolso: 0,
-          descripcion: "Con menos de 3 días de anticipación: no hay reembolso.",
+          descripcion: SIN_REEMBOLSO,
         },
       ],
     },

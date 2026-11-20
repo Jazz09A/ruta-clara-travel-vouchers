@@ -4,6 +4,7 @@ import { CalendarDays, Clock, ShieldCheck } from "lucide-react";
 import { MARCA } from "@/lib/brand";
 import { formatCountdown, formatDate, formatHorasMinutos, formatTime } from "@/lib/format";
 import type { EstadoPaso } from "@/lib/domain/types";
+import { t } from "@/lib/i18n/es";
 
 import { ActionBar, Banner, BotonWhatsApp, EstadoConexion, ProgressSteps } from "../ui";
 import type { EstadoGuardado } from "../ui/EstadoConexion";
@@ -122,16 +123,23 @@ export function PublicShell({
               {nombreTour ?? "Tu reserva"}
             </p>
             {fechaTour ? (
-              <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
-                <CalendarDays className="h-3 w-3 shrink-0" aria-hidden="true" />
-                <span>{formatDate(fechaTour)}</span>
+              <div className="min-w-0">
+                <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
+                  <CalendarDays className="h-3 w-3 shrink-0" aria-hidden="true" />
+                  <span>{formatDate(fechaTour)}</span>
+                  {horaTour ? (
+                    <>
+                      <Clock className="h-3 w-3 shrink-0" aria-hidden="true" />
+                      <span>{formatTime(horaTour)}</span>
+                    </>
+                  ) : null}
+                </p>
                 {horaTour ? (
-                  <>
-                    <Clock className="h-3 w-3 shrink-0" aria-hidden="true" />
-                    <span>{formatTime(horaTour)}</span>
-                  </>
+                  <p className="truncate text-[11px] text-muted-foreground">
+                    {t("hora_salida_aviso")}
+                  </p>
                 ) : null}
-              </p>
+              </div>
             ) : null}
           </div>
 

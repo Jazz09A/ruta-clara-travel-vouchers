@@ -28,8 +28,8 @@ describe("máquina de estados — transiciones", () => {
     expect(TRANSICIONES).toEqual({
       enlace_creado: ["en_registro", "expirada", "cancelada"],
       en_registro: ["pendiente_firma", "expirada", "cancelada"],
-      pendiente_firma: ["pendiente_pago", "cancelada"],
-      pendiente_pago: ["pago_en_verificacion", "expirada", "cancelada"],
+      pendiente_firma: ["confirmada", "pendiente_pago", "cancelada"],
+      pendiente_pago: ["pago_en_verificacion", "confirmada", "expirada", "cancelada"],
       pago_en_verificacion: ["confirmada", "pendiente_pago", "cancelada"],
       confirmada: ["cancelada", "completada"],
       completada: [],
@@ -46,18 +46,19 @@ describe("máquina de estados — transiciones", () => {
     expect(puedeTransicionar("enlace_creado", "en_registro")).toBe(true);
     expect(puedeTransicionar("en_registro", "pendiente_firma")).toBe(true);
     expect(puedeTransicionar("pendiente_firma", "pendiente_pago")).toBe(true);
+    expect(puedeTransicionar("pendiente_firma", "confirmada")).toBe(true);
     expect(puedeTransicionar("pendiente_pago", "pago_en_verificacion")).toBe(true);
+    expect(puedeTransicionar("pendiente_pago", "confirmada")).toBe(true);
     expect(puedeTransicionar("pago_en_verificacion", "confirmada")).toBe(true);
     expect(puedeTransicionar("confirmada", "completada")).toBe(true);
     expect(puedeTransicionar("expirada", "enlace_creado")).toBe(true);
   });
 
-  it("rechaza las transiciones inválidas", () => {
+it("rechaza las transiciones inválidas", () => {
     expect(puedeTransicionar("enlace_creado", "confirmada")).toBe(false);
     expect(puedeTransicionar("en_registro", "pendiente_pago")).toBe(false);
     expect(puedeTransicionar("completada", "confirmada")).toBe(false);
     expect(puedeTransicionar("cancelada", "en_registro")).toBe(false);
-    expect(puedeTransicionar("pendiente_firma", "pendiente_pago")).toBe(true);
     expect(puedeTransicionar("pendiente_firma", "pago_en_verificacion")).toBe(false);
   });
 
@@ -81,9 +82,7 @@ describe("máquina de estados — flujo de pasos", () => {
     expect(siguientePaso("acompanantes")).toBe("preguntas");
     expect(siguientePaso("preguntas")).toBe("resumen");
     expect(siguientePaso("resumen")).toBe("firma");
-    expect(siguientePaso("firma")).toBe("pago");
-    expect(siguientePaso("pago")).toBe("verificacion");
-    expect(siguientePaso("verificacion")).toBe("confirmada");
+    expect(siguientePaso("firma")).toBe("confirmada");
     expect(siguientePaso("confirmada")).toBe("cerrada");
   });
 

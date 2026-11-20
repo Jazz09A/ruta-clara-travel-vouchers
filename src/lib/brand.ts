@@ -12,14 +12,13 @@ export const MARCA = {
   zonaHoraria: "America/Caracas",
 } as const;
 
-/** Etiquetas de las etapas del flujo público (Spec 4.2). */
+/** Etiquetas de las etapas del flujo público (Spec 4.2). Sin paso de pago. */
 export const ETAPAS_RESERVA = [
   { id: "titular", label: "Titular", corto: "Titular" },
   { id: "acompanantes", label: "Acompañantes", corto: "Grupo" },
   { id: "preguntas", label: "Preguntas", corto: "Preguntas" },
   { id: "resumen", label: "Resumen", corto: "Resumen" },
   { id: "firma", label: "Firma", corto: "Firma" },
-  { id: "pago", label: "Pago", corto: "Pago" },
 ] as const;
 
 export type EtapaId = (typeof ETAPAS_RESERVA)[number]["id"];

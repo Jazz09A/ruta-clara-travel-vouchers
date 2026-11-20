@@ -23,9 +23,6 @@ import {
 } from "@/components/publica/screens/Confirmacion";
 import { Terminos, type AceptacionTerminos } from "@/components/publica/screens/Terminos";
 import { Firma } from "@/components/publica/screens/Firma";
-import { Pago } from "@/components/publica/screens/Pago";
-import { PagoCoordina } from "@/components/publica/screens/PagoCoordina";
-import { VerificacionPago } from "@/components/publica/screens/VerificacionPago";
 import { Voucher } from "@/components/publica/screens/Voucher";
 import { EstadoBloqueante } from "@/components/publica/screens/EstadoBloqueante";
 import { EnlaceInvalido, EnlaceVencido } from "@/components/publica/screens/pantallas";
@@ -52,7 +49,8 @@ export const Route = createFileRoute("/r/$token")({
 
 const CLAVE_ENLACE = "ruta_clara_enlace";
 
-/** Pantallas del flujo público. */
+/** Pantallas del flujo público. Sin paso de pago: la firma confirma la
+ *  reserva y genera el voucher (el pago se registra al crear el enlace). */
 type Pantalla =
   | "bienvenida"
   | "titular"
@@ -61,8 +59,6 @@ type Pantalla =
   | "resumen"
   | "terminos"
   | "firma"
-  | "pago"
-  | "verificacion"
   | "confirmada"
   | "cerrada";
 
@@ -74,21 +70,11 @@ const PANTALLA_POR_PASO: Record<PasoActual, Pantalla> = {
   resumen: "resumen",
   terminos: "terminos",
   firma: "firma",
-  pago: "pago",
-  verificacion: "verificacion",
   confirmada: "confirmada",
   cerrada: "cerrada",
 };
 
-const ORDEN_ETAPAS = [
-  "titular",
-  "acompanantes",
-  "preguntas",
-  "resumen",
-  "terminos",
-  "firma",
-  "pago",
-];
+const ORDEN_ETAPAS = ["titular", "acompanantes", "preguntas", "resumen", "terminos", "firma"];
 
 const TITULO_POR_PANTALLA: Record<Pantalla, string> = {
   bienvenida: "Revisa tu salida",
@@ -98,8 +84,6 @@ const TITULO_POR_PANTALLA: Record<Pantalla, string> = {
   resumen: "Resumen de tu reserva",
   terminos: "Términos y condiciones",
   firma: "Firma",
-  pago: "Pago",
-  verificacion: "Verificando tu pago",
   confirmada: "¡Reserva confirmada!",
   cerrada: "Reserva cerrada",
 };

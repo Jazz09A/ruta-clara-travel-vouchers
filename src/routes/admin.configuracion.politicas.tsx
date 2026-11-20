@@ -149,7 +149,8 @@ function PoliticasCancelacion() {
 
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">
-            Configura los tramos y porcentajes de reembolso por cancelación
+            Configura los tramos y porcentajes de reembolso por cancelación. El reembolso por
+            defecto es del 0 %.
           </p>
           <Button
             type="button"
@@ -161,18 +162,18 @@ function PoliticasCancelacion() {
                 tramos: [
                   {
                     dias_desde_salida: 7,
-                    porcentaje_reembolso: 100,
-                    descripcion: "Más de 7 días antes",
+                    porcentaje_reembolso: 0,
+                    descripcion: "No reembolsable — logística y políticas de la empresa",
                   },
                   {
                     dias_desde_salida: 3,
-                    porcentaje_reembolso: 50,
-                    descripcion: "Entre 3 y 7 días antes",
+                    porcentaje_reembolso: 0,
+                    descripcion: "No reembolsable — logística y políticas de la empresa",
                   },
                   {
                     dias_desde_salida: 0,
                     porcentaje_reembolso: 0,
-                    descripcion: "Menos de 3 días antes",
+                    descripcion: "No reembolsable — logística y políticas de la empresa",
                   },
                 ],
               })
@@ -270,7 +271,7 @@ function PoliticasCancelacion() {
               if (!abierto) setEditando(null);
             }}
             titulo={editando.id ? "Editar política" : "Nueva política"}
-            descripcion="Configura los tramos y porcentajes de reembolso"
+            descripcion="Configura los tramos y porcentajes de reembolso. El reembolso por defecto es del 0 %."
             textoConfirmar="Guardar"
             cargando={mutationGuardar.isPending}
             onConfirmar={() => setEditando(null)}

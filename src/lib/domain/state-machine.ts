@@ -12,8 +12,10 @@ import type { EstadoPago, EstadoReserva, PasoActual } from "./types";
 export const TRANSICIONES: Record<EstadoReserva, EstadoReserva[]> = {
   enlace_creado: ["en_registro", "expirada", "cancelada"],
   en_registro: ["pendiente_firma", "expirada", "cancelada"],
-  pendiente_firma: ["pendiente_pago", "cancelada"],
-  pendiente_pago: ["pago_en_verificacion", "expirada", "cancelada"],
+  // La firma confirma la reserva (sin paso de pago); `pendiente_pago` queda
+  // sólo para reservas legacy creadas antes de quitar ese paso.
+  pendiente_firma: ["confirmada", "pendiente_pago", "cancelada"],
+  pendiente_pago: ["pago_en_verificacion", "confirmada", "expirada", "cancelada"],
   pago_en_verificacion: ["confirmada", "pendiente_pago", "cancelada"],
   confirmada: ["cancelada", "completada"],
   completada: [],
@@ -30,7 +32,8 @@ export const ESTADOS_EDITABLES: EstadoReserva[] = [
   "pago_en_verificacion",
 ];
 
-/** Flujo de pasos del cliente (Spec §4.2). */
+/** Flujo de pasos del cliente (Spec §4.2). Sin paso de pago: el voucher
+ *  se genera al firmar y el pago se registra al crear el enlace. */
 export const PASOS: PasoActual[] = [
   "paso_registro",
   "titular",
@@ -38,8 +41,6 @@ export const PASOS: PasoActual[] = [
   "preguntas",
   "resumen",
   "firma",
-  "pago",
-  "verificacion",
   "confirmada",
   "cerrada",
 ];
