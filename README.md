@@ -22,13 +22,13 @@ el cliente solo muestra (`src/lib/domain/api.ts` define el contrato).
 ```bash
 # 1. Backend (una sola vez, o cuando cambie el schema)
 cd ../backend
-ppnpm install --frozen-lockfile
+pnpm install --frozen-lockfile
 pnpm seed        # datos demo: usuarios, catálogo, fechas, tarifas
 pnpm start:dev   # API en http://localhost:3001/api/v1
 
 # 2. Frontend
 cd ruta-clara-travel-vouchers
-ppnpm install --frozen-lockfile
+pnpm install --frozen-lockfile
 pnpm dev         # http://localhost:8080 (o el puerto que indique Vite)
 ```
 
