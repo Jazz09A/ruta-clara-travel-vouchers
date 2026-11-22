@@ -361,9 +361,7 @@ test("flujo completo: enlace → registro → pago → validación → voucher",
 
     // La reserva queda confirmada: se asigna el código VJ-AAAA-NNNNN
     // (el texto aparece en el toast, el banner y el aviso sr-only).
-    const toastConfirmada = page
-      .getByText(/Reserva confirmada \(VJ-\d{4}-\d+\)/)
-      .first();
+    const toastConfirmada = page.getByText(/Reserva confirmada \(VJ-\d{4}-\d+\)/).first();
     await expect(toastConfirmada).toBeVisible({ timeout: 20_000 });
     codigoReserva = (await toastConfirmada.textContent())?.match(/VJ-\d{4}-\d+/)?.[0] ?? "";
     expect(codigoReserva).toMatch(/^VJ-\d{4}-\d+$/);
@@ -380,9 +378,9 @@ test("flujo completo: enlace → registro → pago → validación → voucher",
     await page.getByLabel("Referencia (opcional)").fill(referenciaPago);
     await page.getByRole("button", { name: "Registrar pago", exact: true }).click();
 
-    await expect(
-      page.getByText("Pago anotado. Queda aprobado en la reserva.").first(),
-    ).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("Pago anotado. Queda aprobado en la reserva.").first()).toBeVisible(
+      { timeout: 20_000 },
+    );
     // Sin cola: el pago aparece aprobado en el panel de la reserva.
     await expect(page.getByText("Aprobado").first()).toBeVisible({ timeout: 20_000 });
   });
@@ -402,9 +400,7 @@ test("flujo completo: enlace → registro → pago → validación → voucher",
       timeout: 30_000,
     });
     // Los menores de 4 años viajan gratis: el voucher resalta el sin costo.
-    await expect(
-      page.getByText("Sin costo · viaja en piernas de su representante"),
-    ).toBeVisible();
+    await expect(page.getByText("Sin costo · viaja en piernas de su representante")).toBeVisible();
     // Voucher con el nombre real del tour (no «Tu tour») y el punto de
     // cada pasajero en la fila («Sale desde»).
     await expect(page.getByText(TOUR).first()).toBeVisible();

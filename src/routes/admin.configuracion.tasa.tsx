@@ -58,7 +58,11 @@ function TasaCambio() {
   return (
     <AdminShell
       titulo="Tasa de cambio"
-      breadcrumb={[{ label: "Panel", to: "/admin" }, { label: "Configuración", to: "/admin/configuracion" }, { label: "Tasa de cambio" }]}
+      breadcrumb={[
+        { label: "Panel", to: "/admin" },
+        { label: "Configuración", to: "/admin/configuracion" },
+        { label: "Tasa de cambio" },
+      ]}
     >
       <div className="mx-auto w-full max-w-3xl">
         <Link
@@ -71,9 +75,7 @@ function TasaCambio() {
 
         {/* Tasa vigente */}
         <div className="mb-6 rounded-2xl border border-border bg-card p-6 shadow-card">
-          <h2 className="text-xl font-extrabold tracking-tight text-foreground">
-            Tasa vigente
-          </h2>
+          <h2 className="text-xl font-extrabold tracking-tight text-foreground">Tasa vigente</h2>
           <p className="mt-2 text-sm text-muted-foreground">
             La tasa actual que se usa para calcular los precios en bolívares
           </p>
@@ -100,9 +102,7 @@ function TasaCambio() {
             </div>
           ) : (
             <div className="mt-4 rounded-xl border border-dashed border-border p-4 text-center">
-              <p className="text-sm text-muted-foreground">
-                No hay una tasa vigente registrada
-              </p>
+              <p className="text-sm text-muted-foreground">No hay una tasa vigente registrada</p>
             </div>
           )}
         </div>
@@ -161,9 +161,7 @@ function TasaCambio() {
             </div>
           ) : historial.length === 0 ? (
             <div className="mt-4 rounded-xl border border-dashed border-border p-4 text-center">
-              <p className="text-sm text-muted-foreground">
-                No hay historial de tasas registradas
-              </p>
+              <p className="text-sm text-muted-foreground">No hay historial de tasas registradas</p>
             </div>
           ) : (
             <ul className="mt-4 space-y-3">
@@ -173,9 +171,7 @@ function TasaCambio() {
                   className="flex items-center justify-between rounded-xl border border-border bg-muted/30 p-4"
                 >
                   <div>
-                    <p className="text-sm font-semibold text-foreground">
-                      {tasa.valor} Bs/USD
-                    </p>
+                    <p className="text-sm font-semibold text-foreground">{tasa.valor} Bs/USD</p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       Por {tasa.registrada_por} · {formatRelative(tasa.registrada_en)}
                     </p>

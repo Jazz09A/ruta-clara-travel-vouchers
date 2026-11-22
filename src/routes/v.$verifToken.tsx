@@ -1,6 +1,14 @@
 import { createFileRoute, type ErrorComponentProps } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { CheckCircle2, XCircle, Clock, Calendar, Users, AlertTriangle, Loader2 } from "lucide-react";
+import {
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Calendar,
+  Users,
+  AlertTriangle,
+  Loader2,
+} from "lucide-react";
 import { MARCA } from "@/lib/brand";
 import { esApiError } from "@/lib/domain/api";
 import { verificarQR } from "@/lib/api";
@@ -183,9 +191,7 @@ function ErrorQR({ error, reset }: ErrorComponentProps) {
         <EstadoBloqueante
           titulo="No pudimos verificar el código"
           mensaje={
-            <p>
-              Hubo un error al verificar. Revisa tu conexión y vuelve a escanear el código QR.
-            </p>
+            <p>Hubo un error al verificar. Revisa tu conexión y vuelve a escanear el código QR.</p>
           }
           accion={{ etiqueta: "Reintentar", onClick: reset }}
           tono="aviso"

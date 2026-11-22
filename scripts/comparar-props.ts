@@ -56,6 +56,8 @@ for (const archivo of archivosA) {
   if (soloA.length === 0 && soloB.length === 0) {
     console.log(`= ${nombre}: props compatibles`);
   } else {
-    console.log(`~ ${nombre}: solo en ${a}=[${soloA.join(", ")}] solo en ${b}=[${soloB.join(", ")}]`);
+    console.log(
+      `~ ${nombre}: solo en ${a}=[${soloA.join(", ")}] solo en ${b}=[${soloB.join(", ")}]`,
+    );
   }
 }

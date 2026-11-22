@@ -83,7 +83,9 @@ export function DialogoEditarDatos({
   onConfirmar,
 }: DialogoEditarDatosProps) {
   const [nombres, setNombres] = React.useState<Record<string, string>>({});
-  const [selecciones, setSelecciones] = React.useState<Record<string, Record<string, Respuesta>>>({});
+  const [selecciones, setSelecciones] = React.useState<Record<string, Record<string, Respuesta>>>(
+    {},
+  );
   const [globales, setGlobales] = React.useState<Record<string, Respuesta>>({});
   const [motivo, setMotivo] = React.useState("");
 
@@ -101,11 +103,7 @@ export function DialogoEditarDatos({
   const motivoIncompleto = motivo.trim().length < 5;
   const listo = !motivoIncompleto && !cargando;
 
-  const actualizarSeleccion = (
-    refPasajero: string,
-    campo: string,
-    valor: string,
-  ) => {
+  const actualizarSeleccion = (refPasajero: string, campo: string, valor: string) => {
     setSelecciones((previas) => ({
       ...previas,
       [refPasajero]: {
@@ -138,8 +136,7 @@ export function DialogoEditarDatos({
         <DialogHeader>
           <DialogTitle className="text-base font-semibold">Editar datos de la reserva</DialogTitle>
           <DialogDescription className="text-sm leading-relaxed text-muted-foreground">
-            Los cambios se guardan con el motivo que indiques y quedan registrados en la
-            auditoría.
+            Los cambios se guardan con el motivo que indiques y quedan registrados en la auditoría.
           </DialogDescription>
         </DialogHeader>
 
@@ -189,7 +186,10 @@ export function DialogoEditarDatos({
                         actualizarSeleccion(pasajero.ref_cliente, campo.id, nuevo)
                       }
                     >
-                      <SelectTrigger id={`campo-${pasajero.ref_cliente}-${campo.id}`} className="h-11">
+                      <SelectTrigger
+                        id={`campo-${pasajero.ref_cliente}-${campo.id}`}
+                        className="h-11"
+                      >
                         <SelectValue placeholder="Sin seleccionar" />
                       </SelectTrigger>
                       <SelectContent>
@@ -252,7 +252,10 @@ export function DialogoEditarDatos({
                         id={`campo-global-${campo.id}`}
                         value={typeof valor === "string" ? valor : ""}
                         onChange={(evento) =>
-                          setGlobales((previas) => ({ ...previas, [campo.id]: evento.target.value }))
+                          setGlobales((previas) => ({
+                            ...previas,
+                            [campo.id]: evento.target.value,
+                          }))
                         }
                         className="min-h-20"
                       />
@@ -261,7 +264,10 @@ export function DialogoEditarDatos({
                         id={`campo-global-${campo.id}`}
                         value={typeof valor === "string" ? valor : ""}
                         onChange={(evento) =>
-                          setGlobales((previas) => ({ ...previas, [campo.id]: evento.target.value }))
+                          setGlobales((previas) => ({
+                            ...previas,
+                            [campo.id]: evento.target.value,
+                          }))
                         }
                         className="h-11"
                       />

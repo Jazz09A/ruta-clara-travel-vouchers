@@ -21,11 +21,7 @@ export { EmptyState, type EmptyStateProps } from "./EmptyState";
 export { ErrorState, type ErrorStateProps } from "./ErrorState";
 export { EstadoBloqueante, type EstadoBloqueanteProps } from "./Estados";
 export { EstadoConexion, type EstadoConexionProps, type EstadoGuardado } from "./EstadoConexion";
-export {
-  useFocoEnTitulo,
-  useMovimientoReducido,
-  useTituloPantalla,
-} from "./hooks";
+export { useFocoEnTitulo, useMovimientoReducido, useTituloPantalla } from "./hooks";
 export {
   PAISES_TELEFONO,
   PAIS_TELEFONO_POR_DEFECTO,
@@ -33,11 +29,7 @@ export {
   type PaisTelefono,
   type PhoneInputProps,
 } from "./PhoneInput";
-export {
-  ProgressSteps,
-  type PasoBarra,
-  type ProgressStepsProps,
-} from "./ProgressSteps";
+export { ProgressSteps, type PasoBarra, type ProgressStepsProps } from "./ProgressSteps";
 export { SheetBottom, type SheetBottomProps } from "./SheetBottom";
 export { Stepper, type StepperProps } from "./Stepper";
 export { UploadArchivo, type UploadArchivoProps } from "./UploadArchivo";

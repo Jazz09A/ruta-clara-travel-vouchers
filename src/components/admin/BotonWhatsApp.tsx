@@ -18,7 +18,12 @@ export interface BotonWhatsAppProps extends Omit<ButtonProps, "children"> {
   className?: string;
 }
 
-export function BotonWhatsApp({ url, children = "Enviar por WhatsApp", className, ...props }: BotonWhatsAppProps) {
+export function BotonWhatsApp({
+  url,
+  children = "Enviar por WhatsApp",
+  className,
+  ...props
+}: BotonWhatsAppProps) {
   return (
     <Button {...props} asChild className={cn(className)}>
       <a href={url} target="_blank" rel="noopener noreferrer">

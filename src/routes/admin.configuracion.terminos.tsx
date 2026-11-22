@@ -62,7 +62,11 @@ function TerminosCondiciones() {
   return (
     <AdminShell
       titulo="Términos y condiciones"
-      breadcrumb={[{ label: "Panel", to: "/admin" }, { label: "Configuración", to: "/admin/configuracion" }, { label: "Términos y condiciones" }]}
+      breadcrumb={[
+        { label: "Panel", to: "/admin" },
+        { label: "Configuración", to: "/admin/configuracion" },
+        { label: "Términos y condiciones" },
+      ]}
     >
       <div className="mx-auto w-full max-w-4xl">
         <Link
@@ -93,7 +97,8 @@ function TerminosCondiciones() {
                 <div>
                   <p className="text-lg font-bold text-foreground">{versionActiva.titulo}</p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Versión {versionActiva.version} · Publicada el {formatRelative(versionActiva.publicada_en)}
+                    Versión {versionActiva.version} · Publicada el{" "}
+                    {formatRelative(versionActiva.publicada_en)}
                   </p>
                 </div>
                 <Badge variant="default" className="min-h-8">
@@ -101,14 +106,14 @@ function TerminosCondiciones() {
                 </Badge>
               </div>
               <div className="mt-4 rounded-lg bg-background p-4">
-                <p className="whitespace-pre-wrap text-sm text-foreground">{versionActiva.cuerpo}</p>
+                <p className="whitespace-pre-wrap text-sm text-foreground">
+                  {versionActiva.cuerpo}
+                </p>
               </div>
             </div>
           ) : (
             <div className="mt-4 rounded-xl border border-dashed border-border p-4 text-center">
-              <p className="text-sm text-muted-foreground">
-                No hay una versión activa publicada
-              </p>
+              <p className="text-sm text-muted-foreground">No hay una versión activa publicada</p>
             </div>
           )}
         </div>
@@ -206,15 +211,13 @@ function TerminosCondiciones() {
           ) : (
             <ul className="mt-4 space-y-3">
               {historial.map((version) => (
-                <li
-                  key={version.id}
-                  className="rounded-xl border border-border bg-muted/30 p-4"
-                >
+                <li key={version.id} className="rounded-xl border border-border bg-muted/30 p-4">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-semibold text-foreground">{version.titulo}</p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Versión {version.version} · Publicada el {formatRelative(version.publicada_en)}
+                        Versión {version.version} · Publicada el{" "}
+                        {formatRelative(version.publicada_en)}
                       </p>
                     </div>
                     <Badge variant="secondary" className="min-h-8">
@@ -226,7 +229,9 @@ function TerminosCondiciones() {
                       Ver contenido
                     </summary>
                     <div className="mt-2 rounded-lg bg-background p-3">
-                      <p className="whitespace-pre-wrap text-xs text-foreground">{version.cuerpo}</p>
+                      <p className="whitespace-pre-wrap text-xs text-foreground">
+                        {version.cuerpo}
+                      </p>
                     </div>
                   </details>
                 </li>

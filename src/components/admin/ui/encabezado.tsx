@@ -17,7 +17,12 @@ export interface EncabezadoProps {
  */
 export function Encabezado({ descripcion, acciones, className }: EncabezadoProps) {
   return (
-    <div className={cn("mb-5 flex flex-col gap-3 md:flex-row md:items-start md:justify-between", className)}>
+    <div
+      className={cn(
+        "mb-5 flex flex-col gap-3 md:flex-row md:items-start md:justify-between",
+        className,
+      )}
+    >
       {descripcion ? (
         <div className="text-sm leading-relaxed text-muted-foreground">{descripcion}</div>
       ) : null}

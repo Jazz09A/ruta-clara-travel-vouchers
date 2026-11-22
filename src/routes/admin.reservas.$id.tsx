@@ -183,6 +183,25 @@ function DetalleReserva() {
       }));
   }, [consultaTour.data, reserva?.formulario_id]);
 
+  // Todos los campos del formulario (sin filtrar por editables): el panel de
+  // pasajeros necesita la etiqueta de campos de sólo lectura, como el
+  // multiselect de sabores de desayuno.
+  const camposFormulario = React.useMemo(() => {
+    const definicion = (consultaTour.data?.form_versiones ?? []).find(
+      (version) => version.id === reserva?.formulario_id,
+    );
+    if (!definicion) return [];
+    return definicion.definicion.campos.map((campo) => ({
+      id: campo.id,
+      label: campo.label,
+      tipo: campo.tipo as string,
+      opciones: (campo.opciones ?? []).map((opcion) => ({
+        valor: opcion.valor,
+        label: opcion.label,
+      })),
+    }));
+  }, [consultaTour.data, reserva?.formulario_id]);
+
   const refrescar = React.useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ["admin", "reserva", id] });
     await queryClient.invalidateQueries({ queryKey: ["admin", "tour"] });
@@ -337,7 +356,7 @@ function DetalleReserva() {
     <PanelPasajeros
       pasajeros={reserva.pasajeros}
       respuestasGlobales={reserva.respuestas_globales}
-      campos={camposEditables}
+      campos={camposFormulario}
       puedeRevelar={puedeRevelar}
       revelados={revelado.revelados}
       segundosRestantes={revelado.segundosRestantes}

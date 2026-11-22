@@ -97,13 +97,17 @@ export function DialogoReprogramar({
               <legend className="text-sm font-semibold text-foreground">Fechas disponibles</legend>
               <RadioGroup value={destino} onValueChange={(valor: string) => setDestino(valor)}>
                 {candidatas.map((fecha) => {
-                  const libres =
-                    fecha.cupos_total - fecha.cupos_vendidos - fecha.cupos_retenidos;
+                  const libres = fecha.cupos_total - fecha.cupos_vendidos - fecha.cupos_retenidos;
                   const suficiente = libres >= numeroPasajeros && fecha.estado === "publicada";
                   const id = `fecha-destino-${fecha.id}`;
                   return (
                     <div key={fecha.id} className="flex items-start gap-3">
-                      <RadioGroupItem value={fecha.id} id={id} disabled={!suficiente} className="mt-1" />
+                      <RadioGroupItem
+                        value={fecha.id}
+                        id={id}
+                        disabled={!suficiente}
+                        className="mt-1"
+                      />
                       <Label
                         htmlFor={id}
                         className={cn(
@@ -112,7 +116,10 @@ export function DialogoReprogramar({
                         )}
                       >
                         <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-                          <CalendarClock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                          <CalendarClock
+                            className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                            aria-hidden="true"
+                          />
                           <span>{`${formatDate(fecha.fecha_salida)} · ${formatTime(fecha.hora_salida)}`}</span>
                         </span>
                         <span className="text-xs text-muted-foreground">

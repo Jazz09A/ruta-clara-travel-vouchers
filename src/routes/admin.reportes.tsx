@@ -27,14 +27,54 @@ export const Route = createFileRoute("/admin/reportes")({
   component: Reportes,
 });
 
-const TIPOS_EXPORTACION: { valor: TipoExportacion; etiqueta: string; descripcion: string; requiereSalida: boolean }[] = [
-  { valor: "reservas", etiqueta: "Reservas", descripcion: "Todas las reservas con estado y totales", requiereSalida: false },
-  { valor: "tours", etiqueta: "Tours", descripcion: "Catálogo de tours activos", requiereSalida: false },
-  { valor: "clientes", etiqueta: "Clientes", descripcion: "Clientes con historial de reservas", requiereSalida: false },
-  { valor: "pagos", etiqueta: "Pagos", descripcion: "Pagos reportados y validados", requiereSalida: false },
-  { valor: "pasajeros_tour", etiqueta: "Pasajeros por tour", descripcion: "Manifiesto de pasajeros de una salida", requiereSalida: true },
-  { valor: "manifest", etiqueta: "Manifiesto", descripcion: "Lista de pasajeros para la salida", requiereSalida: true },
-  { valor: "cocina", etiqueta: "Cocina", descripcion: "Conteo de opciones de almuerzo y alergias", requiereSalida: true },
+const TIPOS_EXPORTACION: {
+  valor: TipoExportacion;
+  etiqueta: string;
+  descripcion: string;
+  requiereSalida: boolean;
+}[] = [
+  {
+    valor: "reservas",
+    etiqueta: "Reservas",
+    descripcion: "Todas las reservas con estado y totales",
+    requiereSalida: false,
+  },
+  {
+    valor: "tours",
+    etiqueta: "Tours",
+    descripcion: "Catálogo de tours activos",
+    requiereSalida: false,
+  },
+  {
+    valor: "clientes",
+    etiqueta: "Clientes",
+    descripcion: "Clientes con historial de reservas",
+    requiereSalida: false,
+  },
+  {
+    valor: "pagos",
+    etiqueta: "Pagos",
+    descripcion: "Pagos reportados y validados",
+    requiereSalida: false,
+  },
+  {
+    valor: "pasajeros_tour",
+    etiqueta: "Pasajeros por tour",
+    descripcion: "Manifiesto de pasajeros de una salida",
+    requiereSalida: true,
+  },
+  {
+    valor: "manifest",
+    etiqueta: "Manifiesto",
+    descripcion: "Lista de pasajeros para la salida",
+    requiereSalida: true,
+  },
+  {
+    valor: "cocina",
+    etiqueta: "Cocina",
+    descripcion: "Conteo de almuerzos y desayunos por opción",
+    requiereSalida: true,
+  },
 ];
 
 const ETIQUETA_ESTADO: Record<EstadoExportacion, { texto: string; clase: string }> = {
@@ -53,7 +93,11 @@ function Reportes() {
   const [fechaHasta, setFechaHasta] = useState("");
 
   // Historial de exportaciones (polling mientras haya pendientes)
-  const { data: exportaciones = [], isLoading, refetch } = useQuery({
+  const {
+    data: exportaciones = [],
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey: ["exportaciones"],
     queryFn: () => api.admin.exportaciones(),
     refetchInterval: (query) => {
@@ -157,7 +201,12 @@ function Reportes() {
                     )}
                   >
                     <div className="flex items-center gap-2">
-                      <FileSpreadsheet className={cn("h-4 w-4", tipo === t.valor ? "text-primary" : "text-muted-foreground")} />
+                      <FileSpreadsheet
+                        className={cn(
+                          "h-4 w-4",
+                          tipo === t.valor ? "text-primary" : "text-muted-foreground",
+                        )}
+                      />
                       <span className="text-sm font-semibold">{t.etiqueta}</span>
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">{t.descripcion}</p>
@@ -189,7 +238,9 @@ function Reportes() {
             {!tipoActual.requiereSalida && (
               <>
                 <div>
-                  <label className="text-xs font-semibold text-muted-foreground">Desde (opcional)</label>
+                  <label className="text-xs font-semibold text-muted-foreground">
+                    Desde (opcional)
+                  </label>
                   <input
                     type="date"
                     value={fechaDesde}
@@ -198,7 +249,9 @@ function Reportes() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-muted-foreground">Hasta (opcional)</label>
+                  <label className="text-xs font-semibold text-muted-foreground">
+                    Hasta (opcional)
+                  </label>
                   <input
                     type="date"
                     value={fechaHasta}
@@ -210,11 +263,7 @@ function Reportes() {
             )}
           </div>
 
-          <BotonCargar
-            onClick={handleGenerar}
-            cargando={crearMutation.isPending}
-            className="mt-4"
-          >
+          <BotonCargar onClick={handleGenerar} cargando={crearMutation.isPending} className="mt-4">
             <Download className="h-4 w-4" />
             Generar XLSX
           </BotonCargar>
@@ -233,7 +282,9 @@ function Reportes() {
                     key={exp.id}
                     exportacion={exp}
                     onDescargar={() => descargarMutation.mutate(exp.id)}
-                    descargando={descargarMutation.isPending && descargarMutation.variables === exp.id}
+                    descargando={
+                      descargarMutation.isPending && descargarMutation.variables === exp.id
+                    }
                   />
                 ))}
               </div>
@@ -273,9 +324,7 @@ function FilaExportacion({
           {" · "}
           {tipo?.etiqueta ?? exportacion.tipo}
         </p>
-        {exportacion.error && (
-          <p className="mt-1 text-xs text-red-600">{exportacion.error}</p>
-        )}
+        {exportacion.error && <p className="mt-1 text-xs text-red-600">{exportacion.error}</p>}
       </div>
 
       <div className="flex items-center gap-3">
@@ -298,18 +347,12 @@ function FilaExportacion({
           </button>
         )}
 
-        {exportacion.estado === "en_cola" && (
-          <Clock className="h-4 w-4 text-muted-foreground" />
-        )}
+        {exportacion.estado === "en_cola" && <Clock className="h-4 w-4 text-muted-foreground" />}
         {exportacion.estado === "procesando" && (
           <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
         )}
-        {exportacion.estado === "error" && (
-          <AlertCircle className="h-4 w-4 text-red-600" />
-        )}
-        {exportacion.estado === "lista" && (
-          <CheckCircle2 className="h-4 w-4 text-green-600" />
-        )}
+        {exportacion.estado === "error" && <AlertCircle className="h-4 w-4 text-red-600" />}
+        {exportacion.estado === "lista" && <CheckCircle2 className="h-4 w-4 text-green-600" />}
       </div>
     </div>
   );

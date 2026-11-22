@@ -4,7 +4,10 @@ export const Route = createFileRoute("/admin/configuracion")({
   head: () => ({
     meta: [
       { title: "Configuración · Panel" },
-      { name: "description", content: "Configuración general, métodos de pago, términos y usuarios." },
+      {
+        name: "description",
+        content: "Configuración general, métodos de pago, términos y usuarios.",
+      },
     ],
   }),
   component: Configuracion,

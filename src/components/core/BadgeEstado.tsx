@@ -103,7 +103,11 @@ const ESTADOS_RESERVA: Record<string, EstiloEstado> = {
 };
 
 const ESTADOS_PAGO: Record<string, EstiloEstado> = {
-  sin_pago: { etiqueta: texto(ETIQUETA_ESTADO_PAGO, "sin_pago"), icono: CircleSlash, tono: "neutro" },
+  sin_pago: {
+    etiqueta: texto(ETIQUETA_ESTADO_PAGO, "sin_pago"),
+    icono: CircleSlash,
+    tono: "neutro",
+  },
   reportado: { etiqueta: texto(ETIQUETA_ESTADO_PAGO, "reportado"), icono: Wallet, tono: "info" },
   parcial: { etiqueta: texto(ETIQUETA_ESTADO_PAGO, "parcial"), icono: CircleDot, tono: "aviso" },
   pagado: {

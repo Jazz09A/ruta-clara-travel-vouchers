@@ -7,9 +7,12 @@ export type TonoAviso = "info" | "exito" | "aviso" | "peligro";
 
 const ESTILO: Record<TonoAviso, string> = {
   info: "border-border bg-muted/40 text-foreground",
-  exito: "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200",
-  aviso: "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200",
-  peligro: "border-red-200 bg-red-50 text-red-900 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200",
+  exito:
+    "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200",
+  aviso:
+    "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200",
+  peligro:
+    "border-red-200 bg-red-50 text-red-900 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200",
 };
 
 const ICONO: Record<TonoAviso, React.ComponentType<{ className?: string }>> = {
@@ -37,7 +40,11 @@ export function Aviso({ tono = "info", titulo, children, acciones, className }: 
   const Icono = ICONO[tono];
   return (
     <div
-      className={cn("flex flex-wrap items-start gap-3 rounded-xl border px-4 py-3", ESTILO[tono], className)}
+      className={cn(
+        "flex flex-wrap items-start gap-3 rounded-xl border px-4 py-3",
+        ESTILO[tono],
+        className,
+      )}
     >
       <Icono className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
       <div className="min-w-0 flex-1 space-y-1">

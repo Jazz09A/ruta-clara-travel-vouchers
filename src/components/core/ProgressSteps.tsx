@@ -70,7 +70,10 @@ export function ProgressSteps({ pasos, onSelect, className }: ProgressStepsProps
           aria-valuemax={100}
           aria-label="Avance del registro"
         >
-          <div className="h-full rounded-full bg-brand transition-[width] duration-300" style={{ width: `${porcentaje}%` }} />
+          <div
+            className="h-full rounded-full bg-brand transition-[width] duration-300"
+            style={{ width: `${porcentaje}%` }}
+          />
         </div>
 
         {detalleAbierto ? (

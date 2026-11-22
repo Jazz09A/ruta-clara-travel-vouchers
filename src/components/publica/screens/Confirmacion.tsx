@@ -68,7 +68,6 @@ export function Confirmacion({
 
   const cuposPocos = typeof resumen?.cupos_restantes === "number" && resumen.cupos_restantes <= 5;
 
-
   const confirmar = async (totalVisto: string) => {
     if (!aceptaPolitica) {
       setAnuncio("Debes aceptar la política de cancelación para continuar");

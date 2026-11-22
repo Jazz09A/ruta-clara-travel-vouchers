@@ -3,10 +3,7 @@ import { CircleCheckBig, LoaderCircle, TriangleAlert, WifiOff } from "lucide-rea
 
 import { cn } from "@/lib/utils";
 import type { IconoUI } from "@/components/core/EmptyState";
-import {
-  MENSAJE_ESTADO_GUARDADO,
-  type EstadoGuardado,
-} from "@/lib/hooks/use-conexion";
+import { MENSAJE_ESTADO_GUARDADO, type EstadoGuardado } from "@/lib/hooks/use-conexion";
 
 export interface EstadoConexionProps {
   /** Estado del guardado automatico. */
@@ -51,7 +48,11 @@ export function EstadoConexion({ estado, soloIcono = false, className }: EstadoC
     <span
       role="status"
       aria-live="polite"
-      className={cn("inline-flex items-center gap-1.5 text-xs font-medium", estilo.clase, className)}
+      className={cn(
+        "inline-flex items-center gap-1.5 text-xs font-medium",
+        estilo.clase,
+        className,
+      )}
     >
       <Icono
         aria-hidden="true"

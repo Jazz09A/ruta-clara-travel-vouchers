@@ -30,7 +30,8 @@ const VARIANTES: Record<
   }
 > = {
   info: {
-    contenedor: "border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-100",
+    contenedor:
+      "border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-100",
     icono: Info,
     assertive: false,
   },
@@ -67,14 +68,7 @@ const VARIANTES: Record<
  * falta de conexion, tasa desactualizada, accion requerida (Spec 3.8).
  * Siempre icono + texto: el estado nunca depende solo del color.
  */
-export function Banner({
-  variante,
-  titulo,
-  children,
-  accion,
-  onCerrar,
-  className,
-}: BannerProps) {
+export function Banner({ variante, titulo, children, accion, onCerrar, className }: BannerProps) {
   const estilo = VARIANTES[variante];
   const Icono = estilo.icono;
 

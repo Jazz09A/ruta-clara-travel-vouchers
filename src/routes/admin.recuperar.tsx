@@ -75,8 +75,8 @@ function FormularioRecuperar() {
           </header>
 
           <Banner tono="info" titulo="Demo local">
-            No se envía ningún correo real. El enlace caduca en {VIGENCIA_ENLACE_MINUTOS}{" "}
-            minutos y sólo sirve dentro de esta demo.
+            No se envía ningún correo real. El enlace caduca en {VIGENCIA_ENLACE_MINUTOS} minutos y
+            sólo sirve dentro de esta demo.
           </Banner>
 
           <Link

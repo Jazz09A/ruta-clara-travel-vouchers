@@ -45,12 +45,7 @@ export function AdminShell({ titulo, acciones, children, breadcrumb }: AdminShel
   );
 }
 
-function ContenidoAdminShell({
-  titulo,
-  acciones,
-  breadcrumb,
-  children,
-}: AdminShellProps) {
+function ContenidoAdminShell({ titulo, acciones, breadcrumb, children }: AdminShellProps) {
   const { cargando, autenticado, setRutaPendiente } = useSesion();
   const navegar = useNavegarAdmin();
   const ubicacion = useRouterState({ select: (s) => s.location });
@@ -83,10 +78,7 @@ function ContenidoAdminShell({
       />
 
       <div
-        className={cn(
-          "transition-[padding] duration-200",
-          colapsada ? "lg:pl-[76px]" : "lg:pl-64",
-        )}
+        className={cn("transition-[padding] duration-200", colapsada ? "lg:pl-[76px]" : "lg:pl-64")}
       >
         <CabeceraAdmin
           titulo={titulo}

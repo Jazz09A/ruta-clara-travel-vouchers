@@ -48,7 +48,10 @@ export function PanelNotas({
   return (
     <section
       aria-label="Notas de la reserva"
-      className={cn("flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-card", className)}
+      className={cn(
+        "flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-card",
+        className,
+      )}
     >
       <header className="flex items-center gap-2">
         <NotebookPen className="h-4 w-4 text-muted-foreground" aria-hidden="true" />

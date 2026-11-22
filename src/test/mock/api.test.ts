@@ -166,12 +166,12 @@ describe("API simulada — ciclo de vida de una reserva", () => {
       },
       idem(),
     );
-expect(firma.ok).toBe(true);
+    expect(firma.ok).toBe(true);
     estado = await api.publica.reserva(token);
     expect(estado.reserva.estado).toBe("confirmada");
     expect(estado.reserva.firma?.integridad).toBe("ok");
 
-// 11. El pago ya fue registrado al crear el enlace (la reserva nace
+    // 11. El pago ya fue registrado al crear el enlace (la reserva nace
     // pagada). El cliente no reporta pagos: la agencia los anota desde la
     // reserva. El reporte del cliente queda desactivado por defecto.
     await api.admin.guardarConfiguracion({ reporte_pago_cliente: false });
@@ -212,7 +212,10 @@ expect(firma.ok).toBe(true);
   });
 
   it("rechaza al titular menor de 18 años con un mensaje claro", async () => {
-    const creado = await api.admin.crearReserva({ fecha_tour_id: FECHA_CON_CUPO, pago: { metodo_clave: "transferencia", monto: "90.00" } })
+    const creado = await api.admin.crearReserva({
+      fecha_tour_id: FECHA_CON_CUPO,
+      pago: { metodo_clave: "transferencia", monto: "90.00" },
+    });
     const token = tokenDeEnlace(creado.enlace);
     await api.publica.iniciar(token, { acepta_aviso_privacidad: true }, idem());
     const actual = await api.publica.reserva(token);
@@ -227,7 +230,10 @@ expect(firma.ok).toBe(true);
   });
 
   it("avisa cuando el precio cambió antes de confirmar el resumen", async () => {
-    const creado = await api.admin.crearReserva({ fecha_tour_id: FECHA_CON_CUPO, pago: { metodo_clave: "transferencia", monto: "90.00" } })
+    const creado = await api.admin.crearReserva({
+      fecha_tour_id: FECHA_CON_CUPO,
+      pago: { metodo_clave: "transferencia", monto: "90.00" },
+    });
     const token = tokenDeEnlace(creado.enlace);
     await api.publica.iniciar(token, { acepta_aviso_privacidad: true }, idem());
     const actual = await api.publica.reserva(token);
@@ -245,7 +251,10 @@ expect(firma.ok).toBe(true);
   });
 
   it("rechaza una firma vacía con 422 FIRMA_INVALIDA", async () => {
-    const creado = await api.admin.crearReserva({ fecha_tour_id: FECHA_CON_CUPO, pago: { metodo_clave: "transferencia", monto: "90.00" } })
+    const creado = await api.admin.crearReserva({
+      fecha_tour_id: FECHA_CON_CUPO,
+      pago: { metodo_clave: "transferencia", monto: "90.00" },
+    });
     const token = tokenDeEnlace(creado.enlace);
     await api.publica.iniciar(token, { acepta_aviso_privacidad: true }, idem());
 
@@ -266,7 +275,10 @@ expect(firma.ok).toBe(true);
   });
 
   it("detecta el conflicto de versión cuando otro dispositivo escribió antes", async () => {
-    const creado = await api.admin.crearReserva({ fecha_tour_id: FECHA_CON_CUPO, pago: { metodo_clave: "transferencia", monto: "90.00" } })
+    const creado = await api.admin.crearReserva({
+      fecha_tour_id: FECHA_CON_CUPO,
+      pago: { metodo_clave: "transferencia", monto: "90.00" },
+    });
     const token = tokenDeEnlace(creado.enlace);
     await api.publica.iniciar(token, { acepta_aviso_privacidad: true }, idem());
 
@@ -277,7 +289,10 @@ expect(firma.ok).toBe(true);
   });
 
   it("la cola del validador marca la referencia duplicada sin bloquear al cliente", async () => {
-    const creado = await api.admin.crearReserva({ fecha_tour_id: FECHA_CON_CUPO, pago: { metodo_clave: "transferencia", monto: "90.00" } })
+    const creado = await api.admin.crearReserva({
+      fecha_tour_id: FECHA_CON_CUPO,
+      pago: { metodo_clave: "transferencia", monto: "90.00" },
+    });
     const token = tokenDeEnlace(creado.enlace);
     await api.publica.iniciar(token, { acepta_aviso_privacidad: true }, idem());
     await api.admin.guardarConfiguracion({ reporte_pago_cliente: true });
@@ -302,7 +317,10 @@ expect(firma.ok).toBe(true);
   });
 
   it("el cliente no reporta pagos por defecto; la agencia los anota desde la reserva", async () => {
-    const creado = await api.admin.crearReserva({ fecha_tour_id: FECHA_CON_CUPO, pago: { metodo_clave: "transferencia", monto: "90.00" } })
+    const creado = await api.admin.crearReserva({
+      fecha_tour_id: FECHA_CON_CUPO,
+      pago: { metodo_clave: "transferencia", monto: "90.00" },
+    });
     const token = tokenDeEnlace(creado.enlace);
     await api.publica.iniciar(token, { acepta_aviso_privacidad: true }, idem());
 
@@ -439,12 +457,14 @@ expect(firma.ok).toBe(true);
       { token: "demo1", estado: "enlace_creado", paso: "paso_registro" },
       { token: "demo-enregistro", estado: "en_registro", paso: "preguntas" },
       { token: "demo-firma", estado: "pendiente_firma", paso: "firma" },
-      { token: "demo-pago", estado: "pendiente_pago", paso: "pago" },
-      { token: "demo-ventana", estado: "pendiente_pago", paso: "pago" },
-      { token: "demo-pago-urgente", estado: "pendiente_pago", paso: "pago" },
+      // Reservas legacy del viejo paso de pago: para el cliente ya están en
+      // su etapa final (el flujo ya no tiene pago).
+      { token: "demo-pago", estado: "pendiente_pago", paso: "confirmada" },
+      { token: "demo-ventana", estado: "pendiente_pago", paso: "confirmada" },
+      { token: "demo-pago-urgente", estado: "pendiente_pago", paso: "confirmada" },
       // Acuse de pago reportado: espera la confirmación manual (sin «pago en
       // verificación» ni hold congelado).
-      { token: "demo-verif", estado: "pendiente_pago", paso: "pago" },
+      { token: "demo-verif", estado: "pendiente_pago", paso: "confirmada" },
       { token: "demo-confirmada", estado: "confirmada", paso: "confirmada" },
       { token: "demo-cancelada", estado: "cancelada", paso: "cerrada" },
       { token: "demo-expirada", estado: "expirada", paso: "cerrada" },

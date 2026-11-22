@@ -51,7 +51,10 @@ export function BuscadorGlobal({ abierto, onAbiertoCambia }: BuscadorGlobalProps
       const editando =
         etiqueta === "input" || etiqueta === "textarea" || destino?.isContentEditable === true;
       if (editando) return;
-      if (evento.key === "/" || ((evento.metaKey || evento.ctrlKey) && evento.key.toLowerCase() === "k")) {
+      if (
+        evento.key === "/" ||
+        ((evento.metaKey || evento.ctrlKey) && evento.key.toLowerCase() === "k")
+      ) {
         evento.preventDefault();
         onAbiertoCambia(true);
       }
@@ -118,9 +121,7 @@ export function BuscadorGlobal({ abierto, onAbiertoCambia }: BuscadorGlobalProps
   const hayResultados = useMemo(() => {
     const datos = busqueda.data;
     if (!datos) return false;
-    return (
-      datos.reservas.length + datos.clientes.length + datos.pagos.length > 0
-    );
+    return datos.reservas.length + datos.clientes.length + datos.pagos.length > 0;
   }, [busqueda.data]);
 
   function cerrar() {
@@ -156,8 +157,8 @@ export function BuscadorGlobal({ abierto, onAbiertoCambia }: BuscadorGlobalProps
           <DialogHeader>
             <DialogTitle>Buscar en el panel</DialogTitle>
             <DialogDescription>
-              Reserva por nombre, teléfono, referencia interna, código o documento; también
-              clientes y pagos.
+              Reserva por nombre, teléfono, referencia interna, código o documento; también clientes
+              y pagos.
             </DialogDescription>
           </DialogHeader>
 
@@ -206,11 +207,15 @@ export function BuscadorGlobal({ abierto, onAbiertoCambia }: BuscadorGlobalProps
                       <button
                         key={reserva.id}
                         type="button"
-                        onClick={() => ir(`/admin/reservas?busqueda=${encodeURIComponent(reserva.ref_corta)}`)}
+                        onClick={() =>
+                          ir(`/admin/reservas?busqueda=${encodeURIComponent(reserva.ref_corta)}`)
+                        }
                         className="flex min-h-11 w-full items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-muted"
                       >
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-semibold">{reserva.titular}</span>
+                          <span className="block truncate text-sm font-semibold">
+                            {reserva.titular}
+                          </span>
                           <span className="block truncate text-xs text-muted-foreground">
                             {reserva.ref_corta || reserva.codigo} · {formatUsd(reserva.total_usd)}
                           </span>
@@ -228,11 +233,15 @@ export function BuscadorGlobal({ abierto, onAbiertoCambia }: BuscadorGlobalProps
                       <button
                         key={cliente.id}
                         type="button"
-                        onClick={() => ir(`/admin/clientes?busqueda=${encodeURIComponent(cliente.nombre)}`)}
+                        onClick={() =>
+                          ir(`/admin/clientes?busqueda=${encodeURIComponent(cliente.nombre)}`)
+                        }
                         className="flex min-h-11 w-full items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-muted"
                       >
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-semibold">{cliente.nombre}</span>
+                          <span className="block truncate text-sm font-semibold">
+                            {cliente.nombre}
+                          </span>
                           <span className="block truncate text-xs text-muted-foreground">
                             {cliente.documento_enmascarado} · {cliente.telefono}
                           </span>
@@ -250,11 +259,15 @@ export function BuscadorGlobal({ abierto, onAbiertoCambia }: BuscadorGlobalProps
                       <button
                         key={pago.id}
                         type="button"
-                        onClick={() => ir(`/admin/pagos?busqueda=${encodeURIComponent(pago.referencia)}`)}
+                        onClick={() =>
+                          ir(`/admin/pagos?busqueda=${encodeURIComponent(pago.referencia)}`)
+                        }
                         className="flex min-h-11 w-full items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-muted"
                       >
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-semibold">{pago.referencia}</span>
+                          <span className="block truncate text-sm font-semibold">
+                            {pago.referencia}
+                          </span>
                           <span className="block truncate text-xs text-muted-foreground">
                             {pago.reserva ? `${pago.reserva} · ` : ""}
                             {formatUsd(pago.monto)}

@@ -46,27 +46,13 @@ const PLANTILLA_VOUCHER =
 
 export interface VoucherProps {
   token: string;
-  /** Hay saldo pendiente: se ofrece reportar el pago. */
-  onReportarPago?: (() => void) | undefined;
-  /**
-   * Texto propio para el aviso de saldo pendiente. Se usa cuando el reporte
-   * de pago del cliente está desactivado y la agencia coordina el pago.
-   */
-  textoSaldo?: string | undefined;
   /** La reserva se cerró: se pasa a P-12. */
   onReservaCerrada?: (() => void) | undefined;
   refCorta?: string | undefined;
   nombreTour?: string | undefined;
 }
 
-export function Voucher({
-  token,
-  onReportarPago,
-  textoSaldo,
-  onReservaCerrada,
-  refCorta,
-  nombreTour,
-}: VoucherProps) {
+export function Voucher({ token, onReservaCerrada, refCorta, nombreTour }: VoucherProps) {
   useTituloPantalla("Reserva confirmada · Ruta Clara");
 
   // El servidor devuelve `{ reserva, progreso, tour, fecha, formulario }` como
@@ -272,7 +258,10 @@ export function Voucher({
               </div>
             ) : null}
             <p className="flex items-start gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
-              <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+              <Clock
+                className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                aria-hidden="true"
+              />
               <span>{t("hora_salida_aviso")}</span>
             </p>
             {salida.punto ? (
@@ -306,7 +295,10 @@ export function Voucher({
               </div>
             ) : null}
             <p className="flex items-start gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
-              <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+              <MapPin
+                className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                aria-hidden="true"
+              />
               <span>{t("hora_salida_aviso")}</span>
             </p>
             <div className="flex items-start gap-3">
@@ -376,21 +368,7 @@ export function Voucher({
           <Banner
             variante="aviso"
             titulo={`Te falta ${formatUsd(saldoUsd)}`}
-            mensaje={
-              textoSaldo ??
-              "Tu reserva está confirmada. Te falta el saldo; te lo pediremos por WhatsApp antes de la salida."
-            }
-            accion={
-              onReportarPago ? (
-                <button
-                  type="button"
-                  onClick={onReportarPago}
-                  className="inline-flex min-h-11 items-center justify-center rounded-xl border border-input bg-card px-3 text-sm font-semibold text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  Reportar pago
-                </button>
-              ) : undefined
-            }
+            mensaje="Tu reserva está confirmada. Te falta el saldo; te lo pediremos por WhatsApp antes de la salida."
           />
         ) : null}
 

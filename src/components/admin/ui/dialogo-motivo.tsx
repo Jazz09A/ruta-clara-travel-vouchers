@@ -106,7 +106,9 @@ export function DialogoMotivo({
             id="motivo-accion"
             etiqueta="Motivo"
             ayuda="Queda registrado en la auditoría. Escribe al menos 5 caracteres."
-            error={motivoLimpio.length > 0 && !motivoValido ? "Escribe un motivo más largo." : undefined}
+            error={
+              motivoLimpio.length > 0 && !motivoValido ? "Escribe un motivo más largo." : undefined
+            }
             requerido
           >
             {(props) => (
@@ -125,14 +127,20 @@ export function DialogoMotivo({
               id="codigo-totp"
               etiqueta="Código de seguridad"
               ayuda="Escribe el código de 6 dígitos de tu aplicación de autenticación."
-              error={totp.trim().length > 0 && !totpValido ? "El código debe tener 6 dígitos." : undefined}
+              error={
+                totp.trim().length > 0 && !totpValido
+                  ? "El código debe tener 6 dígitos."
+                  : undefined
+              }
               requerido
             >
               {(props) => (
                 <Input
                   {...props}
                   value={totp}
-                  onChange={(evento) => onTotpChange?.(evento.target.value.replace(/\D/g, "").slice(0, 6))}
+                  onChange={(evento) =>
+                    onTotpChange?.(evento.target.value.replace(/\D/g, "").slice(0, 6))
+                  }
                   inputMode="numeric"
                   autoComplete="one-time-code"
                   placeholder="123456"

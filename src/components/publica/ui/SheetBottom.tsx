@@ -45,7 +45,9 @@ export function SheetBottom({
         <SheetHeader className="border-b border-border px-5 py-4 text-left">
           <SheetTitle className="text-base font-bold text-foreground">{titulo}</SheetTitle>
           {descripcion ? (
-            <SheetDescription className="text-sm text-muted-foreground">{descripcion}</SheetDescription>
+            <SheetDescription className="text-sm text-muted-foreground">
+              {descripcion}
+            </SheetDescription>
           ) : null}
         </SheetHeader>
         <div className="px-5 py-4">{children}</div>

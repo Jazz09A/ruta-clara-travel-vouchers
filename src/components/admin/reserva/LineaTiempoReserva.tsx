@@ -34,7 +34,10 @@ export function LineaTiempoReserva({ auditoria, className }: LineaTiempoReservaP
   return (
     <section
       aria-label="Historial de la reserva"
-      className={cn("flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-card", className)}
+      className={cn(
+        "flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-card",
+        className,
+      )}
     >
       <header className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-sm font-bold text-foreground">Línea de tiempo</h2>

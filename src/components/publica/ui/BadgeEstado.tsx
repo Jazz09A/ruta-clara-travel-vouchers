@@ -30,12 +30,7 @@ const ICONO_POR_TONO: Record<TonoEstado, ReactNode> = {
 };
 
 /** Etiqueta de estado (C-21): texto legible + ícono, nunca sólo color. */
-export function BadgeEstado({
-  etiqueta,
-  tono = "neutro",
-  icono,
-  className,
-}: BadgeEstadoProps) {
+export function BadgeEstado({ etiqueta, tono = "neutro", icono, className }: BadgeEstadoProps) {
   return (
     <span
       className={cn(

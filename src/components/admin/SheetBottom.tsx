@@ -47,15 +47,22 @@ export function SheetBottom({
         )}
       >
         <SheetHeader className="border-b border-border px-5 py-4 text-left">
-          <div className="mx-auto mb-1 h-1.5 w-12 rounded-full bg-border sm:hidden" aria-hidden="true" />
+          <div
+            className="mx-auto mb-1 h-1.5 w-12 rounded-full bg-border sm:hidden"
+            aria-hidden="true"
+          />
           <SheetTitle className="text-base">{titulo}</SheetTitle>
           {descripcion ? (
-            <SheetDescription className="text-sm text-muted-foreground">{descripcion}</SheetDescription>
+            <SheetDescription className="text-sm text-muted-foreground">
+              {descripcion}
+            </SheetDescription>
           ) : null}
         </SheetHeader>
         <div className="max-h-[60dvh] overflow-y-auto px-5 py-4">{children}</div>
         {pie ? (
-          <SheetFooter className="border-t border-border px-5 py-3 sm:justify-end">{pie}</SheetFooter>
+          <SheetFooter className="border-t border-border px-5 py-3 sm:justify-end">
+            {pie}
+          </SheetFooter>
         ) : null}
       </SheetContent>
     </Sheet>
