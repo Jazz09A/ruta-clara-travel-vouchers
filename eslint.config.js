@@ -6,7 +6,24 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", ".output", ".vinxi"] },
+  {
+    ignores: [
+      "dist",
+      ".output",
+      ".vinxi",
+      ".nitro",
+      ".nitro-build",
+      ".tanstack",
+      ".wrangler",
+      "logs",
+      "playwright-report",
+      "test-results",
+      // Copias locales de node_modules (ver .gitignore): contienen artefactos
+      // de build con ACLs lentas que hacen el lint extremadamente lento.
+      "_node_modules*",
+      "node_modules",
+    ],
+  },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],

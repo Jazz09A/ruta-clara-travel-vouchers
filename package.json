@@ -3,6 +3,7 @@
   "private": true,
   "sideEffects": false,
   "type": "module",
+  "packageManager": "pnpm@11.20.0",
   "scripts": {
     "dev": "NODE_OPTIONS='--import ./scripts/nitro-wellknown.mjs' vite dev",
     "build": "NODE_OPTIONS='--import ./scripts/nitro-wellknown.mjs' vite build",
@@ -10,6 +11,7 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
   },

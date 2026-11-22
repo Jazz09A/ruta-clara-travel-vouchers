@@ -4,7 +4,7 @@ import { defineConfig, devices } from "@playwright/test";
  * E2E — Ruta Clara (flujo completo: crear enlace → registro → pago → confirmación).
  *
  * Detalles del entorno que condicionan este config:
- * - La app es TanStack Start con Vite; `bun run dev` sirve en el puerto 8080.
+ * - La app es TanStack Start con Vite; `pnpm dev` sirve en el puerto 8080.
  * - El "backend" es un mock que vive en memoria por pestaña: cada carga
  *   completa de página reinicia la BD y la sesión de admin. Por eso el flujo
  *   E2E se ejecuta en UNA sola página y todas las navegaciones después del
@@ -21,10 +21,7 @@ export default defineConfig({
   expect: {
     timeout: 15_000,
   },
-  reporter: [
-    ["list"],
-    ["html", { open: "never" }],
-  ],
+  reporter: [["list"], ["html", { open: "never" }]],
   use: {
     baseURL: "http://localhost:8080",
     viewport: { width: 1280, height: 800 },
@@ -34,7 +31,7 @@ export default defineConfig({
     actionTimeout: 10_000,
   },
   webServer: {
-    command: "bun run dev",
+    command: "pnpm dev",
     url: "http://localhost:8080",
     reuseExistingServer: true,
     timeout: 120_000,
