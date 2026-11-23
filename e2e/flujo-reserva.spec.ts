@@ -10,9 +10,9 @@ import { dibujarFirma } from "./helpers/firma";
  *   1. Admin: login + 2FA → crea el enlace de reserva (tour + fecha publicada).
  *   2. Cliente abre el enlace y completa Bienvenida → Titular → Acompañantes →
  *      Preguntas → Confirmación (total administrado) → Términos → Firma.
- *   3. La agencia confirma la reserva primero (CTA en el detalle) y luego
- *      anota los datos del pago desde la reserva: el pago nace aprobado
- *      (ya no hay cola de validación).
+ *   3. La reserva nace pagada (pago al crear el enlace) y se confirma sola
+ *      tras la firma; la agencia anota el pago del saldo desde la reserva
+ *      (nace aprobado, sin cola de validación).
  *   4. Cliente ve el voucher confirmado.
  *
  * RESTRICCIÓN del entorno: el backend real vive en `localhost:3001` con su
@@ -102,6 +102,11 @@ test("flujo completo: enlace → registro → pago → validación → voucher",
       return mejor;
     });
     await elegirOpcion(page, "Fecha de salida", textoFecha);
+
+    // La reserva «nace pagada»: el alta exige método y monto (el total real
+    // se conoce después, cuando el cliente registra a su grupo).
+    await elegirOpcion(page, "Método de pago", "Transferencia bancaria");
+    await page.getByLabel("Monto (USD)").fill("100.00");
 
     await page.getByLabel("Referencia interna (opcional)").fill(referenciaInterna);
     await page.getByRole("button", { name: "Generar enlace" }).click();
@@ -218,7 +223,7 @@ test("flujo completo: enlace → registro → pago → validación → voucher",
     // WhatsApp con los puntos reales como referencia.
     const ciudades = page.getByRole("radiogroup", { name: "Ciudad de salida" });
     await expect(ciudades.getByRole("radio")).toHaveCount(3);
-    const puntos = page.getByRole("radiogroup", { name: "Punto de salida" });
+    const puntos = page.getByRole("radiogroup", { name: "Punto de abordaje" });
     await expect(puntos.getByRole("radio")).toHaveCount(2); // Guatire por defecto
 
     await ciudades.getByRole("radio", { name: "Caracas" }).click();
@@ -320,18 +325,18 @@ test("flujo completo: enlace → registro → pago → validación → voucher",
     await dibujarFirma(page, page.locator("canvas"));
     await page.getByRole("button", { name: "Firmar y continuar" }).click();
 
-    // Con el reporte de pago del cliente desactivado, el paso «pago» es
-    // informativo: la agencia coordina el pago fuera del formulario.
-    await expect(page.getByRole("heading", { name: "Registro completo" })).toBeVisible({
-      timeout: 20_000,
+    // La firma confirma la reserva: el cliente llega al voucher. La
+    // agencia la confirma a mano en el paso siguiente del admin.
+    await expect(page.getByRole("heading", { name: /Reserva confirmada/ })).toBeVisible({
+      timeout: 30_000,
     });
-    await expect(page.getByText(/La agencia se pondrá en contacto contigo/).first()).toBeVisible();
   });
 
   // -----------------------------------------------------------------------
-  // 8. AGENCIA: confirma la reserva (CTA primero) y anota el pago
+  // 8. AGENCIA: la reserva ya viene confirmada (pago al crear el enlace +
+  //    firma) y se anota el pago del saldo
   // -----------------------------------------------------------------------
-  await test.step("la agencia confirma la reserva y anota el pago", async () => {
+  await test.step("la reserva ya está confirmada y la agencia anota el pago", async () => {
     await navegarClientSide(page, "/admin/reservas");
     const buscador = page.getByPlaceholder(/Buscar por referencia/);
     await expect(buscador).toBeVisible({ timeout: 20_000 });
@@ -351,28 +356,14 @@ test("flujo completo: enlace → registro → pago → validación → voucher",
     // El menú lateral ya no muestra «Pagos»: se gestiona desde la reserva.
     await expect(page.getByRole("link", { name: "Pagos", exact: true })).toHaveCount(0);
 
-    // «Confirmar reserva» es el PRIMER elemento del detalle (CTA) y no
-    // depende del pago: la reserva se confirma primero.
-    const ctaConfirmar = page.getByRole("region", { name: "Confirmar reserva" });
-    await expect(ctaConfirmar).toBeVisible();
-    await ctaConfirmar.getByRole("button", { name: "Confirmar reserva" }).click();
-
-    // Radix usa `alertdialog` (AlertDialog) para los diálogos de confirmación.
-    const dialogo = page.getByRole("alertdialog");
-    await expect(dialogo).toBeVisible();
-    // El motivo es obligatorio (mínimo 5 caracteres).
-    await dialogo.getByLabel("Motivo").fill("Confirmación manual de la agencia (e2e)");
-    await dialogo.getByRole("button", { name: "Confirmar reserva" }).click();
-
-    // La reserva queda confirmada: se asigna el código VJ-AAAA-NNNNN
-    // (el texto aparece en el toast, el banner y el aviso sr-only).
-    const toastConfirmada = page.getByText(/Reserva confirmada \(VJ-\d{4}-\d+\)/).first();
-    await expect(toastConfirmada).toBeVisible({ timeout: 20_000 });
-    codigoReserva = (await toastConfirmada.textContent())?.match(/VJ-\d{4}-\d+/)?.[0] ?? "";
+    // Con el pago registrado al crear el enlace, la reserva se confirma
+    // sola tras la firma: el código VJ-AAAA-NNNNN ya está asignado.
+    const encabezado = page.getByRole("heading", { name: /^Reserva VJ-\d{4}-\d+/ });
+    await expect(encabezado).toBeVisible({ timeout: 20_000 });
+    codigoReserva = (await encabezado.textContent())?.match(/VJ-\d{4}-\d+/)?.[0] ?? "";
     expect(codigoReserva).toMatch(/^VJ-\d{4}-\d+$/);
 
-    // Anota los datos del pago desde la reserva: el pago nace aprobado
-    // (sin cola de validación).
+    // Anota el pago del saldo desde la reserva: nace aprobado (sin cola).
     const tabPagos = page.getByRole("tab", { name: "Pagos" });
     if (await tabPagos.isVisible().catch(() => false)) await tabPagos.click();
     await page.getByRole("button", { name: "Registrar datos de pago" }).click();
