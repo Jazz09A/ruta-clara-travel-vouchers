@@ -78,12 +78,17 @@ jobs:
         working-directory: backend
         run: pnpm install --frozen-lockfile
 
+      # Replica el CMD del Dockerfile de producción: seed (usuarios, tours
+      # demo y formularios) + catálogo Escapate (puntos de salida reales
+      # Guatire/Guarenas/Caracas y `comidas_deshabilitadas=false`, que el
+      # formulario público exige para mostrar la selección de almuerzo).
       - name: Compilar y sembrar
         working-directory: backend
         run: |
           mkdir -p data
           pnpm build
           node dist/database/seed.js
+          node dist/database/importar-escapate.js
 
       - name: Arrancar API
         working-directory: backend
