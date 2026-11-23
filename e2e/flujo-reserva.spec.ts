@@ -20,7 +20,11 @@ import { dibujarFirma } from "./helpers/firma";
  * client-side (`navegarClientSide`) para no recargar la sesión.
  */
 
-const TOUR = "Full Day Las Trincheras · Aguas Termales Balneario Spa, Valencia";
+// Tour de la seed demo: tiene el campo `almuerzo` («Pescado frito») y tarifas
+// Adulto 90 / Niño 60 / Infante 0. Los puntos de salida NO salen de la seed:
+// el servidor los toma del catálogo global que carga `importar-escapate`
+// (Emporium y Kiosco en Guatire, los de Caracas sólo como referencia).
+const TOUR = "Fin de Semana Mérida";
 const TITULAR = {
   nombre: "María Test E2E",
   doc: "20345678",
@@ -246,7 +250,8 @@ test("flujo completo: enlace → registro → pago → validación → voucher",
 
     await expect(page.getByRole("heading", { name: "Revisa y confirma tu reserva" })).toBeVisible();
     // El cliente solo ve el total administrado: sin desglose ni promo.
-    await expect(page.getByText("$90,00").first()).toBeVisible();
+    // Total del grupo (Mérida): Adulto 90 + Niño 60 + Infante 0 = 150.
+    await expect(page.getByText("$150,00").first()).toBeVisible();
     await expect(page.getByLabel("Código promocional")).toHaveCount(0);
     await page.locator("#acepta-politica").click();
 

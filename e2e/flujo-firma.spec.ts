@@ -94,6 +94,10 @@ async function prepararHastaFirma(request: APIRequestContext): Promise<string> {
     data: {
       fecha_tour_id: texto(fecha["id"]),
       referencia_interna: `E2E-FIRMA-${Date.now()}`,
+      // La reserva «nace pagada»: el alta exige el pago (422 sin él). El
+      // total todavía es 0 al crear (sin pasajeros), así que basta con un
+      // monto positivo que cubra lo que después se registre.
+      pago: { metodo_clave: "transferencia", monto: "100.00" },
     },
   });
   const jsonCreacion = (await respuestaCreacion.json().catch(() => null)) as Json;
