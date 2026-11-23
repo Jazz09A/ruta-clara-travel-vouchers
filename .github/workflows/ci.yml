@@ -61,7 +61,11 @@ jobs:
           ssh-key: ${{ secrets.BACKEND_READ_KEY }}
           ssh-strict: false
 
+      # El frontend vive en `path: frontend`; sin esto la action no encuentra
+      # `packageManager` y falla con «No pnpm version is specified».
       - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
 
       - uses: actions/setup-node@v4
         with:
