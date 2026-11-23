@@ -16,13 +16,7 @@ export interface ErrorStateProps {
  * Estado de error recuperable (C-30).
  * Ícono + texto: el estado nunca se comunica sólo con color.
  */
-export function ErrorState({
-  titulo,
-  mensaje,
-  codigoSoporte,
-  accion,
-  className,
-}: ErrorStateProps) {
+export function ErrorState({ titulo, mensaje, codigoSoporte, accion, className }: ErrorStateProps) {
   return (
     <div
       className={cn(
@@ -41,7 +35,9 @@ export function ErrorState({
           </p>
         ) : null}
       </div>
-      {codigoSoporte ? <p className="text-xs text-muted-foreground">{`Código de soporte: ${codigoSoporte}`}</p> : null}
+      {codigoSoporte ? (
+        <p className="text-xs text-muted-foreground">{`Código de soporte: ${codigoSoporte}`}</p>
+      ) : null}
       {accion}
     </div>
   );

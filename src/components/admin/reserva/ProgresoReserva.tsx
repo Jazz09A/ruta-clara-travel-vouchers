@@ -25,8 +25,6 @@ const FLUJO: { id: string; etiqueta: string }[] = [
   { id: "resumen", etiqueta: "Resumen" },
   { id: "terminos", etiqueta: "Términos" },
   { id: "firma", etiqueta: "Firma" },
-  { id: "pago", etiqueta: "Pago" },
-  { id: "verificacion", etiqueta: "Verificación" },
 ];
 
 const INDICE_POR_PASO: Record<PasoActual, number> = {
@@ -37,9 +35,9 @@ const INDICE_POR_PASO: Record<PasoActual, number> = {
   resumen: 3,
   terminos: 4,
   firma: 5,
-  pago: 6,
-  verificacion: 7,
-  confirmada: 8,
+  // Más allá del último paso: el flujo del cliente ya no tiene pago, así que
+  // «confirmada» deja todos los pasos completos (reservas legacy incluidas).
+  confirmada: 6,
   cerrada: -1,
 };
 

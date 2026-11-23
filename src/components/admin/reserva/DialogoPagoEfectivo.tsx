@@ -59,7 +59,9 @@ export function DialogoPagoEfectivo({
 
   React.useEffect(() => {
     if (!abierto) return;
-    setMonto(reserva.saldo_usd && Number.parseFloat(reserva.saldo_usd) > 0 ? reserva.saldo_usd : "");
+    setMonto(
+      reserva.saldo_usd && Number.parseFloat(reserva.saldo_usd) > 0 ? reserva.saldo_usd : "",
+    );
     setReferencia("");
     setNota("");
   }, [abierto, reserva.saldo_usd]);

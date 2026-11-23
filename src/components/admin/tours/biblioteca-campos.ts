@@ -154,7 +154,8 @@ export const BIBLIOTECA_CAMPOS: CampoBiblioteca[] = [
   {
     clave: "sabor_desayuno",
     nombre: "Sabor del desayuno",
-    descripcion: "Multiselect: cazón, molida, pollo, queso (pueden pedir 2 empanadas de sabores distintos)",
+    descripcion:
+      "Multiselect: cazón, molida, pollo, queso (pueden pedir 2 empanadas de sabores distintos)",
     crear: () => ({
       id: generarIdCampo("sabor_desayuno"),
       label: "¿Qué sabor de empanada deseas?",

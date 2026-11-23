@@ -1,11 +1,7 @@
 import * as React from "react";
 import { TriangleAlert } from "lucide-react";
 
-import {
-  InputOTP as InputOTPRaiz,
-  InputOTPGroup,
-  InputOTPSlot,
-} from "@/components/ui/input-otp";
+import { InputOTP as InputOTPRaiz, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 

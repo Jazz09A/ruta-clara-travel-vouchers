@@ -51,7 +51,11 @@ export function pareceDocumento(texto: string): boolean {
   return limpio.length >= 5 && limpio === texto.trim();
 }
 
-export function descargarTexto(nombre: string, contenido: string, tipo = "text/csv;charset=utf-8"): void {
+export function descargarTexto(
+  nombre: string,
+  contenido: string,
+  tipo = "text/csv;charset=utf-8",
+): void {
   const blob = new Blob([contenido], { type: tipo });
   const url = URL.createObjectURL(blob);
   const enlace = document.createElement("a");

@@ -327,8 +327,7 @@ export function UploadArchivo({
         className="sr-only"
         aria-label="Elegir un archivo"
       />
-
-      </div>
+    </div>
   );
 }
 
@@ -399,11 +398,7 @@ function cargarImagen(url: string): Promise<HTMLImageElement | null> {
 
 function exportar(lienzo: HTMLCanvasElement, calidad: number): Promise<Blob | null> {
   return new Promise((resolver) => {
-    lienzo.toBlob(
-      (blob) => resolver(blob),
-      "image/jpeg",
-      calidad,
-    );
+    lienzo.toBlob((blob) => resolver(blob), "image/jpeg", calidad);
   });
 }
 

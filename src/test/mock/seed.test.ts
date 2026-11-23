@@ -29,13 +29,15 @@ const seed: SeedData = crearSeed();
 
 const CATEGORIAS_ESPERADAS: Categoria[] = ["Adulto", "Niño", "Tercera Edad", "Infante"];
 
-/** `paso_actual` esperado para cada estado (Spec Frontend §4.2). */
+/** `paso_actual` esperado para cada estado (Spec Frontend §4.2).
+ *  El flujo ya no tiene paso de pago: las reservas legacy que quedaron en
+ *  `pendiente_pago` / `pago_en_verificacion` se leen como `confirmada`. */
 const PASO_POR_ESTADO: Record<EstadoReserva, PasoActual> = {
   enlace_creado: "paso_registro",
   en_registro: "titular",
   pendiente_firma: "firma",
-  pendiente_pago: "pago",
-  pago_en_verificacion: "verificacion",
+  pendiente_pago: "confirmada",
+  pago_en_verificacion: "confirmada",
   confirmada: "confirmada",
   completada: "cerrada",
   cancelada: "cerrada",

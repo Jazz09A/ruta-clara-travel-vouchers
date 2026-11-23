@@ -23,7 +23,13 @@ export interface ShellAdminProps {
  * cabecera (título, migas y foco al entrar, Spec 3.9); añade la descripción de
  * apoyo y las acciones de la pantalla.
  */
-export function ShellAdmin({ titulo, descripcion, acciones, breadcrumb, children }: ShellAdminProps) {
+export function ShellAdmin({
+  titulo,
+  descripcion,
+  acciones,
+  breadcrumb,
+  children,
+}: ShellAdminProps) {
   const props = { titulo, acciones, breadcrumb } as unknown as ComponentProps<typeof AdminShell>;
 
   return (

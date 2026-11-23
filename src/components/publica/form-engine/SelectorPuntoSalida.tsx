@@ -181,9 +181,7 @@ export function SelectorPuntoSalida({
               </ul>
             </div>
           ))}
-          <p className="mt-3 text-xs text-muted-foreground">
-            {t("hora_salida_aviso")}
-          </p>
+          <p className="mt-3 text-xs text-muted-foreground">{t("hora_salida_aviso")}</p>
         </div>
       )}
     </Campo>

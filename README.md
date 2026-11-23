@@ -22,36 +22,39 @@ el cliente solo muestra (`src/lib/domain/api.ts` define el contrato).
 ```bash
 # 1. Backend (una sola vez, o cuando cambie el schema)
 cd ../backend
-npm install
-npm run seed        # datos demo: usuarios, catálogo, fechas, tarifas
-npm run start:dev   # API en http://localhost:3001/api/v1
+pnpm install --frozen-lockfile
+pnpm seed        # datos demo: usuarios, catálogo, fechas, tarifas
+pnpm start:dev   # API en http://localhost:3001/api/v1
 
 # 2. Frontend
 cd ruta-clara-travel-vouchers
-npm install
-npm run dev         # http://localhost:8080 (o el puerto que indique Vite)
+pnpm install --frozen-lockfile
+pnpm dev         # http://localhost:8080 (o el puerto que indique Vite)
 ```
 
 Otros comandos:
 
 ```bash
-npm run test     # vitest
-npm run lint     # eslint
-npm run build    # build de producción
-npm run preview  # sirve el build
+pnpm lint      # eslint
+pnpm typecheck # tsc --noEmit
+pnpm test      # vitest
+pnpm build     # build de producción
+pnpm preview   # sirve el build
 ```
+
+> El gestor de paquetes es **pnpm** en ambos repos (nada de npm ni bun).
 
 ### Credenciales de la demo (solo desarrollo)
 
 Las credenciales de demostración se muestran en `/admin/login` **únicamente
 en desarrollo** (`import.meta.env.DEV`); en producción el login es limpio.
 
-| Rol | Correo | Contraseña | Puede |
-| --- | --- | --- | --- |
-| Superadministradora | `admin@rutaclara.ve` | `demo1234` | Todo |
-| Operadora | `operador@rutaclara.ve` | `demo1234` | Enlaces, reservas, pagos en efectivo |
-| Validador | `validador@rutaclara.ve` | `demo1234` | Aprobar / rechazar pagos |
-| Guía | `guia@rutaclara.ve` | `demo1234` | Manifiesto y cocina (solo lectura) |
+| Rol                 | Correo                   | Contraseña | Puede                                |
+| ------------------- | ------------------------ | ---------- | ------------------------------------ |
+| Superadministradora | `admin@rutaclara.ve`     | `demo1234` | Todo                                 |
+| Operadora           | `operador@rutaclara.ve`  | `demo1234` | Enlaces, reservas, pagos en efectivo |
+| Validador           | `validador@rutaclara.ve` | `demo1234` | Aprobar / rechazar pagos             |
+| Guía                | `guia@rutaclara.ve`      | `demo1234` | Manifiesto y cocina (solo lectura)   |
 
 > **2FA está desactivado** del flujo de autenticación (login, rutas, seeds y
 > UI). Las columnas `dos_fa_activo`/`totp_secret_enc` permanecen en la base
@@ -63,13 +66,13 @@ en desarrollo** (`import.meta.env.DEV`); en producción el login es limpio.
 
 ### Entrada y rutas principales
 
-| Ruta | Descripción |
-| --- | --- |
-| `/` | Entrada admin: autenticado → `/admin`; sin sesión → `/admin/login` |
-| `/admin/login` | Login (sin 2FA; credenciales demo solo en dev) |
-| `/admin` | Panel: dashboard, reservas, pagos, salidas, tours, clientes, reportes, configuración |
-| `/r/:token` | Formulario público de reserva (enlace enviado al cliente) |
-| `/v/:verifToken` | Verificación pública del QR del voucher |
+| Ruta             | Descripción                                                                          |
+| ---------------- | ------------------------------------------------------------------------------------ |
+| `/`              | Entrada admin: autenticado → `/admin`; sin sesión → `/admin/login`                   |
+| `/admin/login`   | Login (sin 2FA; credenciales demo solo en dev)                                       |
+| `/admin`         | Panel: dashboard, reservas, pagos, salidas, tours, clientes, reportes, configuración |
+| `/r/:token`      | Formulario público de reserva (enlace enviado al cliente)                            |
+| `/v/:verifToken` | Verificación pública del QR del voucher                                              |
 
 ---
 
@@ -127,14 +130,14 @@ src/
 
 ### Decisiones de diseño
 
-| Decisión | Motivo |
-| --- | --- |
-| **El servidor manda; el cliente solo muestra** | Regla del PRD §11 y del Spec (FD-06). El cliente sugiere; el servidor calcula precio, categoría, cupos y estados. |
-| **`paso_actual` decide la pantalla** | No existen URLs por paso: se evita saltarse pasos y estados incoherentes (Spec §4.2). |
-| **Formularios versionados con snapshot** | Una reserva conserva el formulario con el que respondió aunque el tour se edite (RF-3.7). |
-| **Dinero como string decimal** | Nunca `number` de punto flotante. Las sumas usan helpers en `src/lib/format.ts`. |
-| **Zona horaria `America/Caracas`** | Todos los instantes se muestran en la zona de la agencia, no en la del dispositivo (FD-08). |
-| **`exactOptionalPropertyTypes` relajado** | Radix/shadcn no declaran `disabled?: boolean \| undefined` y toda la app comparte props opcionales. `noUncheckedIndexedAccess` sigue activo. |
+| Decisión                                       | Motivo                                                                                                                                       |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| **El servidor manda; el cliente solo muestra** | Regla del PRD §11 y del Spec (FD-06). El cliente sugiere; el servidor calcula precio, categoría, cupos y estados.                            |
+| **`paso_actual` decide la pantalla**           | No existen URLs por paso: se evita saltarse pasos y estados incoherentes (Spec §4.2).                                                        |
+| **Formularios versionados con snapshot**       | Una reserva conserva el formulario con el que respondió aunque el tour se edite (RF-3.7).                                                    |
+| **Dinero como string decimal**                 | Nunca `number` de punto flotante. Las sumas usan helpers en `src/lib/format.ts`.                                                             |
+| **Zona horaria `America/Caracas`**             | Todos los instantes se muestran en la zona de la agencia, no en la del dispositivo (FD-08).                                                  |
+| **`exactOptionalPropertyTypes` relajado**      | Radix/shadcn no declaran `disabled?: boolean \| undefined` y toda la app comparte props opcionales. `noUncheckedIndexedAccess` sigue activo. |
 
 ### Reglas de la interfaz que sí se respetan
 
@@ -151,17 +154,17 @@ src/
 ## Pruebas
 
 ```bash
-npm run test
+pnpm test
 ```
 
-| Archivo | Qué cubre |
-| --- | --- |
-| `src/test/domain/form-engine.test.ts` | Alcance, `visible_si`, limpieza, opciones agotadas, defaults |
-| `src/test/domain/pricing.test.ts` | Subtotal por categoría, extras, descuentos, saldo |
-| `src/test/domain/state-machine.test.ts` | Transiciones permitidas y prohibidas |
-| `src/test/domain/validators.test.ts` | Documento, teléfono, correo, edad, duplicados |
-| `src/test/mock/seed.test.ts` | Integridad de los datos semilla (referencias, tarifas, snapshots) |
-| `src/test/mock/api.test.ts` | **Flujo completo**: enlace → titular → acompañantes → preguntas → resumen → firma → pago → validación → voucher, más los caminos de error |
+| Archivo                                 | Qué cubre                                                                                                                                 |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/test/domain/form-engine.test.ts`   | Alcance, `visible_si`, limpieza, opciones agotadas, defaults                                                                              |
+| `src/test/domain/pricing.test.ts`       | Subtotal por categoría, extras, descuentos, saldo                                                                                         |
+| `src/test/domain/state-machine.test.ts` | Transiciones permitidas y prohibidas                                                                                                      |
+| `src/test/domain/validators.test.ts`    | Documento, teléfono, correo, edad, duplicados                                                                                             |
+| `src/test/mock/seed.test.ts`            | Integridad de los datos semilla (referencias, tarifas, snapshots)                                                                         |
+| `src/test/mock/api.test.ts`             | **Flujo completo**: enlace → titular → acompañantes → preguntas → resumen → firma → pago → validación → voucher, más los caminos de error |
 
 ---
 

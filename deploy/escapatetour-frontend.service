@@ -1,0 +1,32 @@
+# ──────────────────────────────────────────────────────────────────────────
+# Producción — admin.escapatetour.app (Fase 4 del plan)
+#
+# Instalar en el server:
+#   sudo cp escapatetour-frontend.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now escapatetour-frontend
+#
+# El bundle .output/ lo rsync-ea el CD (deploy-production.yml); es
+# autocontenido (nitro node-server), sólo necesita node en el server.
+# ──────────────────────────────────────────────────────────────────────────
+
+[Unit]
+Description=Ruta Clara — panel admin (SSR Nitro node-server)
+After=network.target
+
+[Service]
+Type=simple
+User=alvaro
+Group=alvaro
+WorkingDirectory=/opt/escapatetour/frontend
+ExecStart=/usr/bin/node .output/server/index.mjs
+Restart=on-failure
+RestartSec=5
+
+Environment=NODE_ENV=production
+Environment=PORT=3100
+Environment=NITRO_PORT=3100
+Environment=HOST=127.0.0.1
+
+[Install]
+WantedBy=multi-user.target

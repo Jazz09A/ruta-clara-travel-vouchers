@@ -77,7 +77,11 @@ export function Field({
         </p>
       ) : null}
       {error ? (
-        <p id={idError ?? undefined} role="alert" className="text-xs font-semibold text-destructive">
+        <p
+          id={idError ?? undefined}
+          role="alert"
+          className="text-xs font-semibold text-destructive"
+        >
           {error}
         </p>
       ) : null}

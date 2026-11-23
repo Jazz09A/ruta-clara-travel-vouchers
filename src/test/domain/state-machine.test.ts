@@ -54,7 +54,7 @@ describe("máquina de estados — transiciones", () => {
     expect(puedeTransicionar("expirada", "enlace_creado")).toBe(true);
   });
 
-it("rechaza las transiciones inválidas", () => {
+  it("rechaza las transiciones inválidas", () => {
     expect(puedeTransicionar("enlace_creado", "confirmada")).toBe(false);
     expect(puedeTransicionar("en_registro", "pendiente_pago")).toBe(false);
     expect(puedeTransicionar("completada", "confirmada")).toBe(false);

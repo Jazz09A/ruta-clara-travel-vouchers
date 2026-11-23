@@ -1,7 +1,6 @@
 import { ClipboardList, ShieldAlert } from "lucide-react";
 
 import { TarjetaPasajero, type CampoRevelable, type SeleccionMostrada } from "./TarjetaPasajero";
-import type { CampoEditable } from "./DialogoEditarDatos";
 import type { DatoRevelado } from "./use-revelo-temporal";
 import type { Pasajero, Respuesta } from "@/lib/domain/types";
 import { cn } from "@/lib/utils";
@@ -13,13 +12,26 @@ import { cn } from "@/lib/utils";
  * motivo y queda auditado (SEG-05).
  */
 
+/**
+ * Lo mínimo que el panel necesita de un campo del formulario: etiqueta y,
+ * si el control tiene opciones, sus etiquetas legibles. No se limita a los
+ * campos editables (p. ej. el multiselect de sabores de desayuno sólo se
+ * lee).
+ */
+export interface CampoReferencia {
+  id: string;
+  label: string;
+  tipo?: string | undefined;
+  opciones?: { valor: string; label: string }[] | undefined;
+}
+
 export interface PanelPasajerosProps {
   /** Pasajeros de la reserva. */
   pasajeros: Pasajero[];
   /** Respuestas globales del formulario. */
   respuestasGlobales: Record<string, Respuesta>;
   /** Campos del formulario, para poner etiqueta a las selecciones. */
-  campos: CampoEditable[];
+  campos: CampoReferencia[];
   /** El rol puede revelar datos sensibles. */
   puedeRevelar: boolean;
   /** Valores revelados, por clave `${ref_cliente}:${campo}`. */
@@ -63,7 +75,17 @@ export function PanelPasajeros({
     }
     const definicion = campos.find((c) => c.id === campo);
     if (definicion && definicion.tipo === "select" && typeof valor === "string") {
-      return definicion.opciones.find((opcion) => opcion.valor === valor)?.label ?? valor;
+      return definicion.opciones?.find((opcion) => opcion.valor === valor)?.label ?? valor;
+    }
+    // Multiselect (p. ej. sabor del desayuno): traduce cada valor elegido.
+    if (definicion && definicion.tipo === "multiselect" && Array.isArray(valor)) {
+      if (valor.length === 0) return "Sin responder";
+      return valor
+        .map(
+          (elegido) =>
+            definicion.opciones?.find((opcion) => opcion.valor === elegido)?.label ?? elegido,
+        )
+        .join(", ");
     }
     return valorLegible(valor);
   };

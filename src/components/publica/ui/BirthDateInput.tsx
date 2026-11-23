@@ -169,9 +169,7 @@ export function BirthDateInput({
     }
   }
 
-  const ayudaFinal = textoEdad
-    ? `${ayuda ? `${ayuda}. ` : ""}${textoEdad}`
-    : ayuda;
+  const ayudaFinal = textoEdad ? `${ayuda ? `${ayuda}. ` : ""}${textoEdad}` : ayuda;
 
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>

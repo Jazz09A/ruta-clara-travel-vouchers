@@ -39,7 +39,10 @@ export const RUTA: RutasAdmin = {
 };
 
 /** Añade parámetros de consulta a una ruta interna. */
-export function conConsulta(ruta: string, parametros: Record<string, string | number | boolean>): string {
+export function conConsulta(
+  ruta: string,
+  parametros: Record<string, string | number | boolean>,
+): string {
   const partes = Object.entries(parametros)
     .filter(([, valor]) => valor !== "" && valor !== undefined && valor !== null)
     .map(([clave, valor]) => `${encodeURIComponent(clave)}=${encodeURIComponent(String(valor))}`);

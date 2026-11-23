@@ -36,8 +36,7 @@ export function BotonWhatsApp({
   const estilos = {
     solido: "bg-success text-white hover:opacity-90",
     contorno: "border border-input bg-card text-foreground hover:bg-accent",
-    flotante:
-      "h-12 w-12 rounded-full bg-success p-0 text-white shadow-lg hover:opacity-90",
+    flotante: "h-12 w-12 rounded-full bg-success p-0 text-white shadow-lg hover:opacity-90",
   } as const;
 
   return (
@@ -49,7 +48,11 @@ export function BotonWhatsApp({
       className={cn(base, estilos[variante], variante === "flotante" && "w-12 px-0", className)}
     >
       <MessageCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-      {variante === "flotante" ? <span className="sr-only">{etiqueta}</span> : <span>{etiqueta}</span>}
+      {variante === "flotante" ? (
+        <span className="sr-only">{etiqueta}</span>
+      ) : (
+        <span>{etiqueta}</span>
+      )}
     </a>
   );
 }

@@ -42,7 +42,10 @@ export function CabeceraReserva({
   return (
     <section
       aria-label="Resumen de la reserva"
-      className={cn("flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 shadow-card", className)}
+      className={cn(
+        "flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 shadow-card",
+        className,
+      )}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
@@ -95,7 +98,9 @@ export function CabeceraReserva({
           <dd
             className={cn(
               "text-base font-bold tabular-nums",
-              tieneSaldo ? "text-amber-800 dark:text-amber-200" : "text-emerald-700 dark:text-emerald-300",
+              tieneSaldo
+                ? "text-amber-800 dark:text-amber-200"
+                : "text-emerald-700 dark:text-emerald-300",
             )}
           >
             {formatUsd(reserva.saldo_usd)}

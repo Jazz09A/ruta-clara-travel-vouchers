@@ -134,11 +134,14 @@ export function BirthDateInput({
   const diaEfectivo = Math.min(dia, maximoDia);
 
   const completo =
-    /^\d{4}$/.test(anio) && anioNum >= anioMin && anioNum <= anioMaximo && mes >= 1 && mes <= 12 && dia >= 1;
+    /^\d{4}$/.test(anio) &&
+    anioNum >= anioMin &&
+    anioNum <= anioMaximo &&
+    mes >= 1 &&
+    mes <= 12 &&
+    dia >= 1;
 
-  const fechaISO = completo
-    ? `${anio}-${completar(mes)}-${completar(diaEfectivo)}`
-    : "";
+  const fechaISO = completo ? `${anio}-${completar(mes)}-${completar(diaEfectivo)}` : "";
 
   const edad = fechaISO ? edadEn(fechaISO, fechaSalida ?? hoyIso()) : null;
 
@@ -160,9 +163,15 @@ export function BirthDateInput({
 
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
-      <Label htmlFor={htmlFor} id={`${htmlFor}-label`} className="text-sm font-medium text-foreground">
+      <Label
+        htmlFor={htmlFor}
+        id={`${htmlFor}-label`}
+        className="text-sm font-medium text-foreground"
+      >
         {label}
-        {!required ? <span className="ml-1 font-normal text-muted-foreground">(opcional)</span> : null}
+        {!required ? (
+          <span className="ml-1 font-normal text-muted-foreground">(opcional)</span>
+        ) : null}
       </Label>
 
       <div

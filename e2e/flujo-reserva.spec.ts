@@ -20,7 +20,11 @@ import { dibujarFirma } from "./helpers/firma";
  * client-side (`navegarClientSide`) para no recargar la sesión.
  */
 
-const TOUR = "Full Day Las Trincheras · Aguas Termales Balneario Spa, Valencia";
+// Tour de la seed demo: tiene el campo `almuerzo` («Pescado frito») y tarifas
+// Adulto 90 / Niño 60 / Infante 0. Los puntos de salida NO salen de la seed:
+// el servidor los toma del catálogo global que carga `importar-escapate`
+// (Emporium y Kiosco en Guatire, los de Caracas sólo como referencia).
+const TOUR = "Fin de Semana Mérida";
 const TITULAR = {
   nombre: "María Test E2E",
   doc: "20345678",
@@ -246,7 +250,8 @@ test("flujo completo: enlace → registro → pago → validación → voucher",
 
     await expect(page.getByRole("heading", { name: "Revisa y confirma tu reserva" })).toBeVisible();
     // El cliente solo ve el total administrado: sin desglose ni promo.
-    await expect(page.getByText("$90,00").first()).toBeVisible();
+    // Total del grupo (Mérida): Adulto 90 + Niño 60 + Infante 0 = 150.
+    await expect(page.getByText("$150,00").first()).toBeVisible();
     await expect(page.getByLabel("Código promocional")).toHaveCount(0);
     await page.locator("#acepta-politica").click();
 
@@ -361,9 +366,7 @@ test("flujo completo: enlace → registro → pago → validación → voucher",
 
     // La reserva queda confirmada: se asigna el código VJ-AAAA-NNNNN
     // (el texto aparece en el toast, el banner y el aviso sr-only).
-    const toastConfirmada = page
-      .getByText(/Reserva confirmada \(VJ-\d{4}-\d+\)/)
-      .first();
+    const toastConfirmada = page.getByText(/Reserva confirmada \(VJ-\d{4}-\d+\)/).first();
     await expect(toastConfirmada).toBeVisible({ timeout: 20_000 });
     codigoReserva = (await toastConfirmada.textContent())?.match(/VJ-\d{4}-\d+/)?.[0] ?? "";
     expect(codigoReserva).toMatch(/^VJ-\d{4}-\d+$/);
@@ -380,9 +383,9 @@ test("flujo completo: enlace → registro → pago → validación → voucher",
     await page.getByLabel("Referencia (opcional)").fill(referenciaPago);
     await page.getByRole("button", { name: "Registrar pago", exact: true }).click();
 
-    await expect(
-      page.getByText("Pago anotado. Queda aprobado en la reserva.").first(),
-    ).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("Pago anotado. Queda aprobado en la reserva.").first()).toBeVisible(
+      { timeout: 20_000 },
+    );
     // Sin cola: el pago aparece aprobado en el panel de la reserva.
     await expect(page.getByText("Aprobado").first()).toBeVisible({ timeout: 20_000 });
   });
@@ -402,9 +405,7 @@ test("flujo completo: enlace → registro → pago → validación → voucher",
       timeout: 30_000,
     });
     // Los menores de 4 años viajan gratis: el voucher resalta el sin costo.
-    await expect(
-      page.getByText("Sin costo · viaja en piernas de su representante"),
-    ).toBeVisible();
+    await expect(page.getByText("Sin costo · viaja en piernas de su representante")).toBeVisible();
     // Voucher con el nombre real del tour (no «Tu tour») y el punto de
     // cada pasajero en la fila («Sale desde»).
     await expect(page.getByText(TOUR).first()).toBeVisible();

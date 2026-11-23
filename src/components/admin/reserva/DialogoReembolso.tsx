@@ -114,7 +114,10 @@ export function DialogoReembolso({
             <Label htmlFor="reembolso-metodo" className="text-sm font-semibold text-foreground">
               Método del reembolso
             </Label>
-            <Select value={metodo} onValueChange={(valor: string) => setMetodo(valor as MetodoPagoId)}>
+            <Select
+              value={metodo}
+              onValueChange={(valor: string) => setMetodo(valor as MetodoPagoId)}
+            >
               <SelectTrigger id="reembolso-metodo" className="h-11">
                 <SelectValue />
               </SelectTrigger>

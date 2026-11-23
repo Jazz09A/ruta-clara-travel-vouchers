@@ -11,21 +11,16 @@ export { ActionBar, type ActionBarProps } from "./ActionBar";
 export { BadgeEstado, resolverEstado, type BadgeEstadoProps, type TipoEstado } from "./BadgeEstado";
 export { Banner, type BannerProps, type VarianteBanner } from "./Banner";
 export { BirthDateInput, diasDelMes, type BirthDateInputProps } from "./BirthDateInput";
-export {
-  BotonCargar,
-  type BotonCargarProps,
-} from "./BotonCargar";
+export { BotonCargar, type BotonCargarProps } from "./BotonCargar";
 export { BotonCopiar, type BotonCopiarProps } from "./BotonCopiar";
 export { BotonWhatsApp, type BotonWhatsAppProps } from "./BotonWhatsApp";
+export { ContadorRegresivo, type ContadorRegresivoProps } from "./ContadorRegresivo";
+export { DesglosePrecios, type DesglosePreciosProps } from "./DesglosePrecios";
 export {
-  ContadorRegresivo,
-  type ContadorRegresivoProps,
-} from "./ContadorRegresivo";
-export {
-  DesglosePrecios,
-  type DesglosePreciosProps,
-} from "./DesglosePrecios";
-export { DialogoConfirmacion, type DialogoConfirmacionProps, type MotivoDialogo } from "./DialogoConfirmacion";
+  DialogoConfirmacion,
+  type DialogoConfirmacionProps,
+  type MotivoDialogo,
+} from "./DialogoConfirmacion";
 export { EmptyState, type EmptyStateProps } from "./EmptyState";
 export { ErrorState, type ErrorStateProps } from "./ErrorState";
 export { EstadoConexion, type EstadoConexionProps } from "./EstadoConexion";
@@ -41,8 +36,4 @@ export {
 export { ProgressSteps, type ProgressStepsProps, type PasoBarra } from "./ProgressSteps";
 export { SheetBottom, type SheetBottomProps } from "./SheetBottom";
 export { Stepper, type StepperProps } from "./Stepper";
-export {
-  UploadArchivo,
-  type ArchivoPreparado,
-  type UploadArchivoProps,
-} from "./UploadArchivo";
+export { UploadArchivo, type ArchivoPreparado, type UploadArchivoProps } from "./UploadArchivo";

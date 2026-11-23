@@ -1,11 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useRef,
-  useState,
-  type Ref,
-} from "react";
+import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { Eraser, RotateCcw, Smartphone } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -116,12 +109,7 @@ interface Trazo {
   puntos: Punto[];
 }
 
-export function LienzoFirma({
-  ref,
-  bloqueado = false,
-  onCambio,
-  className,
-}: LienzoFirmaProps) {
+export function LienzoFirma({ ref, bloqueado = false, onCambio, className }: LienzoFirmaProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const contenedorRef = useRef<HTMLDivElement | null>(null);
   const trazosRef = useRef<Trazo[]>([]);
@@ -348,42 +336,51 @@ export function LienzoFirma({
   // Exportación y validación
   // -------------------------------------------------------------------------
 
-  const calcularMetricas = useCallback((trazos: Trazo[], ancho: number, alto: number): MetricasFirma => {
-    let longitud = 0;
-    let inicio = Number.POSITIVE_INFINITY;
-    let fin = Number.NEGATIVE_INFINITY;
+  const calcularMetricas = useCallback(
+    (trazos: Trazo[], ancho: number, alto: number): MetricasFirma => {
+      let longitud = 0;
+      let inicio = Number.POSITIVE_INFINITY;
+      let fin = Number.NEGATIVE_INFINITY;
 
-    for (const trazo of trazos) {
-      for (let i = 0; i < trazo.puntos.length; i += 1) {
-        const punto = trazo.puntos[i];
-        if (!punto) continue;
-        if (punto.t < inicio) inicio = punto.t;
-        if (punto.t > fin) fin = punto.t;
-        const previo = i > 0 ? trazo.puntos[i - 1] : undefined;
-        if (!previo) continue;
-        longitud += Math.hypot((punto.x - previo.x) * ancho, (punto.y - previo.y) * alto);
+      for (const trazo of trazos) {
+        for (let i = 0; i < trazo.puntos.length; i += 1) {
+          const punto = trazo.puntos[i];
+          if (!punto) continue;
+          if (punto.t < inicio) inicio = punto.t;
+          if (punto.t > fin) fin = punto.t;
+          const previo = i > 0 ? trazo.puntos[i - 1] : undefined;
+          if (!previo) continue;
+          longitud += Math.hypot((punto.x - previo.x) * ancho, (punto.y - previo.y) * alto);
+        }
       }
-    }
 
-    return {
-      n_trazos: trazos.length,
-      longitud_px: Math.round(longitud),
-      duracion_ms: Number.isFinite(inicio) && Number.isFinite(fin) ? Math.max(0, Math.round(fin - inicio)) : 0,
-    };
-  }, []);
+      return {
+        n_trazos: trazos.length,
+        longitud_px: Math.round(longitud),
+        duracion_ms:
+          Number.isFinite(inicio) && Number.isFinite(fin)
+            ? Math.max(0, Math.round(fin - inicio))
+            : 0,
+      };
+    },
+    [],
+  );
 
   /** Fracción de píxeles con trazo (sobre fondo blanco). */
-  const medirTinta = useCallback((ctx: CanvasRenderingContext2D, ancho: number, alto: number): number => {
-    const datos = ctx.getImageData(0, 0, ancho, alto).data;
-    let pintados = 0;
-    for (let i = 0; i < datos.length; i += 4) {
-      const r = datos[i] ?? 255;
-      const g = datos[i + 1] ?? 255;
-      const b = datos[i + 2] ?? 255;
-      if (r < 245 || g < 245 || b < 245) pintados += 1;
-    }
-    return pintados / Math.max(1, ancho * alto);
-  }, []);
+  const medirTinta = useCallback(
+    (ctx: CanvasRenderingContext2D, ancho: number, alto: number): number => {
+      const datos = ctx.getImageData(0, 0, ancho, alto).data;
+      let pintados = 0;
+      for (let i = 0; i < datos.length; i += 4) {
+        const r = datos[i] ?? 255;
+        const g = datos[i + 1] ?? 255;
+        const b = datos[i + 2] ?? 255;
+        if (r < 245 || g < 245 || b < 245) pintados += 1;
+      }
+      return pintados / Math.max(1, ancho * alto);
+    },
+    [],
+  );
 
   /** Ancho ocupado por la firma, como fracción del ancho del lienzo. */
   const medirAncho = useCallback((trazos: Trazo[]): number => {
@@ -483,11 +480,13 @@ export function LienzoFirma({
     };
   }, [calcularMetricas, medirAncho, medirTinta, pintarTrazo]);
 
-  useImperativeHandle(
-    ref,
-    () => ({ exportar, limpiar, deshacer, enfocar, hayTrazos }),
-    [deshacer, enfocar, exportar, hayTrazos, limpiar],
-  );
+  useImperativeHandle(ref, () => ({ exportar, limpiar, deshacer, enfocar, hayTrazos }), [
+    deshacer,
+    enfocar,
+    exportar,
+    hayTrazos,
+    limpiar,
+  ]);
 
   const descripcion = hayTrazos
     ? `Firma dibujada con ${nTrazos} ${nTrazos === 1 ? "trazo" : "trazos"}.`

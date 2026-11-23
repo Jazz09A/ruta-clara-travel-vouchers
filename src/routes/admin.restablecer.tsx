@@ -76,12 +76,7 @@ function RestablecerContrasena() {
                 required
               />
 
-              <BotonCargar
-                type="submit"
-                cargando={enviando}
-                className="w-full"
-                disabled={!correo}
-              >
+              <BotonCargar type="submit" cargando={enviando} className="w-full" disabled={!correo}>
                 Enviar enlace
               </BotonCargar>
             </form>

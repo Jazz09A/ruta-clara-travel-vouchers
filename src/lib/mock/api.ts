@@ -236,7 +236,7 @@ function notificar(
 // Progreso
 // ---------------------------------------------------------------------------
 
-const ORDEN_PASOS = ["titular", "acompanantes", "preguntas", "resumen", "firma", "pago"] as const;
+const ORDEN_PASOS = ["titular", "acompanantes", "preguntas", "resumen", "firma"] as const;
 
 const LABEL_PASO: Record<string, string> = {
   titular: "Titular",
@@ -244,26 +244,24 @@ const LABEL_PASO: Record<string, string> = {
   preguntas: "Preguntas",
   resumen: "Resumen",
   firma: "Firma",
-  pago: "Pago",
 };
 
-function reportePagoClienteActivo(): boolean {
-  return db().config.reporte_pago_cliente === true;
-}
-
-/** Etiqueta del paso: con el reporte apagado, «Pago» se lee coordinación. */
+/** Etiqueta del paso: la reserva ya no tiene paso de pago para el cliente. */
 function labelDe(id: string): string {
-  if (id === "pago" && !reportePagoClienteActivo()) return "Coordinación de pago";
   return LABEL_PASO[id] ?? id;
 }
 
 function computarProgreso(r: Reserva): Progreso {
   const indiceActual = ORDEN_PASOS.indexOf(r.paso_actual as (typeof ORDEN_PASOS)[number]);
   const cerrada = r.estado === "cancelada" || r.estado === "expirada" || r.estado === "completada";
+  // Reservas legacy que quedaron en el viejo paso de pago: para el cliente la
+  // reserva está en su etapa final (el flujo ya no tiene pago); el panel puede
+  // confirmarlas con la acción existente.
+  const legada = r.estado === "pendiente_pago" || r.estado === "pago_en_verificacion";
 
   const pasos = ORDEN_PASOS.map((id, i) => {
     let estado: Progreso["pasos"][number]["estado"];
-    if (r.estado === "confirmada" || r.estado === "completada") {
+    if (r.estado === "confirmada" || r.estado === "completada" || legada) {
       estado = "completo";
     } else if (cerrada) {
       estado = i <= Math.max(indiceActual, -1) ? "completo" : "bloqueado";
@@ -288,8 +286,6 @@ function computarProgreso(r: Reserva): Progreso {
   if (!titular?.correo) camposFaltantes.push("titular.correo");
   if (r.pasajeros.length < 1) camposFaltantes.push("pasajeros");
   if (!r.firma) camposFaltantes.push("firma");
-  // El pago sólo falta como acción del cliente si él mismo debe reportarlo.
-  if (reportePagoClienteActivo() && r.estado_pago !== "pagado") camposFaltantes.push("pago");
 
   let mensajeReanudacion: string | undefined;
   if (r.estado === "en_registro" && indiceActual > 0) {
@@ -1263,12 +1259,8 @@ const publica: ApiSurface["publica"] = {
         r.terminos_version_id = payload["versionTerminosId"] as string;
       }
     }
-    if (paso === "firma") {
-      r.paso_actual = "pago";
-      r.estado = "pendiente_pago";
-    }
-    // `paso === "pago"`: no cambia el estado (la agencia confirma la reserva
-    // cuando le corresponde; ya no hay «pago en verificación»).
+    // `paso === "firma"`: la firma se registra en `firmar`, que confirma la
+    // reserva y genera el voucher (el flujo ya no tiene paso de pago).
 
     tocar(r);
     return { version: r.version, paso_actual: r.paso_actual, progreso: computarProgreso(r) };
@@ -1876,9 +1868,7 @@ const admin: ApiSurface["admin"] = {
         detalles: [{ campo: "pago", mensaje: "El pago de la reserva es obligatorio." }],
       });
     }
-    const metodo = datos.metodos_pago.find(
-      (m) => m.id === body.pago.metodo_clave && m.activo,
-    );
+    const metodo = datos.metodos_pago.find((m) => m.id === body.pago.metodo_clave && m.activo);
     if (!metodo) {
       throw err(422, "VALIDACION", "Elige un método de pago activo.", {
         detalles: [{ campo: "pago.metodo_clave", mensaje: "Método de pago no disponible." }],

@@ -133,7 +133,10 @@ function agruparDias(incluye: string[]): { dia: string | null; texto: string }[]
           ) : null}
           {horaSalida ? (
             <div className="flex items-start gap-1.5 text-xs text-muted-foreground col-span-full">
-              <span className="mt-0.5 h-1 w-1 shrink-0 rounded-full bg-muted-foreground" aria-hidden="true" />
+              <span
+                className="mt-0.5 h-1 w-1 shrink-0 rounded-full bg-muted-foreground"
+                aria-hidden="true"
+              />
               <span>{t("hora_salida_aviso")}</span>
             </div>
           ) : null}

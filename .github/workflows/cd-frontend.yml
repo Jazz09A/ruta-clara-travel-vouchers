@@ -1,0 +1,44 @@
+name: CD — Frontend Producción
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Desplegar frontend a producción
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      # El servidor sirve el SSR con node (no Cloudflare): sin esto nitro
+      # empaqueta como cloudflare-module y el server/index.mjs no arranca en node.
+      - name: Build frontend (preset node-server)
+        run: pnpm install --frozen-lockfile && NITRO_PRESET=node-server pnpm build
+
+      - name: Copiar build al servidor por rsync
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh && echo "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -p 2222 62.171.175.92 >> ~/.ssh/known_hosts 2>/dev/null
+          rsync -azW --delete --no-perms --no-owner --no-group \
+            -e "ssh -p 2222 -i $HOME/.ssh/id_ed25519" \
+            .output/ alvaro@62.171.175.92:/home/alvaro/frontend-dist/
+
+      - name: Reiniciar servicio frontend y healthcheck
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -p 2222 62.171.175.92 >> ~/.ssh/known_hosts 2>/dev/null
+          ssh -p 2222 alvaro@62.171.175.92 \
+            'systemctl --user restart frontend-service; sleep 3; curl -sf https://admin.escapatetour.app/ > /dev/null && echo "FRONTEND_OK" || echo "FRONTEND_FAILED"'

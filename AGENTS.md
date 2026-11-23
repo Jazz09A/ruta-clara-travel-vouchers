@@ -1,4 +1,5 @@
 <!-- LOVABLE:BEGIN -->
+
 > [!IMPORTANT]
 > This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
 > published git history — force pushing, or rebasing/amending/squashing commits
@@ -7,17 +8,27 @@
 >
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
+
 <!-- LOVABLE:END -->
 
 <!-- DEVIN:BEGIN -->
+
 ## Notas del proyecto (Devin)
 
 - **Dos repositorios separados**: el frontend es este repo; el backend NestJS
   vive en `../backend` (repo propio, hacer commits por separado).
-- Backend dev: `cd ../backend && npm run seed && npm run start:dev`
+- **Gestor de paquetes: pnpm** (nada de npm/bun). Ambos repos llevan
+  `packageManager` en `package.json` y `pnpm-lock.yaml`; usa siempre
+  `pnpm install --frozen-lockfile` en CI.
+- Backend dev: `cd ../backend && pnpm seed && pnpm start:dev`
   (API en `http://localhost:3001/api/v1`, SQLite en `data/dev.sqlite`).
-- Verificación frontend: `npm run test`, `npm run lint`, `npm run build`.
-- Verificación backend: `npm run typecheck`, `npm run build`.
+- Verificación frontend: `pnpm lint`, `pnpm typecheck`, `pnpm test`,
+  `pnpm build`.
+- Verificación backend: `pnpm typecheck`, `pnpm test`, `pnpm build`.
+- **Flujo de ramas**: `feature/*` → PR a `staging`; `staging` → PR a `main`
+  (producción). `main` está protegida: solo por PR y con todos los checks
+  verdes. Producción se despliega solo al mergear a `main` (ver
+  `.github/workflows/`).
 - 2FA está fuera del flujo de auth (frontend, backend y seeds). No
   reintroducirlo sin pedido explícito. Recuperación de contraseña sigue
   oculta en la UI.
@@ -32,4 +43,5 @@
   recogida es **por tour** (`tour_punto_abordaje`), no la del catálogo global.
 - Los requisitos para activar un tour los calcula el servidor
   (`GET /adminfx/tours/{id}/requisitos`); el panel sólo los muestra.
+
 <!-- DEVIN:END -->

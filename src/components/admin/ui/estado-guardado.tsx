@@ -36,7 +36,11 @@ export function IndicadorGuardado({ className }: IndicadorGuardadoProps) {
     <p
       role="status"
       aria-live="polite"
-      className={cn("inline-flex items-center gap-1.5 text-xs font-semibold", ESTILO[estado], className)}
+      className={cn(
+        "inline-flex items-center gap-1.5 text-xs font-semibold",
+        ESTILO[estado],
+        className,
+      )}
     >
       <Icono
         className={cn("h-3.5 w-3.5", estado === "guardando" ? "animate-spin" : undefined)}

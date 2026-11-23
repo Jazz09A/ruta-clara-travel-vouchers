@@ -53,9 +53,7 @@ export function ContadorRegresivo({
   }, [restante, onVencer]);
 
   if (restante <= 0) {
-    return (
-      <span className={cn("font-semibold tabular-nums", className)}>00:00</span>
-    );
+    return <span className={cn("font-semibold tabular-nums", className)}>00:00</span>;
   }
 
   const texto =

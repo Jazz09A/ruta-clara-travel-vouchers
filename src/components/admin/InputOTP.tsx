@@ -1,10 +1,6 @@
 import * as React from "react";
 
-import {
-  InputOTP as InputOTPBase,
-  InputOTPGroup,
-  InputOTPSlot,
-} from "@/components/ui/input-otp";
+import { InputOTP as InputOTPBase, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { cn } from "@/lib/utils";
 
 /**

@@ -145,9 +145,6 @@ function ArranquePublico({ token }: { token: string }) {
 
   // Estado para términos y firma
   const [aceptacionTerminos, setAceptacionTerminos] = useState<AceptacionTerminos | null>(null);
-  const [precargaPago, setPrecargaPago] = useState<
-    Partial<import("@/lib/domain/api").ReportePago> | undefined
-  >(undefined);
 
   const continuarRef = useRef<(() => void) | null>(null);
   const registrarContinuar = useCallback((accion: () => void) => {
@@ -158,20 +155,14 @@ function ArranquePublico({ token }: { token: string }) {
   const pantalla: Pantalla = pasoForzado ?? pasoServidor;
 
   // Limpiar paso forzado cuando el servidor indica un paso diferente.
-  // Excepciones: desvíos locales dentro del flujo de firma/pago — el servidor
+  // Excepciones: desvíos locales dentro del flujo de firma — el servidor
   // permanece en su paso mientras el cliente resuelve un sub-paso:
   //  - «terminos» dentro de «firma» (los términos se exigen al firmar).
-  //  - «pago» desde «verificacion»/«confirmada» (reportar el resto o pagar de nuevo).
-  //  - «confirmada» desde «verificacion» (el voucher aparece al aprobarse el pago).
   //  - «cerrada» siempre manda: la reserva cerrada es terminal.
   useEffect(() => {
     if (!pasoForzado || !pasoServidor) return;
     const esDesvioLocal =
-      (pasoForzado === "terminos" && pasoServidor === "firma") ||
-      (pasoForzado === "pago" &&
-        (pasoServidor === "verificacion" || pasoServidor === "confirmada")) ||
-      (pasoForzado === "confirmada" && pasoServidor === "verificacion") ||
-      pasoForzado === "cerrada";
+      (pasoForzado === "terminos" && pasoServidor === "firma") || pasoForzado === "cerrada";
     if (!esDesvioLocal && pasoForzado !== pasoServidor) {
       setPasoForzado(null);
     }
@@ -204,9 +195,6 @@ function ArranquePublico({ token }: { token: string }) {
   const maxPasajeros = config?.max_pasajeros_reserva ?? 10;
   const documentoMenores = config?.documento_menores ?? "opcional";
   const requiereAutorizacion = config?.Requires_autorizacion_menores ?? false;
-  // Reporte de pago del cliente (flag global). Si está apagado, la agencia
-  // anota los datos del pago desde el panel y el formulario no pide nada.
-  const reportePagoActivo = config?.reporte_pago_cliente === true;
 
   // --- Cargas iniciales y errores de arranque --------------------------------
   if (cargando && !reserva) {
@@ -529,63 +517,10 @@ function ArranquePublico({ token }: { token: string }) {
         );
       }
 
-      case "pago":
-        // Con el reporte desactivado, este paso sólo informa: la agencia es
-        // quien coordina el pago con el cliente fuera del formulario.
-        if (!reportePagoActivo) {
-          return (
-            <PagoCoordina
-              token={token}
-              refCorta={reserva.ref_corta}
-              nombreTour={reserva.tour?.nombre}
-              telefonoWhatsapp={config?.agencia_whatsapp ?? MARCA.whatsapp}
-            />
-          );
-        }
-        return (
-          <Pago
-            token={token}
-            onReportado={() => setPasoForzado("verificacion")}
-            onReservaCerrada={() => setPasoForzado("cerrada")}
-            refCorta={reserva.ref_corta}
-            nombreTour={reserva.tour?.nombre}
-            precarga={precargaPago}
-          />
-        );
-
-      case "verificacion":
-        return (
-          <VerificacionPago
-            token={token}
-            permiteReportar={reportePagoActivo}
-            onConfirmada={() => setPasoForzado("confirmada")}
-            onVolverAPago={() => {
-              setPrecargaPago(undefined);
-              setPasoForzado("pago");
-            }}
-            onReservaCerrada={() => setPasoForzado("cerrada")}
-            refCorta={reserva.ref_corta}
-            nombreTour={reserva.tour?.nombre}
-          />
-        );
-
       case "confirmada":
         return (
           <Voucher
             token={token}
-            onReportarPago={
-              reportePagoActivo
-                ? () => {
-                    setPrecargaPago(undefined);
-                    setPasoForzado("pago");
-                  }
-                : undefined
-            }
-            textoSaldo={
-              reportePagoActivo
-                ? undefined
-                : "Tu reserva está confirmada. La agencia se pondrá en contacto contigo para coordinar el pago."
-            }
             onReservaCerrada={() => setPasoForzado("cerrada")}
             refCorta={reserva.ref_corta}
             nombreTour={reserva.tour?.nombre}
@@ -617,16 +552,9 @@ function ArranquePublico({ token }: { token: string }) {
         }
       : undefined;
 
-  // Los pasos terminos, firma, pago, verificacion y confirmada tienen su propio
-  // PublicShell. Con el reporte de pago desactivado, «pago» se muestra dentro
-  // del shell normal (junto a la barra de progreso) como una pantalla informativa.
-  const pasosConShellPropio = [
-    "terminos",
-    "firma",
-    ...(reportePagoActivo ? (["pago"] as const) : []),
-    "verificacion",
-    "confirmada",
-  ];
+  // Los pasos terminos, firma y confirmada tienen su propio PublicShell
+  // (el cliente ya no tiene paso de pago: la firma confirma la reserva).
+  const pasosConShellPropio = ["terminos", "firma", "confirmada"];
   const tieneShellPropio = pasosConShellPropio.includes(pantalla as never);
 
   if (tieneShellPropio) {

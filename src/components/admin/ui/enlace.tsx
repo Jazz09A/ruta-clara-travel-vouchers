@@ -20,7 +20,14 @@ export interface EnlaceAdminProps {
  * enlace escrito a mano no se puede validar con el tipado del router mientras
  * esa tabla no exista.
  */
-export function EnlaceAdmin({ to, children, className, ariaLabel, title, onClick }: EnlaceAdminProps) {
+export function EnlaceAdmin({
+  to,
+  children,
+  className,
+  ariaLabel,
+  title,
+  onClick,
+}: EnlaceAdminProps) {
   return (
     <Link to={to} className={className} aria-label={ariaLabel} title={title} onClick={onClick}>
       {children}

@@ -69,9 +69,7 @@ export function DesglosePrecios({
       <dl className="flex flex-col gap-2 border-t border-border pt-3">
         <Fila etiqueta="Subtotal" valor={formatUsd(subtotal_usd)} />
 
-        {hayAdicionales ? (
-          <Fila etiqueta="Adicionales" valor={formatUsd(adicionales_usd)} />
-        ) : null}
+        {hayAdicionales ? <Fila etiqueta="Adicionales" valor={formatUsd(adicionales_usd)} /> : null}
 
         {hayDescuento ? (
           <Fila

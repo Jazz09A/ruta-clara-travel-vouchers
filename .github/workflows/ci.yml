@@ -1,0 +1,136 @@
+name: CI
+
+on:
+  push:
+    branches: [staging]
+  pull_request:
+    branches: [staging, main]
+
+jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Instalar dependencias
+        run: pnpm install --frozen-lockfile
+
+      - name: Commitlint (solo en PRs)
+        if: github.event_name == 'pull_request'
+        run: >-
+          pnpm exec commitlint
+          --from ${{ github.event.pull_request.base.sha }}
+          --to ${{ github.event.pull_request.head.sha }}
+          --verbose
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Tests
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+  e2e:
+    name: E2E
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: frontend
+
+      # El backend vive en otro repo (privado, misma cuenta): se clonja con
+      # una deploy key de solo lectura guardada en BACKEND_READ_KEY.
+      - uses: actions/checkout@v4
+        with:
+          repository: Jazz09A/backend-CRM-viajes
+          ref: staging
+          path: backend
+          ssh-key: ${{ secrets.BACKEND_READ_KEY }}
+          ssh-strict: false
+
+      # El frontend vive en `path: frontend`; sin esto la action no encuentra
+      # `packageManager` y falla con «No pnpm version is specified».
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      # --- Backend real (SQLite + seed) en localhost:3001 -------------------
+      - name: Instalar backend
+        working-directory: backend
+        run: pnpm install --frozen-lockfile
+
+      # Replica el CMD del Dockerfile de producción: seed (usuarios, tours
+      # demo y formularios) + catálogo Escapate (puntos de salida reales
+      # Guatire/Guarenas/Caracas y `comidas_deshabilitadas=false`, que el
+      # formulario público exige para mostrar la selección de almuerzo).
+      - name: Compilar y sembrar
+        working-directory: backend
+        run: |
+          mkdir -p data
+          pnpm build
+          node dist/database/seed.js
+          node dist/database/importar-escapate.js
+
+      - name: Arrancar API
+        working-directory: backend
+        run: |
+          nohup node dist/main.js > /tmp/backend.log 2>&1 &
+          echo $! > /tmp/backend.pid
+
+      - name: Esperar /api/v1/ready
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:3001/api/v1/ready; then
+              echo "API lista"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "La API no respondió a tiempo:"
+          cat /tmp/backend.log
+          exit 1
+
+      # --- Frontend: e2e con Playwright ------------------------------------
+      - name: Instalar frontend
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Instalar navegadores
+        working-directory: frontend
+        run: pnpm exec playwright install --with-deps chromium firefox
+
+      - name: Correr e2e
+        working-directory: frontend
+        run: pnpm exec playwright test
+
+      - name: Log del backend (si falla)
+        if: failure()
+        run: cat /tmp/backend.log || true
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          retention-days: 7

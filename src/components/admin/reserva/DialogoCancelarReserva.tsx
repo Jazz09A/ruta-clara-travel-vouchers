@@ -118,8 +118,7 @@ export function DialogoCancelarReserva({
   const motivoIncompleto = motivo.trim().length < 5;
   const montoInvalido = monto.trim() !== "" && !/^\d+([.,]\d{1,2})?$/.test(monto.trim());
   const bloqueadoPorPago = hayPagosReportados && !forzar;
-  const listo =
-    !motivoIncompleto && !montoInvalido && !bloqueadoPorPago && !cargando;
+  const listo = !motivoIncompleto && !montoInvalido && !bloqueadoPorPago && !cargando;
 
   return (
     <Dialog open={abierto} onOpenChange={onAbiertoChange}>
@@ -133,7 +132,9 @@ export function DialogoCancelarReserva({
 
         <div className="flex flex-col gap-4">
           <fieldset className="flex flex-col gap-2">
-            <legend className="text-sm font-semibold text-foreground">¿Quién origina la cancelación?</legend>
+            <legend className="text-sm font-semibold text-foreground">
+              ¿Quién origina la cancelación?
+            </legend>
             <RadioGroup
               value={origen}
               onValueChange={(valor: string) => setOrigen(valor as OrigenCancelacion)}

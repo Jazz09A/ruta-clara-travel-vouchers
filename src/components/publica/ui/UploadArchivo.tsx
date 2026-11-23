@@ -98,8 +98,12 @@ export function UploadArchivo({
         aria-invalid={errorVisible ? true : undefined}
         aria-describedby={errorVisible ? `${id}-error` : ayuda ? `${id}-ayuda` : undefined}
         onChange={(evento) => {
+          // Móvil: leemos `files` antes de tocar `value`. iOS Safari y
+          // Android Chrome limpian la selección si se resetea de forma
+          // síncrona dentro del handler. El valor se limpia al abrir el
+          // selector (ver onClick más abajo), que es lo que permite volver
+          // a elegir el mismo archivo sin disparar doble evento.
           const archivo = evento.target.files?.[0];
-          evento.target.value = "";
           if (!archivo) return;
           setErrorLocal(null);
 
@@ -117,7 +121,14 @@ export function UploadArchivo({
 
       <button
         type="button"
-        onClick={() => inputRef.current?.click()}
+        onClick={() => {
+          // Re-selección: si `value` no se limpia, el navegador no dispara
+          // `onChange` cuando el usuario vuelve a elegir el mismo archivo.
+          // Se hace aquí (fuera del handler) para no tocar `files` en
+          // el momento en que el navegador lo está leyendo.
+          if (inputRef.current) inputRef.current.value = "";
+          inputRef.current?.click();
+        }}
         disabled={cargando}
         className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-dashed border-input bg-card px-4 text-sm font-semibold text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
       >

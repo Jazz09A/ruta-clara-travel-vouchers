@@ -1563,8 +1563,10 @@ const SEMILLAS_RESERVAS: SemillaReserva[] = [
     fecha_tour_id: "fch_roq_03",
     formulario_id: "form_roques",
     estado: "pendiente_pago",
+    // Firmadas antes de quitar el paso de pago: el panel puede confirmarlas.
+    firma: true,
     estado_pago: "sin_pago",
-    paso_actual: "pago",
+    paso_actual: "confirmada",
     pasajeros: [
       {
         nombre: "Carmen Díaz",
@@ -1598,8 +1600,10 @@ const SEMILLAS_RESERVAS: SemillaReserva[] = [
     fecha_tour_id: "fch_mer_02",
     formulario_id: "form_merida",
     estado: "pendiente_pago",
+    // Firmadas antes de quitar el paso de pago: el panel puede confirmarlas.
+    firma: true,
     estado_pago: "sin_pago",
-    paso_actual: "pago",
+    paso_actual: "confirmada",
     pasajeros: [
       {
         nombre: "María Pérez",
@@ -1631,8 +1635,10 @@ const SEMILLAS_RESERVAS: SemillaReserva[] = [
     fecha_tour_id: "fch_roq_02",
     formulario_id: "form_roques",
     estado: "pendiente_pago",
+    // Firmadas antes de quitar el paso de pago: el panel puede confirmarlas.
+    firma: true,
     estado_pago: "sin_pago",
-    paso_actual: "pago",
+    paso_actual: "confirmada",
     pasajeros: [
       {
         nombre: "Yajaira Colmenares",
@@ -1658,8 +1664,10 @@ const SEMILLAS_RESERVAS: SemillaReserva[] = [
     // Acuse de pago reportado: espera que la agencia confirme (ya no hay
     // cola de validación ni hold congelado).
     estado: "pendiente_pago",
+    // Firmadas antes de quitar el paso de pago: el panel puede confirmarlas.
+    firma: true,
     estado_pago: "reportado",
-    paso_actual: "pago",
+    paso_actual: "confirmada",
     pasajeros: [
       {
         nombre: "Andrea Ríos",
@@ -1685,8 +1693,10 @@ const SEMILLAS_RESERVAS: SemillaReserva[] = [
     // Acuse de pago reportado: espera que la agencia confirme (ya no hay
     // cola de validación ni hold congelado).
     estado: "pendiente_pago",
+    // Firmadas antes de quitar el paso de pago: el panel puede confirmarlas.
+    firma: true,
     estado_pago: "reportado",
-    paso_actual: "pago",
+    paso_actual: "confirmada",
     pasajeros: [
       {
         nombre: "Rosa Hernández",

@@ -151,16 +151,14 @@ export function PhoneInput({
       {label ? (
         <Label htmlFor={htmlFor} className="text-sm font-medium text-foreground">
           {label}
-          {!required ? <span className="ml-1 font-normal text-muted-foreground">(opcional)</span> : null}
+          {!required ? (
+            <span className="ml-1 font-normal text-muted-foreground">(opcional)</span>
+          ) : null}
         </Label>
       ) : null}
 
       <div className="flex items-stretch gap-2">
-        <Select
-          value={pais.codigo}
-          onValueChange={manejarCambioPais}
-          disabled={disabled}
-        >
+        <Select value={pais.codigo} onValueChange={manejarCambioPais} disabled={disabled}>
           <SelectTrigger
             className="h-11 w-[112px] shrink-0"
             aria-label="Codigo de pais del telefono"

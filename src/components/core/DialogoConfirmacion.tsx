@@ -145,7 +145,9 @@ export function DialogoConfirmacion({
               id={idAyudaMotivo}
               className={cn(
                 "flex items-center gap-1.5 text-xs",
-                obligatorio && !motivoCompleto ? "text-red-700 dark:text-red-300" : "text-muted-foreground",
+                obligatorio && !motivoCompleto
+                  ? "text-red-700 dark:text-red-300"
+                  : "text-muted-foreground",
               )}
             >
               {obligatorio && !motivoCompleto ? (

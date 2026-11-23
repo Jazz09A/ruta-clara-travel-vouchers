@@ -96,7 +96,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: `${MARCA.nombreCompleto} · Reservas` },
       {
         name: "description",
-        content: "Reservas de Full Days y Fines de Semana: registro, preguntas del tour, firma, pago y voucher.",
+        content:
+          "Reservas de Full Days y Fines de Semana: registro, preguntas del tour, firma, pago y voucher.",
       },
       { name: "author", content: MARCA.nombreCompleto },
       // Las rutas con datos personales y el panel no se indexan (SEG-16).
@@ -104,7 +105,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:title", content: `${MARCA.nombreCompleto} · Reservas` },
       {
         property: "og:description",
-        content: "Reservas de Full Days y Fines de Semana: registro, preguntas del tour, firma, pago y voucher.",
+        content:
+          "Reservas de Full Days y Fines de Semana: registro, preguntas del tour, firma, pago y voucher.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

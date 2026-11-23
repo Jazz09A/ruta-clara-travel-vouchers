@@ -33,12 +33,7 @@ const ICONO_ESTADO: Record<EstadoPaso, "check" | "actual" | "punto" | "lock"> = 
  * el detalle de las seis etapas. Sólo se puede navegar hacia pasos completados
  * o el actual; los bloqueados explican por qué (UX-43).
  */
-export function ProgressSteps({
-  pasos,
-  pasoActual,
-  onNavegar,
-  className,
-}: ProgressStepsProps) {
+export function ProgressSteps({ pasos, pasoActual, onNavegar, className }: ProgressStepsProps) {
   const [detalleAbierto, setDetalleAbierto] = useState(false);
 
   const total = pasos.length;
@@ -50,7 +45,10 @@ export function ProgressSteps({
   const completados = pasos.filter((paso) => paso.estado === "completo").length;
 
   return (
-    <nav aria-label="Progreso de la reserva" className={cn("border-b border-border bg-card", className)}>
+    <nav
+      aria-label="Progreso de la reserva"
+      className={cn("border-b border-border bg-card", className)}
+    >
       <button
         type="button"
         onClick={() => setDetalleAbierto((abierto) => !abierto)}
@@ -66,7 +64,10 @@ export function ProgressSteps({
           </span>
         </span>
         <ChevronDown
-          className={cn("h-5 w-5 shrink-0 text-muted-foreground transition-transform", detalleAbierto && "rotate-180")}
+          className={cn(
+            "h-5 w-5 shrink-0 text-muted-foreground transition-transform",
+            detalleAbierto && "rotate-180",
+          )}
           aria-hidden="true"
         />
       </button>

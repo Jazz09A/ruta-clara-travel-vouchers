@@ -37,14 +37,7 @@ const ICONOS: Record<TonoBanner, LucideIcon> = {
   exito: CircleCheck,
 };
 
-export function Banner({
-  tono = "info",
-  titulo,
-  children,
-  icono,
-  accion,
-  className,
-}: BannerProps) {
+export function Banner({ tono = "info", titulo, children, icono, accion, className }: BannerProps) {
   const Icono = icono ?? ICONOS[tono];
   return (
     <div
