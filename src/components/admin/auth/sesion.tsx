@@ -104,7 +104,7 @@ export function esRutaInternaValida(ruta: string): boolean {
   const limpia = base.length > 1 ? base.replace(/\/+$/, "") : base;
   // Nunca se guarda como destino pendiente una pantalla de acceso: volver a
   // ella después de entrar deja al usuario atrapado en el login.
-  const RUTAS_AUTH = ["/admin/login", "/admin/recuperar", "/admin/restablecer"];
+  const RUTAS_AUTH = ["/admin/login", "/admin/setup", "/admin/recuperar", "/admin/restablecer"];
   if (RUTAS_AUTH.some((rutaAuth) => limpia === rutaAuth || limpia.startsWith(`${rutaAuth}/`))) {
     return false;
   }
@@ -377,6 +377,18 @@ export async function login(correo: string, password: string): Promise<void> {
       request_id: "",
     });
   }
+}
+
+/**
+ * Completa la sesión tras el onboarding del primer administrador.
+ *
+ * `api.admin.iniciarSetup` ya dejó el access token listo (igual que el login);
+ * aquí sólo confirmamos el usuario y abrimos la sesión en el contexto.
+ */
+export async function completarSetup(): Promise<void> {
+  const { usuario } = await api.admin.yo();
+  fijarEstado({ usuario, autenticado: true, cargando: false });
+  programarInactividad();
 }
 
 // ---------------------------------------------------------------------------

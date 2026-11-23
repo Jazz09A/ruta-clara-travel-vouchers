@@ -1638,6 +1638,26 @@ const admin: ApiSurface["admin"] = {
     return { ok: true };
   },
 
+  async estadoSetup() {
+    // La demo siempre tiene usuarios precreados: no necesita onboarding.
+    return { requiere_onboarding: false };
+  },
+
+  async iniciarSetup(_body: {
+    nombre: string;
+    correo: string;
+    password: string;
+    agencia: {
+      nombre: string;
+      email?: string;
+      whatsapp?: string;
+      direccion?: string;
+      zona_horaria?: string;
+    };
+  }) {
+    // Sin onboarding en la demo: el alta real la hace el backend.
+  },
+
   async yo() {
     return { usuario: db().usuarios[0] as Usuario };
   },

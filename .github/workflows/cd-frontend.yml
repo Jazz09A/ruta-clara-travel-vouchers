@@ -21,7 +21,11 @@ jobs:
 
       # El servidor sirve el SSR con node (no Cloudflare): sin esto nitro
       # empaqueta como cloudflare-module y el server/index.mjs no arranca en node.
+      # VITE_API_URL es obligatorio: sin él el bundle cae al fallback
+      # http://localhost:3001/api/v1 y el panel no alcanza la API.
       - name: Build frontend (preset node-server)
+        env:
+          VITE_API_URL: https://api.escapatetour.app/api/v1
         run: pnpm install --frozen-lockfile && NITRO_PRESET=node-server pnpm build
 
       - name: Copiar build al servidor por rsync

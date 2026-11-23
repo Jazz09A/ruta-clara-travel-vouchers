@@ -324,6 +324,19 @@ export interface ApiAdmin {
   yo(): Promise<{ usuario: Usuario }>;
   notificaciones(): Promise<Notificacion[]>;
   marcarNotificacionLeida(id: string): Promise<{ ok: boolean }>;
+  estadoSetup(): Promise<{ requiere_onboarding: boolean }>;
+  iniciarSetup(body: {
+    nombre: string;
+    correo: string;
+    password: string;
+    agencia: {
+      nombre: string;
+      email?: string;
+      whatsapp?: string;
+      direccion?: string;
+      zona_horaria?: string;
+    };
+  }): Promise<void>;
 
   dashboard(): Promise<DashboardData>;
 

@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Eye, EyeOff, LogIn, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, LogIn, ShieldCheck, UserPlus } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { Banner } from "@/components/admin/Banner";
@@ -9,12 +9,15 @@ import { ProveedorSesion, useNavegarAdmin, useSesion } from "@/components/admin/
 import { Input } from "@/components/ui/input";
 import { ApiError } from "@/lib/domain/api";
 import { MARCA } from "@/lib/brand";
+import { api } from "@/lib/api";
 
 /**
  * A-01 · Ingreso al panel (Spec §9.2, UX-61).
  *
  * El mensaje de error es genérico: nunca se revela si el correo existe.
  * Tras 5 intentos fallidos se muestra una espera con cuenta regresiva.
+ *
+ * Si no hay administrador creado, redirige a /admin/setup (onboarding).
  */
 
 export const Route = createFileRoute("/admin/login")({
@@ -63,6 +66,24 @@ function FormularioLogin() {
   const [intentos, setIntentos] = useState(0);
   const [esperaHasta, setEsperaHasta] = useState<number | null>(null);
   const [restante, setRestante] = useState(0);
+
+  // Comprobar si hace falta onboarding al montar.
+  useEffect(() => {
+    let ignorar = false;
+    (async () => {
+      try {
+        const { requiere_onboarding } = await api.admin.estadoSetup();
+        if (!ignorar && requiere_onboarding) {
+          navegar("/admin/setup", { reemplazar: true });
+        }
+      } catch {
+        /* si falla la comprobación, mostramos el formulario normalmente */
+      }
+    })();
+    return () => {
+      ignorar = true;
+    };
+  }, [navegar]);
 
   // Cuenta regresiva de espera.
   useEffect(() => {
@@ -231,6 +252,16 @@ function FormularioLogin() {
               </Link>
             </div>
           ) : null}
+
+          <div className="flex items-center justify-center gap-2 text-sm">
+            <Link
+              to="/admin/setup"
+              className="inline-flex min-h-11 items-center gap-2 rounded font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            >
+              <UserPlus className="h-4 w-4" aria-hidden="true" />
+              ¿Primera vez? Crear el administrador
+            </Link>
+          </div>
         </form>
 
         {ES_DEV ? (

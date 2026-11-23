@@ -834,7 +834,9 @@ export type CodigoError =
   | "ERROR_INTERNO"
   | "STEP_UP_REQUERIDO"
   /** Login con credenciales válidas, pero la verificación de la sesión (`/auth/yo`) falló. */
-  | "VERIFICACION_SESION";
+  | "VERIFICACION_SESION"
+  /** Onboarding ya completado: no se puede crear otro superadmin. */
+  | "SETUP_YA_COMPLETADO";
 
 export interface DetalleError {
   campo: string;
