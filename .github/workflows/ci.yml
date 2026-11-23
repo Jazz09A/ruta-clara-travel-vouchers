@@ -78,6 +78,13 @@ jobs:
         working-directory: backend
         run: pnpm install --frozen-lockfile
 
+      # El backend genera los vouchers PDF con su propio Playwright
+      # (chromium_headless_shell): hay que instalar SUS navegadores, no sólo
+      # los del frontend, o la generación del voucher falla en E2E.
+      - name: Navegadores del backend (vouchers PDF)
+        working-directory: backend
+        run: pnpm exec playwright install --with-deps chromium
+
       # Replica el CMD del Dockerfile de producción: seed (usuarios, tours
       # demo y formularios) + catálogo Escapate (puntos de salida reales
       # Guatire/Guarenas/Caracas y `comidas_deshabilitadas=false`, que el
