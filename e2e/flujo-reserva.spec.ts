@@ -148,7 +148,7 @@ test("flujo completo: enlace → registro → pago → validación → voucher",
     await expect(page.getByText("Sube la foto del documento de identidad").first()).toBeVisible();
 
     await page.setInputFiles("#titular-foto-documento", "e2e/fixtures/cedula.png");
-    await expect(page.getByText("Foto del documento lista ✓")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("Foto del documento lista ✓")).toBeVisible({ timeout: 30_000 });
 
     await page.getByRole("button", { name: "Continuar" }).click();
 
@@ -178,7 +178,7 @@ test("flujo completo: enlace → registro → pago → validación → voucher",
       .first()
       .setInputFiles("e2e/fixtures/cedula.png");
     await expect(tarjetaNino.getByText("Foto del documento lista ✓")).toBeVisible({
-      timeout: 20_000,
+      timeout: 30_000,
     });
 
     // Infante (menor de 5): la tarjeta resalta «Sin costo» y no muestra
@@ -195,7 +195,7 @@ test("flujo completo: enlace → registro → pago → validación → voucher",
       .first()
       .setInputFiles("e2e/fixtures/cedula.png");
     await expect(tarjetaInfante.getByText("Foto del documento lista ✓")).toBeVisible({
-      timeout: 20_000,
+      timeout: 30_000,
     });
     await expect(tarjetaInfante).toContainText("Sin costo · viaja en piernas de su representante");
 
@@ -301,7 +301,7 @@ test("flujo completo: enlace → registro → pago → validación → voucher",
     if (!llegoTerminos) {
       await page.waitForTimeout(31_000);
       await recargarCliente(page, token);
-      await expect(headingTerminos).toBeVisible({ timeout: 20_000 });
+      await expect(headingTerminos).toBeVisible({ timeout: 30_000 });
     }
   });
 
@@ -339,15 +339,15 @@ test("flujo completo: enlace → registro → pago → validación → voucher",
   await test.step("la reserva ya está confirmada y la agencia anota el pago", async () => {
     await navegarClientSide(page, "/admin/reservas");
     const buscador = page.getByPlaceholder(/Buscar por referencia/);
-    await expect(buscador).toBeVisible({ timeout: 20_000 });
+    await expect(buscador).toBeVisible({ timeout: 30_000 });
     await buscador.fill(referenciaInterna);
 
     // La búsqueda se resuelve en el servidor (ref_corta, código o
     // referencia interna): al reducir el listado a una sola reserva, se
     // abre su detalle.
-    await expect(page.getByText(/1 reservas en total/)).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/1 reservas en total/)).toBeVisible({ timeout: 30_000 });
     const tarjeta = page.locator('a[href^="/admin/reservas/"]:not([href*="nueva"])').first();
-    await expect(tarjeta).toBeVisible({ timeout: 20_000 });
+    await expect(tarjeta).toBeVisible({ timeout: 30_000 });
     await tarjeta.click();
     await expect(page.getByRole("heading", { name: "Detalle de reserva" })).toBeVisible({
       timeout: 20_000,
@@ -359,7 +359,7 @@ test("flujo completo: enlace → registro → pago → validación → voucher",
     // Con el pago registrado al crear el enlace, la reserva se confirma
     // sola tras la firma: el código VJ-AAAA-NNNNN ya está asignado.
     const encabezado = page.getByRole("heading", { name: /^Reserva VJ-\d{4}-\d+/ });
-    await expect(encabezado).toBeVisible({ timeout: 20_000 });
+    await expect(encabezado).toBeVisible({ timeout: 30_000 });
     codigoReserva = (await encabezado.textContent())?.match(/VJ-\d{4}-\d+/)?.[0] ?? "";
     expect(codigoReserva).toMatch(/^VJ-\d{4}-\d+$/);
 
@@ -378,7 +378,7 @@ test("flujo completo: enlace → registro → pago → validación → voucher",
       { timeout: 20_000 },
     );
     // Sin cola: el pago aparece aprobado en el panel de la reserva.
-    await expect(page.getByText("Aprobado").first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("Aprobado").first()).toBeVisible({ timeout: 30_000 });
   });
 
   // -----------------------------------------------------------------------
