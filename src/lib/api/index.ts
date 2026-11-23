@@ -166,6 +166,7 @@ async function refrescarSesion(): Promise<boolean> {
 
 const ROL_A_FE: Record<string, Usuario["rol"]> = {
   superadmin: "SA",
+  administrador: "AD",
   operador: "OP",
   validador: "VAL",
   guia: "GU",

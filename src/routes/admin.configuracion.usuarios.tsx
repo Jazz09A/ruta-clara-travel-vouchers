@@ -24,6 +24,7 @@ import { DialogoConfirmacion } from "@/components/admin/DialogoConfirmacion";
 
 const ETIQUETA_ROL: Record<Rol, string> = {
   SA: "Super Admin",
+  AD: "Administrador",
   OP: "Operador",
   VAL: "Validador",
   GU: "Guía",
@@ -31,6 +32,7 @@ const ETIQUETA_ROL: Record<Rol, string> = {
 
 const DESCRIPCION_ROL: Record<Rol, string> = {
   SA: "Acceso total a todas las funciones del sistema",
+  AD: "Todo lo del super admin menos auditoría ni gestión de usuarios",
   OP: "Gestión de reservas, pagos y clientes",
   VAL: "Validación de pagos y manejo de salidas",
   GU: "Acceso a salidas y manifiestos",
@@ -243,6 +245,7 @@ function UsuariosPermisos() {
                 onChange={(e) => setRolSeleccionado(e.target.value as Rol)}
               >
                 <option value="SA">Super Admin (SA)</option>
+                <option value="AD">Administrador (AD)</option>
                 <option value="OP">Operador (OP)</option>
                 <option value="VAL">Validador (VAL)</option>
                 <option value="GU">Guía (GU)</option>

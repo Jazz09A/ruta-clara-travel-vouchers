@@ -12,6 +12,7 @@ import {
   Users,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { useSesion } from "@/components/admin/sesion";
 
 export const Route = createFileRoute("/admin/configuracion/")({
   head: () => ({
@@ -96,10 +97,16 @@ const seccionesConfig = [
     descripcion: "Equipo, roles y accesos",
     icono: Users,
     ruta: "/admin/configuracion/usuarios",
+    soloSuperadmin: true,
   },
 ];
 
 function Configuracion() {
+  const { usuario } = useSesion();
+  const secciones = seccionesConfig.filter(
+    (s) => !("soloSuperadmin" in s && s.soloSuperadmin) || usuario?.rol === "SA",
+  );
+
   return (
     <AdminShell
       titulo="Configuración"
@@ -112,7 +119,7 @@ function Configuracion() {
 
         {/* Grid de secciones */}
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {seccionesConfig.map((seccion) => (
+          {secciones.map((seccion) => (
             <TarjetaSeccion key={seccion.id} seccion={seccion} />
           ))}
         </div>
