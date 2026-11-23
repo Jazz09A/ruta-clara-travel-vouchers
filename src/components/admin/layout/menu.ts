@@ -133,6 +133,7 @@ export const ETIQUETA_GRUPO: Record<GrupoMenu, string> = {
 /** Etiqueta legible del rol (nunca el identificador interno). */
 export const ETIQUETA_ROL: Record<Rol, string> = {
   SA: "Administración",
+  AD: "Administrador",
   OP: "Operación",
   VAL: "Validación de pagos",
   GU: "Guía / logística",

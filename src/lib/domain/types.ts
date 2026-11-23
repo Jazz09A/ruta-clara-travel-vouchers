@@ -11,7 +11,7 @@
 // Roles y permisos
 // ---------------------------------------------------------------------------
 
-export type Rol = "SA" | "OP" | "VAL" | "GU";
+export type Rol = "SA" | "AD" | "OP" | "VAL" | "GU";
 
 export interface Usuario {
   id: string;
@@ -75,6 +75,31 @@ export const PERMISOS_POR_ROL: Record<Rol, Permiso[]> = {
     "config.ver",
     "config.editar",
     "auditoria.ver",
+  ],
+  AD: [
+    "reservas.ver",
+    "reservas.crear",
+    "reservas.editar",
+    "reservas.cancelar",
+    "reservas.revelar",
+    "reservas.reprogramar",
+    "pagos.ver",
+    "pagos.validar",
+    "pagos.registrar",
+    "pagos.reembolsar",
+    "salidas.ver",
+    "salidas.editar",
+    "salidas.manifiesto",
+    "tours.ver",
+    "tours.editar",
+    "formularios.editar",
+    "clientes.ver",
+    "clientes.exportar",
+    "clientes.anonimizar",
+    "reportes.ver",
+    "reportes.exportar",
+    "config.ver",
+    "config.editar",
   ],
   OP: [
     "reservas.ver",
