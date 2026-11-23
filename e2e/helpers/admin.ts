@@ -1,7 +1,7 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
 /** Credenciales de la demo local (seed en `src/lib/mock/seed.ts`). */
-export const ADMIN_EMAIL = "admin@rutaclara.ve";
+export const ADMIN_EMAIL = "admin@escapetour.app";
 export const ADMIN_PASSWORD = "demo1234";
 
 /**

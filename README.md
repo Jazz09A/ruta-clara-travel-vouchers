@@ -1,4 +1,4 @@
-# Ruta Clara · CRM de reservas
+# Escapate Tours · CRM de reservas
 
 Sistema de reservas de una agencia de viajes especializada en **Full Days** y
 **Fines de Semana**: panel administrativo (CRM) y formulario público
@@ -51,10 +51,10 @@ en desarrollo** (`import.meta.env.DEV`); en producción el login es limpio.
 
 | Rol                 | Correo                   | Contraseña | Puede                                |
 | ------------------- | ------------------------ | ---------- | ------------------------------------ |
-| Superadministradora | `admin@rutaclara.ve`     | `demo1234` | Todo                                 |
-| Operadora           | `operador@rutaclara.ve`  | `demo1234` | Enlaces, reservas, pagos en efectivo |
-| Validador           | `validador@rutaclara.ve` | `demo1234` | Aprobar / rechazar pagos             |
-| Guía                | `guia@rutaclara.ve`      | `demo1234` | Manifiesto y cocina (solo lectura)   |
+| Superadministradora | `admin@escapetour.app`     | `demo1234` | Todo                                 |
+| Operadora           | `operador@escapetour.app`  | `demo1234` | Enlaces, reservas, pagos en efectivo |
+| Validador           | `validador@escapetour.app` | `demo1234` | Aprobar / rechazar pagos             |
+| Guía                | `guia@escapetour.app`      | `demo1234` | Manifiesto y cocina (solo lectura)   |
 
 > **2FA está desactivado** del flujo de autenticación (login, rutas, seeds y
 > UI). Las columnas `dos_fa_activo`/`totp_secret_enc` permanecen en la base

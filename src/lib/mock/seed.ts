@@ -1,5 +1,5 @@
 /**
- * Datos semilla — Ruta Clara CRM
+ * Datos semilla — Escapate Tours CRM
  *
  * Genera el dataset inicial del "backend" simulado en memoria.
  *
@@ -185,7 +185,7 @@ function crearUsuarios(): Usuario[] {
     {
       id: "usr_sa_1",
       nombre: "Manuel Rodríguez",
-      correo: "admin@rutaclara.ve",
+      correo: "admin@escapetour.app",
       rol: "SA",
       dos_factores_activo: false,
       activo: true,
@@ -193,7 +193,7 @@ function crearUsuarios(): Usuario[] {
     {
       id: "usr_op_1",
       nombre: "Carmen Díaz",
-      correo: "operador@rutaclara.ve",
+      correo: "operador@escapetour.app",
       rol: "OP",
       dos_factores_activo: false,
       activo: true,
@@ -201,7 +201,7 @@ function crearUsuarios(): Usuario[] {
     {
       id: "usr_val_1",
       nombre: "Luis Bracho",
-      correo: "validador@rutaclara.ve",
+      correo: "validador@escapetour.app",
       rol: "VAL",
       dos_factores_activo: false,
       activo: true,
@@ -209,7 +209,7 @@ function crearUsuarios(): Usuario[] {
     {
       id: "usr_gu_1",
       nombre: "Ana Rojas",
-      correo: "guia@rutaclara.ve",
+      correo: "guia@escapetour.app",
       rol: "GU",
       dos_factores_activo: false,
       activo: true,
@@ -217,7 +217,7 @@ function crearUsuarios(): Usuario[] {
     {
       id: "usr_sa_0",
       nombre: "Patricia Bello",
-      correo: "admin.anterior@rutaclara.ve",
+      correo: "admin.anterior@escapetour.app",
       rol: "SA",
       dos_factores_activo: false,
       activo: false,
@@ -229,10 +229,10 @@ function crearUsuarios(): Usuario[] {
 export const PASSWORD_DEMO = "demo1234";
 
 export const CREDENCIALES_DEMO: { correo: string; password: string; rol: Rol }[] = [
-  { correo: "admin@rutaclara.ve", password: PASSWORD_DEMO, rol: "SA" },
-  { correo: "operador@rutaclara.ve", password: PASSWORD_DEMO, rol: "OP" },
-  { correo: "validador@rutaclara.ve", password: PASSWORD_DEMO, rol: "VAL" },
-  { correo: "guia@rutaclara.ve", password: PASSWORD_DEMO, rol: "GU" },
+  { correo: "admin@escapetour.app", password: PASSWORD_DEMO, rol: "SA" },
+  { correo: "operador@escapetour.app", password: PASSWORD_DEMO, rol: "OP" },
+  { correo: "validador@escapetour.app", password: PASSWORD_DEMO, rol: "VAL" },
+  { correo: "guia@escapetour.app", password: PASSWORD_DEMO, rol: "GU" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -982,7 +982,7 @@ function crearTarifas(fechas: FechaTour[]): Tarifa[] {
 
 const CUERPO_TERMINOS_V2 = `## 1. Objeto del viaje
 
-Ruta Clara Viajes comercializa tours turísticos Full Days y fines de semana desde Caracas hacia destinos nacionales. La reserva formaliza el derecho del titular a ocupar el cupo asignado en la salida seleccionada y los servicios descritos en el itinerario del tour.
+Escapate Tours comercializa tours turísticos Full Days y fines de semana desde Caracas hacia destinos nacionales. La reserva formaliza el derecho del titular a ocupar el cupo asignado en la salida seleccionada y los servicios descritos en el itinerario del tour.
 
 ## 2. Responsabilidades del titular
 
@@ -1006,7 +1006,7 @@ El voucher emitido es un comprobante de reserva y no sustituye la factura fiscal
 
 const CUERPO_TERMINOS_V1 = `## 1. Objeto del viaje
 
-Ruta Clara Viajes comercializa tours turísticos Full Days y fines de semana desde Caracas. La reserva asigna un cupo en la salida seleccionada.
+Escapate Tours comercializa tours turísticos Full Days y fines de semana desde Caracas. La reserva asigna un cupo en la salida seleccionada.
 
 ## 2. Responsabilidades del titular
 
@@ -1033,7 +1033,7 @@ function crearTerminos(ahora: number): VersionTerminos[] {
     {
       id: "term_v1",
       version: 1,
-      titulo: "Términos y condiciones — Ruta Clara Viajes",
+      titulo: "Términos y condiciones — Escapate Tours",
       cuerpo: CUERPO_TERMINOS_V1,
       publicada_en: fechaIso(ahora, -180),
       activa: false,
@@ -1042,7 +1042,7 @@ function crearTerminos(ahora: number): VersionTerminos[] {
     {
       id: "term_v2",
       version: 2,
-      titulo: "Términos y condiciones — Ruta Clara Viajes",
+      titulo: "Términos y condiciones — Escapate Tours",
       cuerpo: CUERPO_TERMINOS_V2,
       publicada_en: fechaIso(ahora, -25),
       activa: true,
@@ -1173,9 +1173,9 @@ function crearPromos(ahora: number): CodigoPromocional[] {
 
 function crearConfiguracion(tourActivoDefault: string): Configuracion {
   return {
-    agencia_nombre: "Ruta Clara Viajes",
+    agencia_nombre: "Escapate Tours",
     agencia_whatsapp: "+584121234567",
-    agencia_email: "hola@rutaclara.ve",
+    agencia_email: "hola@escapetour.app",
     agencia_direccion: "Av. Libertador, Caracas",
     idioma: "es",
     zona_horaria: "America/Caracas",
@@ -1247,7 +1247,7 @@ function crearMetodosPago(): MetodoPago[] {
         { etiqueta: "Banco", valor: "Bancamiga" },
         { etiqueta: "Número de cuenta", valor: "0102-0000-00-0000000000", copiable: true },
         { etiqueta: "Tipo de cuenta", valor: "Corriente" },
-        { etiqueta: "Titular", valor: "Ruta Clara Viajes C.A." },
+        { etiqueta: "Titular", valor: "Escapate Tours C.A." },
         { etiqueta: "RIF", valor: "J-40123456-7" },
       ],
       campos_requeridos: ["referencia", "fecha_pago"],
@@ -1278,7 +1278,7 @@ function crearMetodosPago(): MetodoPago[] {
       moneda: "USD",
       activo: true,
       orden: 3,
-      datos: [{ etiqueta: "Correo", valor: "pagos@rutaclara.ve", copiable: true }],
+      datos: [{ etiqueta: "Correo", valor: "pagos@escapetour.app", copiable: true }],
       campos_requeridos: ["referencia", "fecha_pago"],
       requiere_comprobante: true,
       instrucciones:
@@ -1290,7 +1290,7 @@ function crearMetodosPago(): MetodoPago[] {
       moneda: "USD",
       activo: true,
       orden: 4,
-      datos: [{ etiqueta: "Caja", valor: "Mostrador Ruta Clara, Av. Libertador" }],
+      datos: [{ etiqueta: "Caja", valor: "Mostrador Escapate Tours, Av. Libertador" }],
       campos_requeridos: ["referencia"],
       requiere_comprobante: false,
       instrucciones:

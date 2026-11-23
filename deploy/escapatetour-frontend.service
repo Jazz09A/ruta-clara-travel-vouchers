@@ -11,7 +11,7 @@
 # ──────────────────────────────────────────────────────────────────────────
 
 [Unit]
-Description=Ruta Clara — panel admin (SSR Nitro node-server)
+Description=Escapate Tours — panel admin (SSR Nitro node-server)
 After=network.target
 
 [Service]

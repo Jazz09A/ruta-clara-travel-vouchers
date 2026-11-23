@@ -73,7 +73,7 @@ import { mensajeDeError } from "@/components/admin/ui/utilidades";
 export const Route = createFileRoute("/admin/reservas/$id")({
   head: () => ({
     meta: [
-      { title: "Detalle de reserva · Ruta Clara" },
+      { title: "Detalle de reserva · Escapate Tours" },
       {
         name: "description",
         content: "Datos, pagos, firma y voucher de una reserva.",

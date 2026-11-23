@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, MailCheck } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
+import { LogoEscapate } from "@/components/brand/LogoEscapate";
 import { Banner } from "@/components/admin/Banner";
 import { BotonCargar } from "@/components/admin/BotonCargar";
 import { Field } from "@/components/admin/Field";
@@ -95,9 +96,7 @@ function FormularioRecuperar() {
     <main className="flex min-h-dvh flex-col items-center justify-center bg-background px-4 py-10">
       <div className="w-full max-w-md space-y-6">
         <header className="flex flex-col items-center gap-3 text-center">
-          <span className="grid h-12 w-12 place-items-center rounded-2xl bg-brand">
-            <span className="h-4 w-4 rounded-full bg-white/90" aria-hidden="true" />
-          </span>
+          <LogoEscapate tamano={56} />
           <div>
             <h1 className="text-2xl font-extrabold tracking-tight">Recupera tu contraseña</h1>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -123,7 +122,7 @@ function FormularioRecuperar() {
               autoComplete="email"
               autoCapitalize="none"
               spellCheck={false}
-              placeholder="nombre@rutaclara.ve"
+              placeholder="nombre@escapetour.app"
               value={correo}
               onChange={(evento) => setCorreo(evento.target.value)}
               className="h-11"

@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Eye, EyeOff, LogIn, MailCheck, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, LogIn, ShieldCheck } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 
+import { LogoEscapate } from "@/components/brand/LogoEscapate";
 import { BotonCargar } from "@/components/admin/BotonCargar";
 import { Field } from "@/components/admin/Field";
 import { completarSetup, useNavegarAdmin, useSesion } from "@/components/admin/auth/sesion";
@@ -187,9 +188,7 @@ function PantallaSetup() {
     <main className="flex min-h-dvh flex-col items-center justify-center bg-background px-4 py-8 sm:py-10">
       <div className="w-full max-w-md space-y-6">
         <header className="flex flex-col items-center gap-3 text-center">
-          <span className="grid h-12 w-12 place-items-center rounded-2xl bg-brand">
-            <MailCheck className="h-6 w-6 text-white" aria-hidden="true" />
-          </span>
+          <LogoEscapate tamano={56} />
           <div>
             <h1 className="text-2xl font-extrabold tracking-tight">
               Configurar el primer administrador
@@ -239,7 +238,7 @@ function PantallaSetup() {
               autoComplete="email"
               autoCapitalize="none"
               spellCheck={false}
-              placeholder="nombre@rutaclara.ve"
+              placeholder="nombre@escapetour.app"
               value={correo}
               onChange={(evento) => setCorreo(evento.target.value)}
               className="h-11"
@@ -312,7 +311,7 @@ function PantallaSetup() {
               type="text"
               autoComplete="organization"
               autoCapitalize="words"
-              placeholder="Ruta Clara Viajes"
+              placeholder="Escapate Tours"
               value={agenciaNombre}
               onChange={(evento) => setAgenciaNombre(evento.target.value)}
               className="h-11"
@@ -326,7 +325,7 @@ function PantallaSetup() {
               autoComplete="email"
               autoCapitalize="none"
               spellCheck={false}
-              placeholder="agencia@rutaclara.ve"
+              placeholder="agencia@escapetour.app"
               value={agenciaEmail}
               onChange={(evento) => setAgenciaEmail(evento.target.value)}
               className="h-11"

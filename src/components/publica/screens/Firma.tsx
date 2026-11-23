@@ -53,7 +53,7 @@ export function Firma({
   refCorta,
   nombreTour,
 }: FirmaProps) {
-  useTituloPantalla("Firma · Ruta Clara");
+  useTituloPantalla("Firma · Escapate Tours");
 
   const queryClient = useQueryClient();
   const lienzoRef = useRef<LienzoFirmaRef | null>(null);

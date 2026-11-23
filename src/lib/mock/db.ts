@@ -1,5 +1,5 @@
 /**
- * Base de datos en memoria — Ruta Clara CRM
+ * Base de datos en memoria — Escapate Tours CRM
  *
  * Simula el "servidor" del backend: guarda el `SeedData` en una variable de
  * módulo y expone operaciones de lectura/escritura de bajo nivel. No hay

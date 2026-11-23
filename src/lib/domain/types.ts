@@ -1,5 +1,5 @@
 /**
- * Contratos de dominio — Ruta Clara CRM
+ * Contratos de dominio — Escapate Tours CRM
  *
  * These types are the single source of truth shared by the mock "backend"
  * (src/lib/mock) and both apps (publica + admin). They intentionally mirror the

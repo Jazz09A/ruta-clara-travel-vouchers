@@ -24,7 +24,7 @@ import { mensajeDeError, nuevoIdempotencyKey } from "@/components/admin/ui/utili
 export const Route = createFileRoute("/admin/pagos/$id")({
   head: () => ({
     meta: [
-      { title: "Detalle de pago · Ruta Clara" },
+      { title: "Detalle de pago · Escapate Tours" },
       {
         name: "description",
         content: "Comprobante y datos del pago registrado.",

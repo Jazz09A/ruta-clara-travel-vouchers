@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Eye, EyeOff, LogIn, ShieldCheck, UserPlus } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 
+import { LogoEscapate } from "@/components/brand/LogoEscapate";
 import { Banner } from "@/components/admin/Banner";
 import { BotonCargar } from "@/components/admin/BotonCargar";
 import { Field } from "@/components/admin/Field";
@@ -36,10 +37,10 @@ const ESPERA_SEGUNDOS = 60;
 
 /** Cuentas de la demo local (solo visibles en desarrollo). */
 const CUENTAS_DEMO = [
-  { correo: "admin@rutaclara.ve", rol: "Administración" },
-  { correo: "operador@rutaclara.ve", rol: "Operación" },
-  { correo: "validador@rutaclara.ve", rol: "Validación de pagos" },
-  { correo: "guia@rutaclara.ve", rol: "Guía / logística" },
+  { correo: "admin@escapetour.app", rol: "Administración" },
+  { correo: "operador@escapetour.app", rol: "Operación" },
+  { correo: "validador@escapetour.app", rol: "Validación de pagos" },
+  { correo: "guia@escapetour.app", rol: "Guía / logística" },
 ];
 const PASSWORD_DEMO = "demo1234";
 
@@ -148,9 +149,7 @@ function FormularioLogin() {
     <main className="flex min-h-dvh flex-col items-center justify-center bg-background px-4 py-8 sm:py-10">
       <div className="w-full max-w-md space-y-6">
         <header className="flex flex-col items-center gap-3 text-center">
-          <span className="grid h-12 w-12 place-items-center rounded-2xl bg-brand">
-            <span className="h-4 w-4 rounded-full bg-white/90" aria-hidden="true" />
-          </span>
+          <LogoEscapate tamano={56} />
           <div>
             <h1 className="text-2xl font-extrabold tracking-tight">Entrar al panel</h1>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -178,7 +177,7 @@ function FormularioLogin() {
               autoComplete="email"
               autoCapitalize="none"
               spellCheck={false}
-              placeholder="nombre@rutaclara.ve"
+              placeholder="nombre@escapetour.app"
               value={correo}
               onChange={(evento) => setCorreo(evento.target.value)}
               className="h-11"

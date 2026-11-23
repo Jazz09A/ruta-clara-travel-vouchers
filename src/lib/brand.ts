@@ -3,11 +3,11 @@
  */
 
 export const MARCA = {
-  nombre: "Ruta Clara",
-  nombreCompleto: "Ruta Clara Viajes",
+  nombre: "Escapate Tours",
+  nombreCompleto: "Escapate Tours",
   eslogan: "Full Days y Fines de Semana",
   whatsapp: "+584121234567",
-  email: "hola@rutaclara.ve",
+  email: "hola@escapetour.app",
   direccion: "Av. Libertador, Caracas",
   zonaHoraria: "America/Caracas",
 } as const;
