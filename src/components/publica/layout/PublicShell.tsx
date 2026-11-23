@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { CalendarDays, Clock, ShieldCheck } from "lucide-react";
 
+import { LogoEscapate } from "@/components/brand/LogoEscapate";
 import { MARCA } from "@/lib/brand";
 import { formatCountdown, formatDate, formatHorasMinutos, formatTime } from "@/lib/format";
 import type { EstadoPaso } from "@/lib/domain/types";
@@ -115,6 +116,7 @@ export function PublicShell({
     <div className="flex min-h-dvh flex-col bg-background pb-28 lg:pb-0">
       <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur">
         <div className="mx-auto flex max-w-lg items-center gap-3 px-4 py-2.5 lg:max-w-2xl">
+          <LogoEscapate tamano={36} className="shrink-0" />
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
               {MARCA.nombre}

@@ -31,11 +31,11 @@ import { useTituloPantalla } from "@/components/publica/ui/hooks";
 export const Route = createFileRoute("/r/$token")({
   head: () => ({
     meta: [
-      { title: "Completa tu reserva · Ruta Clara" },
+      { title: "Completa tu reserva · Escapate Tours" },
       { name: "description", content: "Registra a tu grupo y confirma tu reserva en minutos." },
       // SEG-16: estas rutas nunca se indexan.
       { name: "robots", content: "noindex, nofollow" },
-      { property: "og:title", content: "Completa tu reserva · Ruta Clara" },
+      { property: "og:title", content: "Completa tu reserva · Escapate Tours" },
       {
         property: "og:description",
         content: "Registra a tu grupo y confirma tu reserva en minutos.",

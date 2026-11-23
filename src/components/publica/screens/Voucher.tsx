@@ -53,7 +53,7 @@ export interface VoucherProps {
 }
 
 export function Voucher({ token, onReservaCerrada, refCorta, nombreTour }: VoucherProps) {
-  useTituloPantalla("Reserva confirmada · Ruta Clara");
+  useTituloPantalla("Reserva confirmada · Escapate Tours");
 
   // El servidor devuelve `{ reserva, progreso, tour, fecha, formulario }` como
   // hermanos: se combina en un solo objeto para que el voucher muestre el

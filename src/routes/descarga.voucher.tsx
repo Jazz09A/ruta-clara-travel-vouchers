@@ -12,7 +12,7 @@ export const Route = createFileRoute("/descarga/voucher")({
   },
   head: () => ({
     meta: [
-      { title: "Descargando voucher · Ruta Clara" },
+      { title: "Descargando voucher · Escapate Tours" },
       { name: "robots", content: "noindex, nofollow" },
     ],
   }),

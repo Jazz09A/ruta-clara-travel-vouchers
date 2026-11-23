@@ -47,7 +47,7 @@ export function Terminos({
   nombreTour,
   errorServidor,
 }: TerminosProps) {
-  useTituloPantalla("Términos y condiciones · Ruta Clara");
+  useTituloPantalla("Términos y condiciones · Escapate Tours");
 
   const consulta = useQuery({
     queryKey: ["terminos", token],

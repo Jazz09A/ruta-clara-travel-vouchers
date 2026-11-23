@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { LogoEscapate } from "@/components/brand/LogoEscapate";
 import { MARCA } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 import {
@@ -48,9 +49,7 @@ export function NavegacionLateral({
           colapsada ? "justify-center px-0" : "",
         )}
       >
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand">
-          <span className="h-3.5 w-3.5 rounded-full bg-white/90" aria-hidden="true" />
-        </span>
+        <LogoEscapate tamano={colapsada ? 32 : 40} className="shrink-0" />
         {!colapsada ? (
           <span className="truncate text-base font-extrabold tracking-tight">{MARCA.nombre}</span>
         ) : (

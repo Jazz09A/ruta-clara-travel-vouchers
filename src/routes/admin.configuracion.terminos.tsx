@@ -148,7 +148,7 @@ function TerminosCondiciones() {
               type="text"
               value={nuevoTitulo}
               onChange={(e) => setNuevoTitulo(e.target.value)}
-              placeholder="Ej: Términos y condiciones de Ruta Clara Viajes"
+              placeholder="Ej: Términos y condiciones de Escapate Tours"
               required
             />
 

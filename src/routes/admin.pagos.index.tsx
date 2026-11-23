@@ -40,7 +40,7 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/admin/pagos/")({
   head: () => ({
     meta: [
-      { title: "Pagos · Ruta Clara" },
+      { title: "Pagos · Escapate Tours" },
       {
         name: "description",
         content: "Historial de pagos registrados de las reservas.",

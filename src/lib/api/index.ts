@@ -324,6 +324,38 @@ const admin = {
     return { ok: true as const };
   },
 
+  async estadoSetup() {
+    return peticion<{ requiere_onboarding: boolean }>("/setup/estado", {
+      admin: false,
+    });
+  },
+
+  async iniciarSetup(body: {
+    nombre: string;
+    correo: string;
+    password: string;
+    agencia: {
+      nombre: string;
+      email?: string;
+      whatsapp?: string;
+      direccion?: string;
+      zona_horaria?: string;
+    };
+  }) {
+    const res = await peticion<{
+      access_token: string;
+      refresh_token: string;
+      usuario: UsuarioBackend;
+    }>("/setup/iniciar", { metodo: "POST", body });
+    if (!("access_token" in res))
+      throw new ApiError(500, {
+        codigo: "ERROR_INTERNO" as never,
+        mensaje: "Respuesta de setup inválida",
+        request_id: "",
+      });
+    accessToken = res.access_token;
+  },
+
   async yo() {
     const u = await peticion<UsuarioBackend>("/auth/yo", { admin: true });
     return { usuario: usuarioFe(u) };

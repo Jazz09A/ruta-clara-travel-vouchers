@@ -230,7 +230,7 @@ function UsuariosPermisos() {
                 label="Correo electrónico"
                 type="email"
                 defaultValue={editando.correo}
-                placeholder="Ej: maria@rutaclara.ve"
+                placeholder="Ej: maria@escapetour.app"
                 required
               />
 

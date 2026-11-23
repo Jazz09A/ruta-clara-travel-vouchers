@@ -21,6 +21,7 @@ import { Route as AdminReportesRouteImport } from './routes/admin.reportes'
 import { Route as AdminReservasRouteImport } from './routes/admin.reservas'
 import { Route as AdminRestablecerRouteImport } from './routes/admin.restablecer'
 import { Route as AdminSalidasRouteImport } from './routes/admin.salidas'
+import { Route as AdminSetupRouteImport } from './routes/admin.setup'
 import { Route as AdminToursRouteImport } from './routes/admin.tours'
 import { Route as DescargaVoucherRouteImport } from './routes/descarga.voucher'
 import { Route as RTokenRouteImport } from './routes/r.$token'
@@ -108,6 +109,11 @@ const AdminRestablecerRoute = AdminRestablecerRouteImport.update({
 const AdminSalidasRoute = AdminSalidasRouteImport.update({
   id: '/admin/salidas',
   path: '/admin/salidas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminSetupRoute = AdminSetupRouteImport.update({
+  id: '/admin/setup',
+  path: '/admin/setup',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminToursRoute = AdminToursRouteImport.update({
@@ -271,6 +277,7 @@ export interface FileRoutesByFullPath {
   '/admin/reservas': typeof AdminReservasRouteWithChildren
   '/admin/restablecer': typeof AdminRestablecerRoute
   '/admin/salidas': typeof AdminSalidasRouteWithChildren
+  '/admin/setup': typeof AdminSetupRoute
   '/admin/tours': typeof AdminToursRouteWithChildren
   '/descarga/voucher': typeof DescargaVoucherRoute
   '/r/$token': typeof RTokenRoute
@@ -308,6 +315,7 @@ export interface FileRoutesByTo {
   '/admin/recuperar': typeof AdminRecuperarRoute
   '/admin/reportes': typeof AdminReportesRoute
   '/admin/restablecer': typeof AdminRestablecerRoute
+  '/admin/setup': typeof AdminSetupRoute
   '/descarga/voucher': typeof DescargaVoucherRoute
   '/r/$token': typeof RTokenRoute
   '/v/$verifToken': typeof VVerifTokenRoute
@@ -350,6 +358,7 @@ export interface FileRoutesById {
   '/admin/reservas': typeof AdminReservasRouteWithChildren
   '/admin/restablecer': typeof AdminRestablecerRoute
   '/admin/salidas': typeof AdminSalidasRouteWithChildren
+  '/admin/setup': typeof AdminSetupRoute
   '/admin/tours': typeof AdminToursRouteWithChildren
   '/descarga/voucher': typeof DescargaVoucherRoute
   '/r/$token': typeof RTokenRoute
@@ -394,6 +403,7 @@ export interface FileRouteTypes {
     | '/admin/reservas'
     | '/admin/restablecer'
     | '/admin/salidas'
+    | '/admin/setup'
     | '/admin/tours'
     | '/descarga/voucher'
     | '/r/$token'
@@ -431,6 +441,7 @@ export interface FileRouteTypes {
     | '/admin/recuperar'
     | '/admin/reportes'
     | '/admin/restablecer'
+    | '/admin/setup'
     | '/descarga/voucher'
     | '/r/$token'
     | '/v/$verifToken'
@@ -472,6 +483,7 @@ export interface FileRouteTypes {
     | '/admin/reservas'
     | '/admin/restablecer'
     | '/admin/salidas'
+    | '/admin/setup'
     | '/admin/tours'
     | '/descarga/voucher'
     | '/r/$token'
@@ -515,6 +527,7 @@ export interface RootRouteChildren {
   AdminReservasRoute: typeof AdminReservasRouteWithChildren
   AdminRestablecerRoute: typeof AdminRestablecerRoute
   AdminSalidasRoute: typeof AdminSalidasRouteWithChildren
+  AdminSetupRoute: typeof AdminSetupRoute
   AdminToursRoute: typeof AdminToursRouteWithChildren
   DescargaVoucherRoute: typeof DescargaVoucherRoute
   RTokenRoute: typeof RTokenRoute
@@ -606,6 +619,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/salidas'
       fullPath: '/admin/salidas'
       preLoaderRoute: typeof AdminSalidasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/setup': {
+      id: '/admin/setup'
+      path: '/admin/setup'
+      fullPath: '/admin/setup'
+      preLoaderRoute: typeof AdminSetupRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/tours': {
@@ -936,6 +956,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminReservasRoute: AdminReservasRouteWithChildren,
   AdminRestablecerRoute: AdminRestablecerRoute,
   AdminSalidasRoute: AdminSalidasRouteWithChildren,
+  AdminSetupRoute: AdminSetupRoute,
   AdminToursRoute: AdminToursRouteWithChildren,
   DescargaVoucherRoute: DescargaVoucherRoute,
   RTokenRoute: RTokenRoute,

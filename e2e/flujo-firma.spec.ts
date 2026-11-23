@@ -22,7 +22,7 @@ import { dibujarFirma } from "./helpers/firma";
  */
 
 const API = process.env["VITE_API_URL"] ?? "http://localhost:3001/api/v1";
-const TOKEN_DEMO = { correo: "admin@rutaclara.ve", password: "demo1234" };
+const TOKEN_DEMO = { correo: "admin@escapetour.app", password: "demo1234" };
 
 /** PNG de 1×1 px: cumple la política de foto del documento para el setup. */
 const CEDULA_PNG =

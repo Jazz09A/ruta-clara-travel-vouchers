@@ -4,7 +4,7 @@ import { navegarClientSide, recargarCliente } from "./helpers/navegacion";
 import { dibujarFirma } from "./helpers/firma";
 
 /**
- * Flujo E2E completo — Ruta Clara (Spec P-01..P-13).
+ * Flujo E2E completo — Escapate Tours (Spec P-01..P-13).
  *
  * Un viaje continuo en una sola pestaña:
  *   1. Admin: login + 2FA → crea el enlace de reserva (tour + fecha publicada).

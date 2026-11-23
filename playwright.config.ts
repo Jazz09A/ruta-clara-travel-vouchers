@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 /**
- * E2E — Ruta Clara (flujo completo: crear enlace → registro → pago → confirmación).
+ * E2E — Escapate Tours (flujo completo: crear enlace → registro → pago → confirmación).
  *
  * Detalles del entorno que condicionan este config:
  * - La app es TanStack Start con Vite; `pnpm dev` sirve en el puerto 8080.

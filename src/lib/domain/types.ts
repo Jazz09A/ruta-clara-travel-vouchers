@@ -1,5 +1,5 @@
 /**
- * Contratos de dominio — Ruta Clara CRM
+ * Contratos de dominio — Escapate Tours CRM
  *
  * These types are the single source of truth shared by the mock "backend"
  * (src/lib/mock) and both apps (publica + admin). They intentionally mirror the
@@ -834,7 +834,9 @@ export type CodigoError =
   | "ERROR_INTERNO"
   | "STEP_UP_REQUERIDO"
   /** Login con credenciales válidas, pero la verificación de la sesión (`/auth/yo`) falló. */
-  | "VERIFICACION_SESION";
+  | "VERIFICACION_SESION"
+  /** Onboarding ya completado: no se puede crear otro superadmin. */
+  | "SETUP_YA_COMPLETADO";
 
 export interface DetalleError {
   campo: string;

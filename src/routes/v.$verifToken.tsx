@@ -19,7 +19,7 @@ import { useTituloPantalla } from "@/components/publica/ui/hooks";
 export const Route = createFileRoute("/v/$verifToken")({
   head: () => ({
     meta: [
-      { title: "Verificación de QR · Ruta Clara" },
+      { title: "Verificación de QR · Escapate Tours" },
       { name: "description", content: "Verificación pública de reserva para el guía." },
       { name: "robots", content: "noindex, nofollow" },
     ],

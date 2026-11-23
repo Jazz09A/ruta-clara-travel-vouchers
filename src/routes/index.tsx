@@ -11,7 +11,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Panel administrativo de Ruta Clara Viajes: gestión de reservas, pagos, salidas y tours.",
+          "Panel administrativo de Escapate Tours: gestión de reservas, pagos, salidas y tours.",
       },
     ],
   }),
