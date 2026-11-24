@@ -62,14 +62,6 @@ function FirmaEmpresa() {
     },
   });
 
-  const leerArchivo = (file: File): Promise<string> =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(String(reader.result));
-      reader.onerror = () => reject(new Error("No se pudo leer el archivo"));
-      reader.readAsDataURL(file);
-    });
-
   const handleFileSelect = (file: File | null) => {
     if (!file) return;
 
@@ -131,14 +123,10 @@ function FirmaEmpresa() {
       mutationGuardar.mutate(out.resultado.data_url);
       return;
     }
-    const file = fileInputRef.current?.files?.[0];
-    if (!file) return;
-    try {
-      const dataUrl = await leerArchivo(file);
-      mutationGuardar.mutate(dataUrl);
-    } catch {
-      toast.error("No pudimos leer la imagen");
-    }
+    // `previewUrl` ya es el data URL del archivo elegido (clic o drag & drop:
+    // en drag & drop el input queda vacío, así que no se puede releer de él).
+    if (!previewUrl) return;
+    mutationGuardar.mutate(previewUrl);
   };
 
   const handleCancelar = () => {
