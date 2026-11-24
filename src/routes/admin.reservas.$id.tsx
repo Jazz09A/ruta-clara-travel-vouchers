@@ -156,6 +156,14 @@ function DetalleReserva() {
     enabled: Boolean(reserva?.pasajeros?.find((p) => p.es_titular)?.documento),
   });
 
+  // Catálogo de puntos de salida: traduce la clave guardada en
+  // `punto_abordaje` a su nombre actual (p. ej. el punto único de Guatire).
+  const consultaPuntos = useQuery({
+    queryKey: ["admin", "puntos-salida"],
+    queryFn: () => api.admin.puntosSalida(),
+    enabled: puedeVer,
+  });
+
   React.useEffect(() => {
     if (reserva) tituloRef.current?.focus();
   }, [reserva]);
@@ -357,6 +365,7 @@ function DetalleReserva() {
       pasajeros={reserva.pasajeros}
       respuestasGlobales={reserva.respuestas_globales}
       campos={camposFormulario}
+      puntos={consultaPuntos.data}
       puedeRevelar={puedeRevelar}
       revelados={revelado.revelados}
       segundosRestantes={revelado.segundosRestantes}

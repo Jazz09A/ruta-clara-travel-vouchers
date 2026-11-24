@@ -4,6 +4,8 @@ import {
   aplicarValorDefecto,
   campoAplicaA,
   campoVisibleParaCampo,
+  esCampoComida,
+  esCampoPuntoSalida,
   esVisible,
   evaluarCampos,
   evaluarCondicion,
@@ -537,5 +539,321 @@ describe("motor de formularios — merge de valores", () => {
     const merged = valoresPorCampo(contextoBase());
     expect(merged["punto_abordaje"]).toBe("altamira");
     expect(merged["detalle_alergias"]).toBe("Mariscos");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Edge cases: condiciones degeneradas, undefined hostil y defaults raros.
+// ---------------------------------------------------------------------------
+
+describe("edge cases — evaluarCondicion", () => {
+  it("una condición sin operadores se cumple (fail-open)", () => {
+    // Documentado: resultados vacío → return true.
+    expect(evaluarCondicion({ campo: "x" } as never, {})).toBe(true);
+  });
+
+  it("igual_a: null coincide con un campo ausente (undefined → null)", () => {
+    expect(evaluarCondicion({ campo: "fantasma", igual_a: null }, {})).toBe(true);
+    expect(evaluarCondicion({ campo: "fantasma", igual_a: null }, { fantasma: "x" })).toBe(false);
+    // null explícito también coincide.
+    expect(evaluarCondicion({ campo: "x", igual_a: null }, { x: null })).toBe(true);
+  });
+
+  it("en con valor no-array se trata como lista vacía", () => {
+    expect(evaluarCondicion({ campo: "x", en: "a" as never }, { x: "a" })).toBe(false);
+    expect(evaluarCondicion({ campo: "x", en: [] }, { x: "a" })).toBe(false);
+  });
+
+  it("varios operadores se combinan con AND", () => {
+    const cond = { campo: "x", igual_a: true, no_vacio: true };
+    expect(evaluarCondicion(cond, { x: true })).toBe(true);
+    expect(evaluarCondicion(cond, { x: false })).toBe(false);
+    expect(evaluarCondicion(cond, { x: "" })).toBe(false);
+  });
+
+  it("distinto_de con campo ausente se cumple salvo que pida null", () => {
+    expect(evaluarCondicion({ campo: "x", distinto_de: "a" }, {})).toBe(true);
+    expect(evaluarCondicion({ campo: "x", distinto_de: null }, {})).toBe(false);
+  });
+
+  it("los arrays se comparan por orden y longitud", () => {
+    expect(evaluarCondicion({ campo: "x", igual_a: ["a", "b"] }, { x: ["a", "b"] })).toBe(true);
+    expect(evaluarCondicion({ campo: "x", igual_a: ["a", "b"] }, { x: ["b", "a"] })).toBe(false);
+    expect(evaluarCondicion({ campo: "x", igual_a: ["a"] }, { x: ["a", "b"] })).toBe(false);
+  });
+});
+
+describe("edge cases — visibilidad y dependencias", () => {
+  it("visible_si a un campo inexistente evalúa contra las respuestas igual", () => {
+    const campo: CampoDef = {
+      id: "condicional",
+      label: "Condicional",
+      tipo: "text",
+      alcance: "por_pasajero",
+      obligatorio: false,
+      visible_si: { campo: "no_existe", no_vacio: true },
+    };
+    const ctx: ContextoMotor = {
+      ...contextoBase(),
+      campos: [...contextoBase().campos, campo],
+      porPasajero: {
+        ...contextoBase().porPasajero,
+        p1: { ...contextoBase().porPasajero["p1"], no_existe: "valor" },
+      },
+    };
+    // La dependencia no está en campos pero la respuesta existe → visible.
+    expect(evaluarCampos(ctx, "p1").find((e) => e.campo.id === "condicional")?.visible).toBe(true);
+    // p2 no tiene la respuesta → oculta.
+    expect(evaluarCampos(ctx, "p2").find((e) => e.campo.id === "condicional")?.visible).toBe(false);
+  });
+
+  it("campoVisibleParaCampo devuelve false para un id inexistente", () => {
+    expect(campoVisibleParaCampo("no_existe", contextoBase(), "p1")).toBe(false);
+  });
+
+  it("esCampoComida reconoce grupo y los ids legados", () => {
+    const base = {
+      id: "x",
+      label: "x",
+      tipo: "text" as const,
+      alcance: "por_pasajero" as const,
+      obligatorio: false,
+    };
+    expect(esCampoComida({ ...base, grupo: "comida" })).toBe(true);
+    expect(esCampoComida({ ...base, id: "almuerzo" })).toBe(true);
+    expect(esCampoComida({ ...base, id: "menu_infantil" })).toBe(true);
+    expect(esCampoComida({ ...base, id: "almuerzo2" })).toBe(false);
+    // grupo distinto de "comida" → false (cast: el tipo sólo admite "comida").
+    expect(esCampoComida({ ...base, grupo: "postre" as unknown as "comida" })).toBe(false);
+  });
+
+  it("esCampoPuntoSalida reconoce fuente explícita y la convención de id", () => {
+    const base = {
+      id: "x",
+      label: "x",
+      tipo: "text" as const,
+      alcance: "por_reserva" as const,
+      obligatorio: false,
+    };
+    expect(esCampoPuntoSalida({ ...base, fuente: "puntos_salida" })).toBe(true);
+    expect(esCampoPuntoSalida({ ...base, id: "punto_abordaje" })).toBe(true);
+    expect(esCampoPuntoSalida({ ...base, fuente: "otra" })).toBe(false);
+    expect(esCampoPuntoSalida({ ...base, id: "punto_llegada" })).toBe(false);
+  });
+});
+
+describe("edge cases — mergeGlobalYPasajero", () => {
+  it("un campo por_pasajero ignora el global aunque exista", () => {
+    // Documentado: el global no es respaldo para campos por_pasajero.
+    const ctx = contextoBase();
+    ctx.globales = { ...ctx.globales, almuerzo: "pescado" };
+    const valor = mergeGlobalYPasajero(almuerzo, ctx.globales, { p9: {} }, "p9");
+    expect(valor).toBeNull();
+  });
+
+  it("un null explícito del pasajero no cae al global", () => {
+    const conPermiso: CampoDef = { ...puntoAbordaje, permite_por_pasajero: true };
+    const valor = mergeGlobalYPasajero(
+      conPermiso,
+      { punto_abordaje: "altamira" },
+      { p1: { punto_abordaje: null } },
+      "p1",
+    );
+    expect(valor).toBeNull();
+  });
+
+  it("sin respuesta propia ni global devuelve null", () => {
+    expect(mergeGlobalYPasajero(puntoAbordaje, {}, {}, "p1")).toBeNull();
+  });
+});
+
+describe("edge cases — limpieza de respuestas", () => {
+  it("un campoOcultadoId inexistente se trata como por_pasajero", () => {
+    const ctx = contextoBase();
+    const limpias = limpiarRespuestasAlOcultar(ctx, "no_existe", "p1");
+    expect(limpias).toEqual({ ...ctx.porPasajero["p1"] });
+    // Y limpiarCampoOcultado devuelve el contexto intacto si no hay clave.
+    const limpio = limpiarCampoOcultado(ctx, "no_existe", "p1");
+    expect(limpio).toBe(ctx); // misma referencia: nada que limpiar
+  });
+
+  it("limpiarCampoOcultado de un campo por_reserva también limpia copias por pasajero", () => {
+    const ctx: ContextoMotor = {
+      ...contextoBase(),
+      porPasajero: {
+        p1: { punto_abordaje: "petare", almuerzo: "pescado" },
+        p2: { almuerzo: "pollo" },
+      },
+    };
+    const limpio = limpiarCampoOcultado(ctx, "punto_abordaje", "p1");
+    expect(limpio.globales["punto_abordaje"]).toBeUndefined();
+    expect(limpio.porPasajero["p1"]?.["punto_abordaje"]).toBeUndefined();
+    expect(limpio.porPasajero["p1"]?.["almuerzo"]).toBe("pescado");
+  });
+});
+
+describe("edge cases — validarCampo con valores hostiles", () => {
+  it("undefined NUNCA es vacío: un opcional con undefined falla igual", () => {
+    // Documentado: esValorVacio sólo reconoce null como vacío; undefined
+    // cae al switch del tipo y produce error aunque el campo sea opcional.
+    expect(
+      validarCampo({ ...detalleAlergias, tipo: "text", obligatorio: false }, undefined as never, {})
+        .ok,
+    ).toBe(false);
+    expect(validarCampo({ ...almuerzo, obligatorio: false }, undefined as never, {}).ok).toBe(
+      false,
+    );
+    expect(validarCampo(tieneAlergias, undefined as never, {}).ok).toBe(false);
+  });
+
+  it("number: NaN e Infinity se rechazan; step 0 acepta cualquier valor", () => {
+    const numero: CampoDef = {
+      id: "n",
+      label: "n",
+      tipo: "number",
+      alcance: "por_pasajero",
+      obligatorio: false,
+      min: 1,
+      max: 10,
+      step: 1,
+    };
+    expect(validarCampo(numero, NaN, {}).ok).toBe(false);
+    expect(validarCampo(numero, Infinity, {}).ok).toBe(false);
+    expect(validarCampo(numero, -0, {}).ok).toBe(false); // -0 < min 1
+
+    const sinPaso: CampoDef = { ...numero, step: 0 };
+    expect(validarCampo(sinPaso, 3.14159, {}).ok).toBe(true); // step 0 = todo vale
+  });
+
+  it("number: min > max hace imposible cualquier valor válido", () => {
+    const imposible: CampoDef = {
+      id: "n",
+      label: "n",
+      tipo: "number",
+      alcance: "por_pasajero",
+      obligatorio: false,
+      min: 10,
+      max: 1,
+    };
+    expect(validarCampo(imposible, 5, {}).ok).toBe(false);
+    expect(validarCampo(imposible, 10, {}).ok).toBe(false);
+    expect(validarCampo(imposible, 0, {}).ok).toBe(false);
+  });
+
+  it("date: rechaza fechas sin padding y días inexistentes", () => {
+    const fecha: CampoDef = { ...detalleAlergias, tipo: "date", obligatorio: false };
+    expect(validarCampo(fecha, "2026-2-3", {}).ok).toBe(false); // sin padding
+    expect(validarCampo(fecha, "2026-02-30", {}).ok).toBe(false); // día inexistente
+    expect(validarCampo(fecha, "2026-02-29", {}).ok).toBe(false); // 2026 no bisiesto
+    expect(validarCampo(fecha, "2024-02-29", {}).ok).toBe(true); // bisiesto
+  });
+
+  it("extra: exige entero no negativo; 1.5 y NaN fallan", () => {
+    expect(validarCampo(toldo, 1.5, {}).ok).toBe(false);
+    expect(validarCampo(toldo, NaN, {}).ok).toBe(false);
+    expect(validarCampo(toldo, Number.MAX_SAFE_INTEGER, {}).ok).toBe(false); // > cantidad_max
+    const sinMax: CampoDef = { ...toldo, cantidad_max: undefined };
+    expect(validarCampo(sinMax, 999, {}).ok).toBe(true);
+  });
+
+  it("multiselect: miembros no-string y duplicados no contiguos", () => {
+    const multi: CampoDef = { ...almuerzo, tipo: "multiselect", obligatorio: false };
+    expect(validarCampo(multi, ["pescado", 1] as never, {}).ok).toBe(false);
+    expect(validarCampo(multi, ["pescado", "pollo", "pescado"], {}).ok).toBe(false);
+  });
+
+  it("select: un valor numérico se rechaza aunque no sea string", () => {
+    expect(validarCampo({ ...almuerzo, obligatorio: false }, 5 as never, {}).ok).toBe(false);
+  });
+});
+
+describe("edge cases — validarFormulario", () => {
+  it("un campo global con permite_por_pasajero valida SÓLO a quienes respondieron", () => {
+    const conPermiso: CampoDef = {
+      ...puntoAbordaje,
+      permite_por_pasajero: true,
+      obligatorio: true,
+    };
+    const ctx: ContextoMotor = {
+      ...contextoBase(),
+      campos: [...contextoBase().campos, conPermiso],
+      // p3 existe en categorias pero NUNCA respondió el campo → no se valida.
+      categorias: { p1: "Adulto", p2: "Niño", p3: "Adulto" },
+      porPasajero: {
+        ...contextoBase().porPasajero,
+        p1: { ...contextoBase().porPasajero["p1"], punto_abordaje: "petare" },
+      },
+    };
+    const resultado = validarFormulario(ctx);
+    // Sólo p1 tiene valor por pasajero → se valida a p1; p3 escapa de la validación.
+    expect(resultado.errores.filter((e) => e.campo === "punto_abordaje")).toHaveLength(0);
+  });
+
+  it("un pasajero en porPasajero sin categoría nunca se valida", () => {
+    const ctx: ContextoMotor = {
+      ...contextoBase(),
+      // p9 responde pero no tiene categoría → el loop itera ctx.categorias.
+      porPasajero: { ...contextoBase().porPasajero, p9: {} },
+    };
+    const resultado = validarFormulario(ctx);
+    expect(resultado.errores.some((e) => e.pasajero_ref === "p9")).toBe(false);
+  });
+});
+
+describe("edge cases — opcionesDisponibles y defaults", () => {
+  it("campo sin opciones devuelve lista vacía; agotada propia se respeta", () => {
+    const sinOpciones: CampoDef = { ...toldo };
+    expect(opcionesDisponibles(sinOpciones)).toEqual([]);
+
+    const conAgotada: CampoDef = {
+      ...almuerzo,
+      opciones: [{ valor: "pescado", label: "Pescado", agotada: true }],
+    };
+    expect(opcionesDisponibles(conAgotada)[0]?.agotada).toBe(true);
+  });
+
+  it("valor_defecto null/false/0 se aplican y marcan el campo como aplicado", () => {
+    const conNull: CampoDef = { ...toldo, valor_defecto: null };
+    const ctx: ContextoMotor = {
+      ...contextoBase(),
+      campos: [...contextoBase().campos, conNull],
+    };
+    const aplicado = aplicarValorDefecto(ctx);
+    // null quedó "aplicado": globales tiene la clave y defaultsAplicados la lista.
+    expect("toldo" in aplicado.globales).toBe(true);
+    expect(aplicado.defaultsAplicados).toContain("toldo");
+  });
+
+  it("valor_defecto con forma inválida se normaliza a null", () => {
+    const invalido: CampoDef = { ...toldo, valor_defecto: { raro: true } };
+    const ctx: ContextoMotor = {
+      ...contextoBase(),
+      campos: [...contextoBase().campos, invalido],
+    };
+    const aplicado = aplicarValorDefecto(ctx);
+    expect(aplicado.globales["toldo"]).toBeNull();
+
+    // Array con no-strings también se normaliza a null.
+    const arrayRaro: CampoDef = { ...toldo, id: "otro", valor_defecto: [1, "a"] };
+    const aplicado2 = aplicarValorDefecto({
+      ...contextoBase(),
+      campos: [arrayRaro],
+    });
+    expect(aplicado2.globales["otro"]).toBeNull();
+  });
+
+  it("valor_defecto array de strings se copia (no comparte referencia)", () => {
+    const valores = ["a", "b"];
+    const campo: CampoDef = {
+      id: "multi",
+      label: "multi",
+      tipo: "multiselect",
+      alcance: "por_reserva",
+      obligatorio: false,
+      valor_defecto: valores,
+    };
+    const aplicado = aplicarValorDefecto({ ...contextoBase(), campos: [campo] });
+    expect(aplicado.globales["multi"]).toEqual(["a", "b"]);
+    expect(aplicado.globales["multi"]).not.toBe(valores);
   });
 });

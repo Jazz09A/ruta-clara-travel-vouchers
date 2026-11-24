@@ -286,3 +286,214 @@ describe("precio — opciones agotadas", () => {
     expect(agotadas).toEqual({});
   });
 });
+
+// ---------------------------------------------------------------------------
+// Edge cases: cantidades hostiles, descuentos extremos y cupos en el límite.
+// ---------------------------------------------------------------------------
+
+describe("edge cases — cantidad de extras", () => {
+  it("un global en 0 gana sobre los valores por pasajero (los ignora)", () => {
+    const entrada = entradaBase();
+    entrada.respuestasGlobales = { toldo: 0 };
+    entrada.pasajeros = [
+      { categoria: "Adulto", respuestas: { toldo: 2 } },
+      { categoria: "Adulto", respuestas: { toldo: 1 } },
+    ];
+    const resultado = calcularPrecio(entrada);
+    expect(resultado.adicionales_usd).toBe("0.00");
+    expect(resultado.total_usd).toBe("100.00"); // solo las 2 tarifas
+  });
+
+  it("un global vacío o no numérico cae a la suma por pasajero", () => {
+    for (const global of ["", "   ", "abc", NaN, Infinity, true] as const) {
+      const entrada = entradaBase();
+      entrada.respuestasGlobales = { toldo: global as never };
+      entrada.pasajeros = [{ categoria: "Adulto", respuestas: { toldo: 2 } }];
+      const resultado = calcularPrecio(entrada);
+      expect(resultado.adicionales_usd, `global=${String(global)}`).toBe("20.00");
+    }
+  });
+
+  it("cantidades string, negativas, fraccionarias y booleanas", () => {
+    const con = (valor: unknown) => {
+      const entrada = entradaBase();
+      entrada.respuestasGlobales = { toldo: valor as never };
+      return calcularPrecio(entrada);
+    };
+    expect(con("2").adicionales_usd).toBe("20.00");
+    expect(con("2.5").adicionales_usd).toBe("25.00"); // fracción permitida
+    expect(con(-3).adicionales_usd).toBe("0.00"); // cantidad <= 0 no genera línea
+    expect(con(1.5).lineas.find((l) => l.concepto === "Alquiler de toldo")?.cantidad).toBe(1.5);
+  });
+});
+
+describe("edge cases — promociones y saldo", () => {
+  it("un porcentaje mayor a 100 se topa en la base (total 0)", () => {
+    const resultado = calcularPrecio({
+      ...entradaBase(),
+      promocion: { tipo: "porcentaje", valor: 150 },
+    });
+    expect(resultado.descuento_usd).toBe("130.00");
+    expect(resultado.total_usd).toBe("0.00");
+  });
+
+  it("un descuento negativo actúa como recargo (documentado)", () => {
+    // No hay validación de signo: -10% resta un descuento negativo.
+    const resultado = calcularPrecio({
+      ...entradaBase(),
+      promocion: { tipo: "porcentaje", valor: -10 },
+    });
+    expect(resultado.descuento_usd).toBe("-13.00");
+    expect(resultado.total_usd).toBe("143.00");
+  });
+
+  it("saldo previo basura o negativo se sanea a cero", () => {
+    expect(calcularPrecio({ ...entradaBase(), saldoPrevio: "abc" }).saldo_usd).toBe("130.00");
+    // Un saldo negativo AUMENTA el saldo pendiente (documentado).
+    const negativo = calcularPrecio({ ...entradaBase(), saldoPrevio: "-50.00" });
+    expect(negativo.saldo_usd).toBe("180.00");
+  });
+});
+
+describe("edge cases — precio administrado", () => {
+  function entradaAdmin(): EntradaCalculoAdministrado {
+    return {
+      pasajeros: [{ categoria: "Adulto" }, { categoria: "Adulto" }],
+      tarifas,
+    };
+  }
+
+  it("cantidad fraccionaria se redondea hacia abajo", () => {
+    const resultado = calcularPrecioAdministrado({
+      ...entradaAdmin(),
+      lineas: [{ concepto: "Toldo", cantidad: 2.7, precio_unit_usd: "10.00" }],
+    });
+    const linea = resultado.lineas.find((l) => l.concepto === "Toldo");
+    expect(linea?.cantidad).toBe(2);
+    expect(linea?.total_usd).toBe("20.00");
+  });
+
+  it("cantidad NaN produce una línea con total NaN que no suma al adicional", () => {
+    // BUG documentado: Math.max(0, Math.floor(NaN)) = NaN, NaN <= 0 es false,
+    // así que se crea la línea; pero addDecimals sanea "NaN" a 0.00.
+    const resultado = calcularPrecioAdministrado({
+      ...entradaAdmin(),
+      lineas: [{ concepto: "Toldo", cantidad: NaN, precio_unit_usd: "10.00" }],
+    });
+    const linea = resultado.lineas.find((l) => l.concepto === "Toldo");
+    expect(linea).toBeDefined();
+    expect(linea?.total_usd).toBe("NaN");
+    expect(resultado.adicionales_usd).toBe("0.00");
+    expect(resultado.total_usd).toBe("100.00"); // solo las 2 tarifas Adulto
+  });
+
+  it("un ajuste con tipo desconocido cae a la rama de recargo", () => {
+    const resultado = calcularPrecioAdministrado({
+      ...entradaAdmin(),
+      ajustes: [{ tipo: "otro" as never, monto_usd: "10.00", motivo: "Raro" }],
+    });
+    expect(resultado.adicionales_usd).toBe("10.00");
+    expect(resultado.lineas.find((l) => l.concepto === "Raro")?.detalle).toBe(
+      "Recargo administrativo",
+    );
+  });
+
+  it("un motivo de sólo espacios usa la etiqueta por defecto", () => {
+    const resultado = calcularPrecioAdministrado({
+      ...entradaAdmin(),
+      ajustes: [
+        { tipo: "descuento", monto_usd: "5.00", motivo: "   " },
+        { tipo: "recargo", monto_usd: "5.00" },
+      ],
+    });
+    expect(resultado.lineas.find((l) => l.concepto === "Descuento")).toBeDefined();
+    expect(resultado.lineas.find((l) => l.concepto === "Recargo")).toBeDefined();
+  });
+});
+
+describe("edge cases — categorías y tasa", () => {
+  const tarifasEdad = [
+    { categoria: "Adulto" as Categoria, edad_min: 18, edad_max: 120, precio_usd: "50.00" },
+    { categoria: "Niño" as Categoria, edad_min: 3, edad_max: 11, precio_usd: "30.00" },
+  ];
+
+  it("en rangos solapados gana la primera tarifa", () => {
+    const solapadas = [
+      { categoria: "VIP" as Categoria, edad_min: 0, edad_max: 200 },
+      { categoria: "Adulto" as Categoria, edad_min: 18, edad_max: 120 },
+    ];
+    expect(calcularCategorias(solapadas, "2026-12-14", "1990-01-01")).toBe("VIP");
+  });
+
+  it("la edad en los bordes exactos min/max entra en la categoría", () => {
+    // Nacido el 14-12-1990 → 36 años el 14-12-2026 (bordes Adulto 18..120).
+    expect(calcularCategorias(tarifasEdad, "2026-12-14", "1990-12-14")).toBe("Adulto");
+    // Recién cumplió 18 ese día también es Adulto.
+    expect(calcularCategorias(tarifasEdad, "2026-12-14", "2008-12-14")).toBe("Adulto");
+    // Un día antes de cumplir 18 sigue sin categoría.
+    expect(calcularCategorias(tarifasEdad, "2026-12-14", "2008-12-15")).toBeNull();
+  });
+
+  it("fecha de salida inválida devuelve null", () => {
+    expect(calcularCategorias(tarifasEdad, "no-fecha", "1990-01-01")).toBeNull();
+  });
+
+  it("tasa cero, negativa o basura devuelve null", () => {
+    expect(totalBs("100.00", "0")).toBeNull();
+    expect(totalBs("100.00", "-5")).toBeNull();
+    expect(totalBs("100.00", "abc")).toBeNull();
+    expect(totalBs("100.00", "")).toBeNull();
+    // Coma decimal sí se acepta (toDecimalString la normaliza).
+    expect(totalBs("100.00", "36,50")).toBe("3650.00");
+  });
+});
+
+describe("edge cases — opciones agotadas", () => {
+  it("cupo 0 con agotados 0 ya está agotado", () => {
+    const agotadas = detectarOpcionesAgotadas(
+      [{ campo_id: "toldo", opcion: "si", cupo: 0, agotados: 0 }],
+      {},
+    );
+    expect(agotadas["toldo:si"]).toBe(true);
+  });
+
+  it("agotados por encima del cupo también marca agotado", () => {
+    const agotadas = detectarOpcionesAgotadas(
+      [{ campo_id: "toldo", opcion: "si", cupo: 5, agotados: 9 }],
+      {},
+    );
+    expect(agotadas["toldo:si"]).toBe(true);
+  });
+
+  it("respuestas con valores no-string se ignoran", () => {
+    const agotadas = detectarOpcionesAgotadas(
+      [
+        { campo_id: "c1", opcion: "1", cupo: 1, agotados: 1 },
+        { campo_id: "c2", opcion: "true", cupo: 1, agotados: 1 },
+      ],
+      {
+        c1: 1, // number: no matchea "c1:1"
+        c2: true, // boolean
+        c3: ["a", 2, null], // array mixto
+      } as never,
+    );
+    expect(agotadas["c1:1"]).toBe(true); // viene del cupo, no de la respuesta
+    expect(agotadas["c2:true"]).toBe(true); // idem
+    expect(Object.keys(agotadas)).toHaveLength(2);
+  });
+
+  it("una opción con ':' en el nombre puede colisionar de clave (documentado)", () => {
+    // campo "a" + opción "b:c" y campo "a:b" + opción "c" producen "a:b:c".
+    const agotadas = detectarOpcionesAgotadas(
+      [
+        { campo_id: "a", opcion: "b:c", cupo: 1, agotados: 1 },
+        { campo_id: "a:b", opcion: "c", cupo: 10, agotados: 0 },
+      ],
+      { "a:b": "c" }, // el cliente eligió "c" en el campo "a:b" (no agotado)
+    );
+    // Las dos opciones producen la MISMA clave "a:b:c": el segundo cupo
+    // (no agotado) sobrescribe el estado en estadoPorOpcion, pero la primera
+    // ya dejó la marca en `agotadas` → queda reportada como agotada.
+    expect(agotadas["a:b:c"]).toBe(true);
+  });
+});

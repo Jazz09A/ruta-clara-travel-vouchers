@@ -311,34 +311,88 @@ function formularioDe(r: Reserva) {
   return db().formularios.find((f) => f.id === r.formulario_id);
 }
 
+/**
+ * Ciudades sin puntos elegibles: sus puntos de referencia agrupan la
+ * opción de ciudad (mismo criterio que el backend real).
+ */
+function ciudadesSinElegibles(): { ciudad: string; puntos: PuntoSalida[] }[] {
+  const porCiudad = new Map<string, { ciudad: string; puntos: PuntoSalida[] }>();
+  for (const p of db().puntos_salida) {
+    if (!p.activo) continue;
+    const ciudad = (p.ciudad ?? "").trim();
+    if (!ciudad) continue;
+    const clave = ciudad.toLowerCase();
+    const grupo = porCiudad.get(clave) ?? { ciudad, puntos: [] };
+    grupo.puntos.push(p);
+    porCiudad.set(clave, grupo);
+  }
+  const resultado: { ciudad: string; puntos: PuntoSalida[] }[] = [];
+  for (const grupo of porCiudad.values()) {
+    const elegibles = grupo.puntos.filter((p) => p.seleccionable !== false);
+    const referencia = grupo.puntos.filter((p) => p.seleccionable === false);
+    if (elegibles.length === 0 && referencia.length > 0) {
+      resultado.push({ ciudad: grupo.ciudad, puntos: referencia });
+    }
+  }
+  return resultado;
+}
+
+function slugCiudad(ciudad: string): string {
+  return ciudad
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
 /** Opciones del catálogo global de puntos de salida (sólo activos y seleccionables). */
 function opcionesPuntos(): { valor: string; label: string }[] {
-  const opciones = db()
+  const conOrden: { opcion: { valor: string; label: string }; orden: number }[] = db()
     .puntos_salida.filter((p) => p.activo && p.seleccionable !== false)
-    .map((p) => ({ valor: p.clave, label: `${p.nombre}, ${formatTime(p.hora)}` }));
-  // Caracas sí es elegible como ciudad: la pseudo-opción guarda la decisión y
-  // el punto definitivo se confirma después por WhatsApp (los puntos reales de
-  // Caracas siguen en `puntos_referencia` como sugerencia).
-  const hayCaracas = db().puntos_salida.some(
-    (p) =>
-      p.activo && p.seleccionable === false && (p.ciudad ?? "").toLowerCase().includes("caracas"),
-  );
-  if (hayCaracas) opciones.push({ valor: "caracas", label: "Caracas — punto por confirmar" });
-  return opciones;
+    .map((p) => ({
+      opcion: { valor: p.clave, label: `${p.nombre}, ${formatTime(p.hora)}` },
+      orden: p.orden,
+    }));
+  // Ciudades sin puntos elegibles: un solo punto de referencia usa su clave
+  // real; con varios, pseudo-opción «punto por confirmar» (Caracas).
+  for (const { ciudad, puntos } of ciudadesSinElegibles()) {
+    const orden = Math.min(...puntos.map((p) => p.orden));
+    const unico = puntos.length === 1 ? puntos[0] : undefined;
+    if (unico) {
+      conOrden.push({
+        opcion: { valor: unico.clave, label: `${ciudad} — ${unico.nombre}` },
+        orden,
+      });
+    } else {
+      conOrden.push({
+        opcion: { valor: slugCiudad(ciudad), label: `${ciudad} — punto por confirmar` },
+        orden,
+      });
+    }
+  }
+  return conOrden.sort((a, b) => a.orden - b.orden).map((e) => e.opcion);
 }
 
 /**
  * Puntos activos que el cliente NO puede elegir, agrupados por ciudad
  * (los de Caracas se confirman después por WhatsApp). Se envían en el
  * campo `puntos_referencia` para el bloque informativo del formulario.
+ * El punto único que respalda una pseudo-opción de ciudad no se repite aquí.
  */
 function puntosReferencia(): NonNullable<CampoDef["puntos_referencia"]> {
+  const respaldados = new Set(
+    ciudadesSinElegibles()
+      .filter((g) => g.puntos.length === 1)
+      .map((g) => g.puntos[0]?.clave)
+      .filter((c): c is string => Boolean(c)),
+  );
   const grupos = new Map<
     string,
     { clave: string; nombre: string; hora: string; referencia: string | null }[]
   >();
   for (const p of db().puntos_salida) {
-    if (!p.activo || p.seleccionable !== false) continue;
+    if (!p.activo || p.seleccionable !== false || respaldados.has(p.clave)) continue;
     const ciudad = (p.ciudad ?? "").trim() || "Otros puntos";
     const lista = grupos.get(ciudad) ?? [];
     lista.push({
@@ -374,7 +428,8 @@ function camposPublicosDe(r: Reserva): CampoDef[] {
 /**
  * Rechaza respuestas cuyo punto de salida no esté en la lista de opciones
  * (los puntos de referencia, p. ej. los específicos de Caracas, no son
- * elegibles; sí lo es la pseudo-opción `caracas` que se confirma después).
+ * elegibles; sí lo son las opciones de ciudad: la pseudo-opción `caracas`
+ * o el punto único que la respalda, como el kiosco de Guatire).
  */
 function validarPuntosSeleccionables(
   r: Reserva,

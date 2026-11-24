@@ -111,9 +111,14 @@ describe("API simulada — ciclo de vida de una reserva", () => {
       token,
       {
         por_pasajero: {
-          [TITULAR.ref_cliente]: { almuerzo: "pescado", tiene_alergias: false },
+          [TITULAR.ref_cliente]: {
+            almuerzo: "pescado",
+            sabor_desayuno: ["cazon"],
+            tiene_alergias: false,
+          },
           [COMPAÑERA.ref_cliente]: {
             almuerzo: "pollo",
+            sabor_desayuno: ["queso"],
             tiene_alergias: false,
             menu_infantil: "pasta",
           },

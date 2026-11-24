@@ -126,7 +126,78 @@ describe("máquina de estados — edición y pago", () => {
     expect(puedeReportarPago("pendiente_pago", "rechazado")).toBe(true);
     expect(puedeReportarPago("pendiente_pago", "reportado")).toBe(false);
     expect(puedeReportarPago("pendiente_pago", "pagado")).toBe(false);
+    expect(puedeReportarPago("pendiente_pago", "reembolsado")).toBe(false);
     expect(puedeReportarPago("confirmada", "sin_pago")).toBe(false);
     expect(puedeReportarPago("pendiente_firma", "sin_pago")).toBe(false);
+    // Todos los estados no editables bloquean el reporte.
+    for (const estado of [
+      "enlace_creado",
+      "en_registro",
+      "pendiente_firma",
+      "pago_en_verificacion",
+      "confirmada",
+      "completada",
+      "cancelada",
+      "expirada",
+    ] as const) {
+      expect(puedeReportarPago(estado, "sin_pago")).toBe(false);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Edge cases: estados desconocidos, auto-transiciones y pasos huérfanos.
+// ---------------------------------------------------------------------------
+
+describe("edge cases — estados desconocidos", () => {
+  it("etiquetaEstado devuelve «Estado desconocido» sin lanzar", () => {
+    expect(etiquetaEstado("estado_raro" as EstadoReserva)).toBe("Estado desconocido");
+  });
+
+  it("puedeEditar devuelve false para un estado desconocido", () => {
+    expect(puedeEditar("estado_raro" as EstadoReserva)).toBe(false);
+  });
+
+  it("puedeTransicionar/transicionesValidas/esTerminal LANZAN TypeError con estado desconocido", () => {
+    // Documentado: TRANSICIONES[desde] es undefined → .includes/.length
+    // sobre undefined → TypeError. El tipo lo impide en compilación;
+    // en runtime un estado corrupto del servidor rompería la pantalla.
+    const raro = "estado_raro" as EstadoReserva;
+    expect(() => puedeTransicionar(raro, "cancelada")).toThrow(TypeError);
+    expect(() => transicionesValidas(raro)).toThrow(TypeError);
+    expect(() => esTerminal(raro)).toThrow(TypeError);
+  });
+
+  it("puedeTransicionar con destino desconocido devuelve false sin lanzar", () => {
+    expect(puedeTransicionar("confirmada", "estado_raro" as EstadoReserva)).toBe(false);
+    expect(puedeTransicionar("cancelada", "enlace_creado")).toBe(false);
+  });
+
+  it("ningún estado puede transicionar a sí mismo", () => {
+    for (const estado of ESTADOS) {
+      expect(puedeTransicionar(estado, estado)).toBe(false);
+    }
+  });
+
+  it("los estados terminales no aceptan NINGUNA transición de salida", () => {
+    for (const destino of ESTADOS) {
+      expect(puedeTransicionar("completada", destino)).toBe(false);
+      expect(puedeTransicionar("cancelada", destino)).toBe(false);
+    }
+  });
+});
+
+describe("edge cases — flujo de pasos", () => {
+  it("siguientePaso devuelve null para un paso desconocido", () => {
+    expect(siguientePaso("paso_raro" as never)).toBeNull();
+  });
+
+  it("«terminos» es un PasoActual válido que NO está en la lista PASOS", () => {
+    // Documentado: types.ts incluye "terminos" en PasoActual pero el array
+    // PASOS salta de «preguntas» a «resumen». siguientePaso("terminos")
+    // devuelve null (indexOf -1).
+    expect(siguientePaso("terminos")).toBeNull();
+    expect(siguientePaso("preguntas")).toBe("resumen");
+    expect(siguientePaso("resumen")).toBe("firma");
   });
 });

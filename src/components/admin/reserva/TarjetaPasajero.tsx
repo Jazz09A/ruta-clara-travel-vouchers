@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  Bus,
   Cake,
   Eye,
   EyeOff,
@@ -44,6 +45,8 @@ export interface TarjetaPasajeroProps {
   esTitular: boolean;
   /** Selecciones del formulario ya traducidas. */
   selecciones: SeleccionMostrada[];
+  /** Punto de salida efectivo del pasajero (propio o el de la reserva). */
+  puntoSalida?: string | undefined;
   /** Documento en claro, si está revelado. */
   documentoRevelado: string | undefined;
   /** Fecha de nacimiento en claro, si está revelada. */
@@ -82,6 +85,7 @@ export function TarjetaPasajero({
   pasajero,
   esTitular,
   selecciones,
+  puntoSalida,
   documentoRevelado,
   nacimientoRevelado,
   segundosRevelado,
@@ -160,6 +164,9 @@ export function TarjetaPasajero({
       <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <FilaDato icono={IdCard} etiqueta="Documento" valor={documento || "Sin completar"} />
         <FilaDato icono={Cake} etiqueta="Fecha de nacimiento" valor={nacimiento} />
+        {puntoSalida ? (
+          <FilaDato icono={Bus} etiqueta="Punto de salida" valor={puntoSalida} />
+        ) : null}
         {esTitular && pasajero.telefono ? (
           <FilaDato icono={Phone} etiqueta="Teléfono" valor={formatPhoneE164(pasajero.telefono)} />
         ) : null}
