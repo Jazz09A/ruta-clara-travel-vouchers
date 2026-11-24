@@ -206,6 +206,8 @@ function FirmaEmpresa() {
                 <img
                   src={firmaEmpresaUrl}
                   alt="Firma actual de la empresa"
+                  loading="lazy"
+                  decoding="async"
                   className="max-h-40 max-w-full object-contain"
                 />
               </div>
@@ -308,6 +310,8 @@ function FirmaEmpresa() {
                       <img
                         src={previewUrl}
                         alt="Vista previa de la firma"
+                        loading="lazy"
+                        decoding="async"
                         className="max-h-48 max-w-full object-contain"
                       />
                     </div>

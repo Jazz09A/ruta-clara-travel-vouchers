@@ -134,6 +134,8 @@ export function PanelFirma({ firma, versionTerminos, className }: PanelFirmaProp
               <img
                 src={fuenteImagen}
                 alt={`Firma de la reserva ${firma.id}`}
+                loading="lazy"
+                decoding="async"
                 className="max-h-72 w-auto max-w-full object-contain"
               />
             ) : firma.imagen_disponible === false ? (

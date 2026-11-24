@@ -169,6 +169,8 @@ export function VisorComprobante({
             src={comprobante?.preview}
             alt={`Comprobante del pago: ${comprobante?.nombre ?? "imagen"}`}
             onError={() => setFalloImagen(true)}
+            loading="lazy"
+            decoding="async"
             className="max-h-[420px] w-auto max-w-full object-contain"
             style={{ transform: `scale(${zoom}) rotate(${rotacion}deg)` }}
           />

@@ -16,6 +16,7 @@ export function LogoEscapate({ tamano = 48, className }: LogoEscapateProps) {
       width={tamano}
       height={Math.round((tamano * 487) / 512)}
       className={className}
+      decoding="async"
       draggable={false}
     />
   );
