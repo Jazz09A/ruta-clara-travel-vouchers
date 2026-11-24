@@ -75,17 +75,19 @@ export function SelectorPuntoSalida({
   const esCaracas = ciudadActiva === "Caracas";
 
   const elegirCiudad = (ciudad: string) => {
-    if (ciudad === ciudadActiva) return;
-    setCiudadElegida(ciudad);
-    // El punto elegido pertenece a otra ciudad: se limpia para elegir otro.
-    if (ciudadDelValor && ciudadDelValor !== ciudad) onChange("");
+    if (ciudad !== ciudadActiva) {
+      setCiudadElegida(ciudad);
+      // El punto elegido pertenece a otra ciudad: se limpia para elegir otro.
+      if (ciudadDelValor && ciudadDelValor !== ciudad) onChange("");
+    }
     // Ciudades con una sola opción (Guatire, Caracas): elegir la ciudad ya
-    // define el punto, no hace falta un segundo clic.
+    // define el punto, no hace falta un segundo clic. También aplica cuando
+    // la ciudad ya era la activa por defecto y aún no se había elegido punto.
     const unicas = opciones.filter(
       (opcion) => ciudadDePunto(opcion.valor) === ciudad && !opcion.agotada,
     );
     const unico = unicas.length === 1 ? unicas[0] : undefined;
-    if (unico) onChange(unico.valor);
+    if (unico && seleccionado !== unico.valor) onChange(unico.valor);
   };
 
   if (!ciudadActiva) return null;

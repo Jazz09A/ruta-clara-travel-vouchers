@@ -218,25 +218,29 @@ test("flujo completo: enlace → registro → pago → validación → voucher",
     await expect(page.getByRole("heading", { name: "Preguntas del tour" })).toBeVisible();
 
     // Punto de salida agrupado por ciudad: primero la ciudad (Guatire,
-    // Guarenas, Caracas) y luego el punto de esa ciudad. Caracas sí es
-    // elegible: guarda la pseudo-opción y explica la confirmación por
-    // WhatsApp con los puntos reales como referencia.
+    // Guarenas, Caracas) y luego el punto de esa ciudad. Guatire y Caracas
+    // son elegibles a nivel ciudad: cada una resuelve su único punto al
+    // elegirla (kiosco de Guatire / «punto por confirmar» de Caracas, que
+    // se confirma por WhatsApp con los puntos reales como referencia).
     const ciudades = page.getByRole("radiogroup", { name: "Ciudad de salida" });
     await expect(ciudades.getByRole("radio")).toHaveCount(3);
     const puntos = page.getByRole("radiogroup", { name: "Punto de abordaje" });
-    await expect(puntos.getByRole("radio")).toHaveCount(2); // Guatire por defecto
+    // Guatire es la primera ciudad del catálogo y sólo tiene el kiosco.
+    await expect(puntos.getByRole("radio")).toHaveCount(1);
 
     await ciudades.getByRole("radio", { name: "Caracas" }).click();
     await expect(
       page.getByText(/El punto exacto en Caracas lo confirmamos por WhatsApp/),
     ).toBeVisible();
     await expect(page.getByText("Puntos de referencia en Caracas")).toBeVisible();
-    await puntos.getByRole("radio", { name: /Caracas — punto por confirmar/ }).click();
+    // La pseudo-opción de ciudad se auto-selecciona al elegir Caracas.
+    await expect(
+      puntos.getByRole("radio", { name: /Caracas — punto por confirmar/ }),
+    ).toBeChecked();
 
-    // Elige Guatire para el resto del flujo (al cambiar de ciudad se
-    // limpia el punto anterior).
+    // Vuelve a Guatire: el kiosco se auto-selecciona al elegir la ciudad.
     await ciudades.getByRole("radio", { name: "Guatire" }).click();
-    await puntos.getByRole("radio", { name: /Emporium/ }).click();
+    await expect(puntos.getByRole("radio", { name: /Kiosco blanco/ })).toBeChecked();
 
     // La selección de comida está habilitada para los tours con comidas:
     // cada pasajero elige su almuerzo (obligatorio para Adulto y Niño).
@@ -398,8 +402,8 @@ test("flujo completo: enlace → registro → pago → validación → voucher",
     // Los menores de 4 años viajan gratis: el voucher resalta el sin costo.
     await expect(page.getByText("Sin costo · viaja en piernas de su representante")).toBeVisible();
     // Voucher con el nombre real del tour (no «Tu tour») y el punto de
-    // cada pasajero en la fila («Sale desde»).
+    // cada pasajero en la fila («Sale desde» → kiosco de Guatire).
     await expect(page.getByText(TOUR).first()).toBeVisible();
-    await expect(page.getByText(/Sale desde: Emporium/).first()).toBeVisible();
+    await expect(page.getByText(/Sale desde: Guatire — Kiosco blanco/).first()).toBeVisible();
   });
 });
