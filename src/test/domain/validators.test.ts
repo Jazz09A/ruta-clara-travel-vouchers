@@ -184,3 +184,139 @@ describe("validadores — titular y categorías", () => {
     expect(categoriasDisponibles([])).toContain("no hay categorías disponibles");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Edge cases: fechas límite, documentos hostiles y duplicados cruzados.
+// ---------------------------------------------------------------------------
+
+describe("edge cases — fecha de nacimiento", () => {
+  it("acepta el 29 de febrero sólo en año bisiesto", () => {
+    expect(validarFechaNacimiento("2024-02-29").ok).toBe(true);
+    expect(validarFechaNacimiento("2026-02-29").ok).toBe(false);
+    expect(validarFechaNacimiento("2100-02-29").ok).toBe(false); // 2100 no es bisiesto
+  });
+
+  it("acepta exactamente 120 años y rechaza 121", () => {
+    const hoy = new Date();
+    const hace = (anios: number) =>
+      `${hoy.getFullYear() - anios}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(
+        hoy.getDate(),
+      ).padStart(2, "0")}`;
+    expect(validarFechaNacimiento(hace(120)).ok).toBe(true);
+    expect(validarFechaNacimiento(hace(121)).ok).toBe(false);
+  });
+
+  it("tolera espacios alrededor de la fecha", () => {
+    expect(validarFechaNacimiento("  1990-05-14  ").ok).toBe(true);
+  });
+
+  it("rechaza formatos casi válidos", () => {
+    expect(validarFechaNacimiento("1990-5-14").ok).toBe(false); // mes sin padding
+    expect(validarFechaNacimiento("1990-05-14T00:00:00Z").ok).toBe(false);
+    expect(validarFechaNacimiento("0000-01-01").ok).toBe(false); // año 0 no existe
+  });
+});
+
+describe("edge cases — documento", () => {
+  it("acepta cédulas con ceros a la izquierda en el mínimo", () => {
+    expect(validarDocumento("V", "000001").ok).toBe(true);
+    expect(validarDocumento("V", "0000001").ok).toBe(true); // 7 dígitos
+  });
+
+  it("acepta pasaporte en minúsculas", () => {
+    expect(validarDocumento("P", "a1234567").ok).toBe(true);
+  });
+
+  it("OTRO con sólo espacios cuenta como vacío", () => {
+    const resultado = validarDocumento("OTRO", "   ");
+    expect(resultado.ok).toBe(false);
+    expect(resultado.mensaje).toContain("12345678");
+  });
+
+  it("OTRO acepta unicode dentro del rango", () => {
+    expect(validarDocumento("OTRO", "ñoño-123").ok).toBe(true);
+  });
+});
+
+describe("edge cases — documentos repetidos", () => {
+  it("detecta la colisión cruzada V vs P con los mismos dígitos", () => {
+    // claveDocumento quita no-dígitos para todo tipo ≠ OTRO:
+    // "V:123456" y "P:123456" generan la MISMA clave → duplicado.
+    const resultado = validarDocumentosUnicos([
+      { tipo_doc: "V", documento: "123456" },
+      { tipo_doc: "P", documento: "123456" },
+    ]);
+    expect(resultado.ok).toBe(false);
+    expect(resultado.indiceDuplicado).toBe(1);
+  });
+
+  it("los documentos vacíos no cuentan como duplicados", () => {
+    const resultado = validarDocumentosUnicos([
+      { tipo_doc: "V", documento: "" },
+      { tipo_doc: "V", documento: "   " },
+      { tipo_doc: "V", documento: "---" }, // clave vacía tras quitar dígitos
+      { tipo_doc: "V", documento: "12345678" },
+    ]);
+    expect(resultado.ok).toBe(true);
+  });
+
+  it("OTRO compara sin distinguir mayúsculas pero respeta guiones vs espacios", () => {
+    const duplicado = validarDocumentosUnicos([
+      { tipo_doc: "OTRO", documento: "doc-123" },
+      { tipo_doc: "OTRO", documento: "  DOC-123  " },
+    ]);
+    expect(duplicado.ok).toBe(false);
+
+    // "DOC 1" y "DOC-1" son claves distintas para OTRO (el guion no se borra).
+    const distintos = validarDocumentosUnicos([
+      { tipo_doc: "OTRO", documento: "DOC 1" },
+      { tipo_doc: "OTRO", documento: "DOC-1" },
+    ]);
+    expect(distintos.ok).toBe(true);
+  });
+
+  it("los espacios múltiples de OTRO se colapsan", () => {
+    const resultado = validarDocumentosUnicos([
+      { tipo_doc: "OTRO", documento: "DOC   123" },
+      { tipo_doc: "OTRO", documento: "doc 123" },
+    ]);
+    expect(resultado.ok).toBe(false);
+  });
+});
+
+describe("edge cases — teléfono, correo y titular", () => {
+  it("teléfono en los límites exactos de dígitos", () => {
+    expect(validarTelefono("1234567890").ok).toBe(true); // 10
+    expect(validarTelefono("123456789012345").ok).toBe(true); // 15
+    expect(validarTelefono("123456789").ok).toBe(false); // 9
+    expect(validarTelefono("1234567890123456").ok).toBe(false); // 16
+  });
+
+  it("correo con TLD de un carácter se rechaza", () => {
+    expect(validarCorreo("a@b.c").ok).toBe(false);
+    expect(validarCorreo("a@b.co").ok).toBe(true);
+  });
+
+  it("el titular cumple 18 justo el día de la salida", () => {
+    expect(esTitularMayorDeEdad("2008-12-14", "2026-12-14")).toBe(true);
+    expect(esTitularMayorDeEdad("2008-12-14", "2026-12-13")).toBe(false);
+  });
+
+  it("validarEdadMinima acepta al que cumple la edad mínima ese mismo día", () => {
+    expect(validarEdadMinima("2018-12-14", "2026-12-14", 8).ok).toBe(true);
+    expect(validarEdadMinima("2018-12-14", "2026-12-13", 8).ok).toBe(false);
+  });
+});
+
+describe("edge cases — categorías disponibles", () => {
+  it("edad_max >= 120 se muestra como «desde N años»", () => {
+    const texto = categoriasDisponibles([
+      { categoria: "Adulto" as Categoria, edad_min: 18, edad_max: 120 },
+      { categoria: "Mayor" as Categoria, edad_min: 60, edad_max: 150 },
+      { categoria: "Niño" as Categoria, edad_min: 3, edad_max: 119 },
+    ]);
+    expect(texto).toContain("Adulto: desde 18 años");
+    expect(texto).toContain("Mayor: desde 60 años");
+    expect(texto).toContain("Niño: de 3 a 119 años");
+  });
+});

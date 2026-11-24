@@ -12,10 +12,10 @@ import { Campo } from "../ui";
  * Selector de **punto de salida agrupado por ciudad**.
  *
  * Primero se elige la ciudad (Guatire, Guarenas, Caracas) y luego el punto
- * de esa ciudad. Caracas sí es elegible: guarda la pseudo-opción `caracas`
- * y el punto exacto se confirma después por WhatsApp (los puntos reales de
- * la ciudad aparecen como referencia). La selección usa sombreado neutro
- * en lugar del azul de marca.
+ * de esa ciudad. Las ciudades con una sola opción (Guatire, Caracas) se
+ * resuelven al elegir la ciudad: el punto único va incluido en la opción
+ * y, si hay varios (Caracas), el punto exacto se confirma por WhatsApp.
+ * La selección usa sombreado neutro en lugar del azul de marca.
  */
 
 export interface SelectorPuntoSalidaProps {
@@ -75,10 +75,19 @@ export function SelectorPuntoSalida({
   const esCaracas = ciudadActiva === "Caracas";
 
   const elegirCiudad = (ciudad: string) => {
-    if (ciudad === ciudadActiva) return;
-    setCiudadElegida(ciudad);
-    // El punto elegido pertenece a otra ciudad: se limpia para elegir otro.
-    if (ciudadDelValor && ciudadDelValor !== ciudad) onChange("");
+    if (ciudad !== ciudadActiva) {
+      setCiudadElegida(ciudad);
+      // El punto elegido pertenece a otra ciudad: se limpia para elegir otro.
+      if (ciudadDelValor && ciudadDelValor !== ciudad) onChange("");
+    }
+    // Ciudades con una sola opción (Guatire, Caracas): elegir la ciudad ya
+    // define el punto, no hace falta un segundo clic. También aplica cuando
+    // la ciudad ya era la activa por defecto y aún no se había elegido punto.
+    const unicas = opciones.filter(
+      (opcion) => ciudadDePunto(opcion.valor) === ciudad && !opcion.agotada,
+    );
+    const unico = unicas.length === 1 ? unicas[0] : undefined;
+    if (unico && seleccionado !== unico.valor) onChange(unico.valor);
   };
 
   if (!ciudadActiva) return null;
@@ -168,9 +177,6 @@ export function SelectorPuntoSalida({
                 {grupo.puntos.map((punto) => (
                   <li key={punto.clave} className="text-sm text-foreground">
                     <span className="font-semibold">{punto.nombre}</span>
-                    {punto.hora ? (
-                      <span className="text-muted-foreground">{` · ${punto.hora}`}</span>
-                    ) : null}
                     {punto.referencia ? (
                       <span className="block text-xs text-muted-foreground">
                         {punto.referencia}

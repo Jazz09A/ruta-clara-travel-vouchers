@@ -273,11 +273,13 @@ test("la firma se guarda al primer intento (términos antes de firmar)", async (
     await dibujarFirma(page, page.locator("canvas"));
     await page.getByRole("button", { name: "Firmar y continuar" }).click();
 
-    // Con el reporte de pago del cliente desactivado, el paso «pago» es
-    // informativo: la agencia coordina el pago fuera del formulario.
-    await expect(page.getByRole("heading", { name: "Registro completo", exact: true })).toBeVisible(
-      { timeout: 30_000 },
-    );
+    // La firma confirma la reserva: se llega al voucher («Reserva
+    // confirmada»). La pantalla «Registro completo» es un interstitial de
+    // ~2 s que depende del refetch de la reserva: como aserción es flaky,
+    // el contrato real es firma 201 → voucher.
+    await expect(page.getByRole("heading", { name: /Reserva confirmada/ })).toBeVisible({
+      timeout: 30_000,
+    });
     expect(respuestasFirma, "sólo se intentó firmar una vez").toEqual([201]);
   });
 });
@@ -319,11 +321,11 @@ test("si los términos ya se aceptaron en otra sesión, firma directo y guarda (
     await dibujarFirma(page, page.locator("canvas"));
     await page.getByRole("button", { name: "Firmar y continuar" }).click();
 
-    // El enlace va directo a la pantalla informativa de pago (el reporte del
-    // cliente está desactivado): no hubo rebote a los términos.
-    await expect(page.getByRole("heading", { name: "Registro completo", exact: true })).toBeVisible(
-      { timeout: 30_000 },
-    );
+    // La firma confirmó la reserva: el voucher es la pantalla final.
+    // («Registro completo» es un interstitial transitorio: no es aserción fiable.)
+    await expect(page.getByRole("heading", { name: /Reserva confirmada/ })).toBeVisible({
+      timeout: 30_000,
+    });
     expect(respuestasFirma, "sólo se intentó firmar una vez").toEqual([201]);
   });
 });

@@ -2,7 +2,7 @@ import { ClipboardList, ShieldAlert } from "lucide-react";
 
 import { TarjetaPasajero, type CampoRevelable, type SeleccionMostrada } from "./TarjetaPasajero";
 import type { DatoRevelado } from "./use-revelo-temporal";
-import type { Pasajero, Respuesta } from "@/lib/domain/types";
+import type { Pasajero, PuntoSalida, Respuesta } from "@/lib/domain/types";
 import { cn } from "@/lib/utils";
 
 /**
@@ -32,6 +32,12 @@ export interface PanelPasajerosProps {
   respuestasGlobales: Record<string, Respuesta>;
   /** Campos del formulario, para poner etiqueta a las selecciones. */
   campos: CampoReferencia[];
+  /**
+   * Catálogo de puntos de salida: traduce la clave guardada en
+   * `punto_abordaje` a su nombre legible (el snapshot del formulario no
+   * siempre trae las opciones actualizadas).
+   */
+  puntos?: PuntoSalida[] | undefined;
   /** El rol puede revelar datos sensibles. */
   puedeRevelar: boolean;
   /** Valores revelados, por clave `${ref_cliente}:${campo}`. */
@@ -57,6 +63,7 @@ export function PanelPasajeros({
   pasajeros,
   respuestasGlobales,
   campos,
+  puntos,
   puedeRevelar,
   revelados,
   segundosRestantes,
@@ -75,6 +82,13 @@ export function PanelPasajeros({
     }
     const definicion = campos.find((c) => c.id === campo);
     if (definicion && definicion.tipo === "select" && typeof valor === "string") {
+      // Punto de salida por clave del catálogo global: el nombre actual del
+      // punto manda sobre el snapshot del formulario (p. ej. el punto único
+      // de una ciudad, como el kiosco de Guatire).
+      if (campo === "punto_abordaje" && puntos) {
+        const punto = puntos.find((p) => p.clave === valor);
+        if (punto) return punto.nombre;
+      }
       return definicion.opciones?.find((opcion) => opcion.valor === valor)?.label ?? valor;
     }
     // Multiselect (p. ej. sabor del desayuno): traduce cada valor elegido.
@@ -123,16 +137,14 @@ export function PanelPasajeros({
             }));
 
           // Punto de salida por pasajero (salidas personalizadas): el propio
-          // o, si no lo definió, el de la reserva.
+          // o, si no lo definió, el de la reserva. Se muestra como dato
+          // propio de la tarjeta para identificar la parada de cada uno.
           const puntoPropio = pasajero.respuestas["punto_abordaje"];
           const puntoEfectivo = puntoPropio ?? respuestasGlobales["punto_abordaje"];
-          if (puntoEfectivo !== null && puntoEfectivo !== undefined && puntoEfectivo !== "") {
-            selecciones.unshift({
-              campo: "punto_abordaje",
-              etiqueta: puntoPropio ? "Punto de salida" : "Punto de salida (reserva)",
-              valor: valorDeCampo("punto_abordaje", puntoEfectivo),
-            });
-          }
+          const puntoSalida =
+            puntoEfectivo !== null && puntoEfectivo !== undefined && puntoEfectivo !== ""
+              ? valorDeCampo("punto_abordaje", puntoEfectivo)
+              : undefined;
 
           const claveDocumento = `${pasajero.ref_cliente}:documento`;
           const claveNacimiento = `${pasajero.ref_cliente}:fecha_nacimiento`;
@@ -143,6 +155,7 @@ export function PanelPasajeros({
               pasajero={pasajero}
               esTitular={pasajero.es_titular}
               selecciones={selecciones}
+              puntoSalida={puntoSalida}
               documentoRevelado={revelados[claveDocumento]?.valor}
               nacimientoRevelado={revelados[claveNacimiento]?.valor}
               segundosRevelado={

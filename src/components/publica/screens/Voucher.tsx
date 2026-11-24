@@ -346,6 +346,11 @@ export function Voucher({ token, onReservaCerrada, refCorta, nombreTour }: Vouch
                     {etiquetaPunto ? (
                       <p className="truncate text-xs font-semibold text-primary">{`Sale desde: ${etiquetaPunto}`}</p>
                     ) : null}
+                    {seleccionesDePasajero(reserva, pasajero.respuestas).map((s) => (
+                      <p key={s} className="truncate text-xs text-muted-foreground">
+                        {s}
+                      </p>
+                    ))}
                   </div>
                 </li>
               );
@@ -495,7 +500,7 @@ function mapaPuntos(reserva: ContextoReserva | null): Map<string, string> {
   if (!campo) return mapa;
   for (const opcion of campo.opciones ?? []) mapa.set(opcion.valor, opcion.label);
   for (const grupo of campo.puntos_referencia ?? []) {
-    for (const punto of grupo.puntos) mapa.set(punto.clave, `${punto.nombre}, ${punto.hora}`);
+    for (const punto of grupo.puntos) mapa.set(punto.clave, punto.nombre);
   }
   // Pseudo-clave del selector de ciudades: el punto exacto de Caracas se
   // confirma después por WhatsApp.
@@ -510,6 +515,31 @@ function clavePuntoDe(
 ): string {
   const valor = respuestas?.["punto_abordaje"] ?? global;
   return typeof valor === "string" ? valor : "";
+}
+
+/**
+ * Selecciones de comida del pasajero (almuerzo, sabor de empanada…) con su
+ * etiqueta legible, resueltas contra las opciones del formulario.
+ */
+function seleccionesDePasajero(
+  reserva: ContextoReserva | null,
+  respuestas: Record<string, Respuesta> | undefined,
+): string[] {
+  const campos = reserva?.formulario?.definicion.campos ?? [];
+  const out: string[] = [];
+  for (const campo of campos) {
+    if (campo.id === "punto_abordaje") continue;
+    if (campo.tipo !== "select" && campo.tipo !== "multiselect") continue;
+    const valor = respuestas?.[campo.id];
+    if (valor === undefined || valor === null || valor === "") continue;
+    const valores = (Array.isArray(valor) ? valor : [valor]).filter(
+      (v): v is string => typeof v === "string" && v !== "",
+    );
+    if (!valores.length) continue;
+    const etiquetas = valores.map((v) => campo.opciones?.find((o) => o.valor === v)?.label ?? v);
+    out.push(`${campo.label}: ${etiquetas.join(", ")}`);
+  }
+  return out;
 }
 
 /**

@@ -340,7 +340,7 @@ const CAMPOS_ROQUES_V2: CamposFormulario = [
     ayuda: "Selecciona el sabor de empanada para cada pasajero.",
     tipo: "multiselect",
     alcance: "por_pasajero",
-    obligatorio: false,
+    obligatorio: true,
     opciones: [
       { valor: "cazon", label: "Cazón" },
       { valor: "molida", label: "Molida" },
@@ -374,7 +374,7 @@ function crearFormularios(ahora: number): Formulario[] {
             ayuda: "Selecciona el sabor de empanada para cada pasajero.",
             tipo: "multiselect",
             alcance: "por_pasajero",
-            obligatorio: false,
+            obligatorio: true,
             opciones: [
               { valor: "cazon", label: "Cazón" },
               { valor: "molida", label: "Molida" },
@@ -401,7 +401,7 @@ function crearFormularios(ahora: number): Formulario[] {
             ayuda: "Selecciona el sabor de empanada para cada pasajero.",
             tipo: "multiselect",
             alcance: "por_pasajero",
-            obligatorio: false,
+            obligatorio: true,
             opciones: [
               { valor: "cazon", label: "Cazón" },
               { valor: "molida", label: "Molida" },
@@ -428,7 +428,7 @@ function crearFormularios(ahora: number): Formulario[] {
             ayuda: "Selecciona el sabor de empanada para cada pasajero.",
             tipo: "multiselect",
             alcance: "por_pasajero",
-            obligatorio: false,
+            obligatorio: true,
             opciones: [
               { valor: "cazon", label: "Cazón" },
               { valor: "molida", label: "Molida" },
@@ -1201,11 +1201,12 @@ function crearPuntosSalida(): PuntoSalida[] {
     {
       id: "pto_guatire",
       clave: "guatire",
-      nombre: "Guatire",
+      nombre: "Kiosco blanco (al lado de La Colmena)",
       ciudad: "Guatire",
       hora: "06:00",
-      referencia: "Punto de encuentro en el centro de Guatire.",
-      seleccionable: true,
+      referencia: "Al lado de La Colmena.",
+      // Guatire tiene un solo punto: se elige la ciudad y el punto va incluido.
+      seleccionable: false,
       orden: 0,
       activo: true,
     },

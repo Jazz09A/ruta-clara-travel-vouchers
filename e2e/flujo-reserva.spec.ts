@@ -10,9 +10,9 @@ import { dibujarFirma } from "./helpers/firma";
  *   1. Admin: login + 2FA → crea el enlace de reserva (tour + fecha publicada).
  *   2. Cliente abre el enlace y completa Bienvenida → Titular → Acompañantes →
  *      Preguntas → Confirmación (total administrado) → Términos → Firma.
- *   3. La agencia confirma la reserva primero (CTA en el detalle) y luego
- *      anota los datos del pago desde la reserva: el pago nace aprobado
- *      (ya no hay cola de validación).
+ *   3. La reserva nace pagada (pago al crear el enlace) y se confirma sola
+ *      tras la firma; la agencia anota el pago del saldo desde la reserva
+ *      (nace aprobado, sin cola de validación).
  *   4. Cliente ve el voucher confirmado.
  *
  * RESTRICCIÓN del entorno: el backend real vive en `localhost:3001` con su
@@ -103,6 +103,11 @@ test("flujo completo: enlace → registro → pago → validación → voucher",
     });
     await elegirOpcion(page, "Fecha de salida", textoFecha);
 
+    // La reserva «nace pagada»: el alta exige método y monto (el total real
+    // se conoce después, cuando el cliente registra a su grupo).
+    await elegirOpcion(page, "Método de pago", "Transferencia bancaria");
+    await page.getByLabel("Monto (USD)").fill("100.00");
+
     await page.getByLabel("Referencia interna (opcional)").fill(referenciaInterna);
     await page.getByRole("button", { name: "Generar enlace" }).click();
 
@@ -143,7 +148,7 @@ test("flujo completo: enlace → registro → pago → validación → voucher",
     await expect(page.getByText("Sube la foto del documento de identidad").first()).toBeVisible();
 
     await page.setInputFiles("#titular-foto-documento", "e2e/fixtures/cedula.png");
-    await expect(page.getByText("Foto del documento lista ✓")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("Foto del documento lista ✓")).toBeVisible({ timeout: 30_000 });
 
     await page.getByRole("button", { name: "Continuar" }).click();
 
@@ -173,7 +178,7 @@ test("flujo completo: enlace → registro → pago → validación → voucher",
       .first()
       .setInputFiles("e2e/fixtures/cedula.png");
     await expect(tarjetaNino.getByText("Foto del documento lista ✓")).toBeVisible({
-      timeout: 20_000,
+      timeout: 30_000,
     });
 
     // Infante (menor de 5): la tarjeta resalta «Sin costo» y no muestra
@@ -190,7 +195,7 @@ test("flujo completo: enlace → registro → pago → validación → voucher",
       .first()
       .setInputFiles("e2e/fixtures/cedula.png");
     await expect(tarjetaInfante.getByText("Foto del documento lista ✓")).toBeVisible({
-      timeout: 20_000,
+      timeout: 30_000,
     });
     await expect(tarjetaInfante).toContainText("Sin costo · viaja en piernas de su representante");
 
@@ -213,25 +218,29 @@ test("flujo completo: enlace → registro → pago → validación → voucher",
     await expect(page.getByRole("heading", { name: "Preguntas del tour" })).toBeVisible();
 
     // Punto de salida agrupado por ciudad: primero la ciudad (Guatire,
-    // Guarenas, Caracas) y luego el punto de esa ciudad. Caracas sí es
-    // elegible: guarda la pseudo-opción y explica la confirmación por
-    // WhatsApp con los puntos reales como referencia.
+    // Guarenas, Caracas) y luego el punto de esa ciudad. Guatire y Caracas
+    // son elegibles a nivel ciudad: cada una resuelve su único punto al
+    // elegirla (kiosco de Guatire / «punto por confirmar» de Caracas, que
+    // se confirma por WhatsApp con los puntos reales como referencia).
     const ciudades = page.getByRole("radiogroup", { name: "Ciudad de salida" });
     await expect(ciudades.getByRole("radio")).toHaveCount(3);
-    const puntos = page.getByRole("radiogroup", { name: "Punto de salida" });
-    await expect(puntos.getByRole("radio")).toHaveCount(2); // Guatire por defecto
+    const puntos = page.getByRole("radiogroup", { name: "Punto de abordaje" });
+    // Guatire es la primera ciudad del catálogo y sólo tiene el kiosco.
+    await expect(puntos.getByRole("radio")).toHaveCount(1);
 
     await ciudades.getByRole("radio", { name: "Caracas" }).click();
     await expect(
       page.getByText(/El punto exacto en Caracas lo confirmamos por WhatsApp/),
     ).toBeVisible();
     await expect(page.getByText("Puntos de referencia en Caracas")).toBeVisible();
-    await puntos.getByRole("radio", { name: /Caracas — punto por confirmar/ }).click();
+    // La pseudo-opción de ciudad se auto-selecciona al elegir Caracas.
+    await expect(
+      puntos.getByRole("radio", { name: /Caracas — punto por confirmar/ }),
+    ).toBeChecked();
 
-    // Elige Guatire para el resto del flujo (al cambiar de ciudad se
-    // limpia el punto anterior).
+    // Vuelve a Guatire: el kiosco se auto-selecciona al elegir la ciudad.
     await ciudades.getByRole("radio", { name: "Guatire" }).click();
-    await puntos.getByRole("radio", { name: /Emporium/ }).click();
+    await expect(puntos.getByRole("radio", { name: /Kiosco blanco/ })).toBeChecked();
 
     // La selección de comida está habilitada para los tours con comidas:
     // cada pasajero elige su almuerzo (obligatorio para Adulto y Niño).
@@ -296,7 +305,7 @@ test("flujo completo: enlace → registro → pago → validación → voucher",
     if (!llegoTerminos) {
       await page.waitForTimeout(31_000);
       await recargarCliente(page, token);
-      await expect(headingTerminos).toBeVisible({ timeout: 20_000 });
+      await expect(headingTerminos).toBeVisible({ timeout: 30_000 });
     }
   });
 
@@ -320,29 +329,29 @@ test("flujo completo: enlace → registro → pago → validación → voucher",
     await dibujarFirma(page, page.locator("canvas"));
     await page.getByRole("button", { name: "Firmar y continuar" }).click();
 
-    // Con el reporte de pago del cliente desactivado, el paso «pago» es
-    // informativo: la agencia coordina el pago fuera del formulario.
-    await expect(page.getByRole("heading", { name: "Registro completo" })).toBeVisible({
-      timeout: 20_000,
+    // La firma confirma la reserva: el cliente llega al voucher. La
+    // agencia la confirma a mano en el paso siguiente del admin.
+    await expect(page.getByRole("heading", { name: /Reserva confirmada/ })).toBeVisible({
+      timeout: 30_000,
     });
-    await expect(page.getByText(/La agencia se pondrá en contacto contigo/).first()).toBeVisible();
   });
 
   // -----------------------------------------------------------------------
-  // 8. AGENCIA: confirma la reserva (CTA primero) y anota el pago
+  // 8. AGENCIA: la reserva ya viene confirmada (pago al crear el enlace +
+  //    firma) y se anota el pago del saldo
   // -----------------------------------------------------------------------
-  await test.step("la agencia confirma la reserva y anota el pago", async () => {
+  await test.step("la reserva ya está confirmada y la agencia anota el pago", async () => {
     await navegarClientSide(page, "/admin/reservas");
     const buscador = page.getByPlaceholder(/Buscar por referencia/);
-    await expect(buscador).toBeVisible({ timeout: 20_000 });
+    await expect(buscador).toBeVisible({ timeout: 30_000 });
     await buscador.fill(referenciaInterna);
 
     // La búsqueda se resuelve en el servidor (ref_corta, código o
     // referencia interna): al reducir el listado a una sola reserva, se
     // abre su detalle.
-    await expect(page.getByText(/1 reservas en total/)).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/1 reservas en total/)).toBeVisible({ timeout: 30_000 });
     const tarjeta = page.locator('a[href^="/admin/reservas/"]:not([href*="nueva"])').first();
-    await expect(tarjeta).toBeVisible({ timeout: 20_000 });
+    await expect(tarjeta).toBeVisible({ timeout: 30_000 });
     await tarjeta.click();
     await expect(page.getByRole("heading", { name: "Detalle de reserva" })).toBeVisible({
       timeout: 20_000,
@@ -351,28 +360,14 @@ test("flujo completo: enlace → registro → pago → validación → voucher",
     // El menú lateral ya no muestra «Pagos»: se gestiona desde la reserva.
     await expect(page.getByRole("link", { name: "Pagos", exact: true })).toHaveCount(0);
 
-    // «Confirmar reserva» es el PRIMER elemento del detalle (CTA) y no
-    // depende del pago: la reserva se confirma primero.
-    const ctaConfirmar = page.getByRole("region", { name: "Confirmar reserva" });
-    await expect(ctaConfirmar).toBeVisible();
-    await ctaConfirmar.getByRole("button", { name: "Confirmar reserva" }).click();
-
-    // Radix usa `alertdialog` (AlertDialog) para los diálogos de confirmación.
-    const dialogo = page.getByRole("alertdialog");
-    await expect(dialogo).toBeVisible();
-    // El motivo es obligatorio (mínimo 5 caracteres).
-    await dialogo.getByLabel("Motivo").fill("Confirmación manual de la agencia (e2e)");
-    await dialogo.getByRole("button", { name: "Confirmar reserva" }).click();
-
-    // La reserva queda confirmada: se asigna el código VJ-AAAA-NNNNN
-    // (el texto aparece en el toast, el banner y el aviso sr-only).
-    const toastConfirmada = page.getByText(/Reserva confirmada \(VJ-\d{4}-\d+\)/).first();
-    await expect(toastConfirmada).toBeVisible({ timeout: 20_000 });
-    codigoReserva = (await toastConfirmada.textContent())?.match(/VJ-\d{4}-\d+/)?.[0] ?? "";
+    // Con el pago registrado al crear el enlace, la reserva se confirma
+    // sola tras la firma: el código VJ-AAAA-NNNNN ya está asignado.
+    const encabezado = page.getByRole("heading", { name: /^Reserva VJ-\d{4}-\d+/ });
+    await expect(encabezado).toBeVisible({ timeout: 30_000 });
+    codigoReserva = (await encabezado.textContent())?.match(/VJ-\d{4}-\d+/)?.[0] ?? "";
     expect(codigoReserva).toMatch(/^VJ-\d{4}-\d+$/);
 
-    // Anota los datos del pago desde la reserva: el pago nace aprobado
-    // (sin cola de validación).
+    // Anota el pago del saldo desde la reserva: nace aprobado (sin cola).
     const tabPagos = page.getByRole("tab", { name: "Pagos" });
     if (await tabPagos.isVisible().catch(() => false)) await tabPagos.click();
     await page.getByRole("button", { name: "Registrar datos de pago" }).click();
@@ -387,7 +382,7 @@ test("flujo completo: enlace → registro → pago → validación → voucher",
       { timeout: 20_000 },
     );
     // Sin cola: el pago aparece aprobado en el panel de la reserva.
-    await expect(page.getByText("Aprobado").first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("Aprobado").first()).toBeVisible({ timeout: 30_000 });
   });
 
   // -----------------------------------------------------------------------
@@ -407,8 +402,8 @@ test("flujo completo: enlace → registro → pago → validación → voucher",
     // Los menores de 4 años viajan gratis: el voucher resalta el sin costo.
     await expect(page.getByText("Sin costo · viaja en piernas de su representante")).toBeVisible();
     // Voucher con el nombre real del tour (no «Tu tour») y el punto de
-    // cada pasajero en la fila («Sale desde»).
+    // cada pasajero en la fila («Sale desde» → kiosco de Guatire).
     await expect(page.getByText(TOUR).first()).toBeVisible();
-    await expect(page.getByText(/Sale desde: Emporium/).first()).toBeVisible();
+    await expect(page.getByText(/Sale desde: Guatire — Kiosco blanco/).first()).toBeVisible();
   });
 });
