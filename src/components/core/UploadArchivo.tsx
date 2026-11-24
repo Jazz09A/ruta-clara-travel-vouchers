@@ -204,6 +204,8 @@ export function UploadArchivo({
             <img
               src={archivo.preview}
               alt={`Vista previa de ${archivo.nombre}`}
+              loading="lazy"
+              decoding="async"
               className="h-16 w-16 shrink-0 rounded-xl border border-border object-cover"
             />
           ) : (

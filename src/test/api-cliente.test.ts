@@ -46,6 +46,9 @@ beforeEach(() => {
   fetchMock.mockReset();
   vi.stubGlobal("fetch", fetchMock);
   limpiarAccessToken();
+  // La coordinación del refresh entre pestañas deja una marca en
+  // localStorage; sin limpiarla un test heredaría la "renovación" del anterior.
+  window.localStorage.clear();
 });
 
 afterEach(() => {

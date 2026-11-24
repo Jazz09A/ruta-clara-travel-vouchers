@@ -59,6 +59,13 @@ const BASE_URL: string =
 // ---------------------------------------------------------------------------
 
 let accessToken: string | null = null;
+/** Cuándo se obtuvo el access token vigente (propio o recibido de otra pestaña). */
+let tokenEmitidoEn = 0;
+
+function fijarAccessToken(token: string | null): void {
+  accessToken = token;
+  tokenEmitidoEn = token ? Date.now() : 0;
+}
 
 function url(path: string, params?: Record<string, string | number | boolean | undefined>): string {
   const u = new URL(`${BASE_URL}${path}`);
@@ -129,6 +136,100 @@ async function peticion<T>(
 
 let refrescoEnCurso: Promise<boolean> | null = null;
 
+// ---------------------------------------------------------------------------
+// Refresh compartido entre pestañas
+//
+// La cookie de refresh es una sola para todo el navegador y el backend rota
+// el refresh token en cada uso: si dos pestañas renuevan a la vez, la segunda
+// llega con un token ya revocado y el backend puede tumbar la familia entera.
+// Por eso la renovación se coordina entre pestañas:
+//
+// - `BroadcastChannel` reparte el access token nuevo (sigue viviendo sólo en
+//   memoria, SEG-03: nunca toca localStorage/sessionStorage).
+// - Una marca de tiempo en localStorage dice cuándo renovó por última vez
+//   CUALQUIER pestaña; si fue hace poco, la pestaña actual toma el token del
+//   canal (o lo pide con "pedir-token") en vez de llamar a `/auth/refresh`.
+// - `navigator.locks` serializa la decisión entre pestañas para que dos
+//   renovaciones no salgan a la red en el mismo instante.
+// ---------------------------------------------------------------------------
+
+const CANAL_SESION = "ruta-clara:sesion";
+const CLAVE_ULTIMO_REFRESH = "ruta-clara:ultimo-refresh";
+/** Una renovación de otra pestaña cuenta como vigente durante esta ventana. */
+const VENTANA_REFRESH_COMPARTIDO_MS = 10 * 60 * 1000;
+/** Sólo se comparte un token con margen suficiente de vida restante. */
+const EDAD_MAXIMA_TOKEN_COMPARTIBLE_MS = 10 * 60 * 1000;
+
+let canalSesion: BroadcastChannel | null = null;
+let resolverTokenPedido: ((token: string | null) => void) | null = null;
+
+function obtenerCanalSesion(): BroadcastChannel | null {
+  if (typeof BroadcastChannel === "undefined") return null;
+  if (canalSesion) return canalSesion;
+  const canal = new BroadcastChannel(CANAL_SESION);
+  canal.onmessage = (evento: MessageEvent) => {
+    const data = evento.data as { tipo?: string; token?: unknown } | null;
+    if (data?.tipo === "token" && typeof data.token === "string") {
+      fijarAccessToken(data.token);
+      resolverTokenPedido?.(data.token);
+      resolverTokenPedido = null;
+      return;
+    }
+    if (data?.tipo === "pedir-token") {
+      if (accessToken && Date.now() - tokenEmitidoEn < EDAD_MAXIMA_TOKEN_COMPARTIBLE_MS) {
+        canal.postMessage({ tipo: "token", token: accessToken });
+      }
+    }
+  };
+  canalSesion = canal;
+  return canal;
+}
+
+/** Pide el access token a las demás pestañas; `null` si nadie responde. */
+function pedirTokenAJerma(): Promise<string | null> {
+  const canal = obtenerCanalSesion();
+  if (!canal) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    resolverTokenPedido = resolve;
+    canal.postMessage({ tipo: "pedir-token" });
+    setTimeout(() => {
+      if (resolverTokenPedido === resolve) {
+        resolverTokenPedido = null;
+        resolve(null);
+      }
+    }, 1500);
+  });
+}
+
+function leerUltimoRefresh(): number {
+  try {
+    return Number(window.localStorage.getItem(CLAVE_ULTIMO_REFRESH)) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+function escribirUltimoRefresh(marca: number): void {
+  try {
+    window.localStorage.setItem(CLAVE_ULTIMO_REFRESH, String(marca));
+  } catch {
+    /* almacenamiento no disponible: se pierde sólo la coordinación */
+  }
+}
+
+/** Serializa la decisión de refrescar entre pestañas del mismo origen. */
+async function conBloqueoRefresh<T>(tarea: () => Promise<T>): Promise<T> {
+  const locks = typeof navigator !== "undefined" ? navigator.locks : undefined;
+  if (locks && typeof locks.request === "function") {
+    try {
+      return await locks.request("ruta-clara-refresh-token", tarea);
+    } catch {
+      return tarea();
+    }
+  }
+  return tarea();
+}
+
 async function refrescarSesion(): Promise<boolean> {
   // Single-flight: ante una ráfaga de 401 (varias consultas a la vez al abrir
   // el panel, varias pestañas) sólo un refresh sale a la red y los demás
@@ -136,7 +237,14 @@ async function refrescarSesion(): Promise<boolean> {
   // refreshes concurrentes con el mismo cookie estamparían un token ya
   // revocado, lo que el backend interpretaría como robo y mataría la familia.
   if (refrescoEnCurso) return refrescoEnCurso;
-  refrescoEnCurso = (async () => {
+  refrescoEnCurso = conBloqueoRefresh(async () => {
+    // ¿Otra pestaña renovó hace poco? Entonces su token nos llega por el
+    // canal (o se lo pedimos) y no hace falta otra llamada a `/auth/refresh`.
+    const ultimo = leerUltimoRefresh();
+    if (ultimo > 0 && Date.now() - ultimo < VENTANA_REFRESH_COMPARTIDO_MS) {
+      if (accessToken && tokenEmitidoEn >= ultimo - 5000) return true;
+      if (await pedirTokenAJerma()) return true;
+    }
     try {
       const res = await fetch(url("/auth/refresh"), {
         method: "POST",
@@ -147,12 +255,14 @@ async function refrescarSesion(): Promise<boolean> {
       if (!res.ok) return false;
       const data = (await res.json()) as { access_token?: string };
       if (!data.access_token) return false;
-      accessToken = data.access_token;
+      fijarAccessToken(data.access_token);
+      escribirUltimoRefresh(Date.now());
+      obtenerCanalSesion()?.postMessage({ tipo: "token", token: data.access_token });
       return true;
     } catch {
       return false;
     }
-  })();
+  });
   try {
     return await refrescoEnCurso;
   } finally {
@@ -308,7 +418,7 @@ const admin = {
         mensaje: "Respuesta de login inválida",
         request_id: "",
       });
-    accessToken = res.access_token;
+    fijarAccessToken(res.access_token);
   },
 
   async recuperar(body: { correo: string }) {
@@ -354,7 +464,7 @@ const admin = {
         mensaje: "Respuesta de setup inválida",
         request_id: "",
       });
-    accessToken = res.access_token;
+    fijarAccessToken(res.access_token);
   },
 
   async yo() {
@@ -643,10 +753,14 @@ const admin = {
   clientes: (params: { busqueda?: string }) =>
     peticion("/adminfx/clientes", { admin: true }, { busqueda: params.busqueda }),
 
-  cliente: (id: string) => peticion(`/adminfx/clientes/${id}`, { admin: true }),
+  cliente: (id: string) => peticion(`/adminfx/clientes/${encodeURIComponent(id)}`, { admin: true }),
 
   guardarNotaCliente: (id: string, body: { notas: string }) =>
-    peticion(`/adminfx/clientes/${id}/nota`, { metodo: "POST", admin: true, body }),
+    peticion(`/adminfx/clientes/${encodeURIComponent(id)}/nota`, {
+      metodo: "POST",
+      admin: true,
+      body,
+    }),
 
   // ── reportes ───────────────────────────────────────────────────────
   reportes: (params: { desde: string; hasta: string }) =>
@@ -760,7 +874,7 @@ export function verificarQR(token: string) {
 
 /** Solo para pruebas internas del cliente. */
 export function __setAccessToken(token: string | null) {
-  accessToken = token;
+  fijarAccessToken(token);
 }
 
 /** Access token vigente en memoria (sólo lectura; SEG-03: nunca almacenamiento). */
@@ -770,5 +884,5 @@ export function tokenAccesoActual(): string | null {
 
 /** Limpia el access token en memoria al cerrar la sesión (SEG-06). */
 export function limpiarAccessToken(): void {
-  accessToken = null;
+  fijarAccessToken(null);
 }
