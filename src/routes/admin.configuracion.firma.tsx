@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { LienzoFirma, type LienzoFirmaRef } from "@/components/publica/firma/LienzoFirma";
+import { recortarImagenDataUrl } from "@/lib/imagen";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -77,10 +78,14 @@ function FirmaEmpresa() {
       return;
     }
 
-    // Crear preview
+    // Crear preview. La firma escaneada llega con márgenes de papel que en
+    // el voucher la dejaban diminuta: se recorta la zona con tinta aquí mismo,
+    // para que el preview muestre exactamente lo que se va a guardar.
     const reader = new FileReader();
-    reader.onloadend = () => {
-      setPreviewUrl(reader.result as string);
+    reader.onloadend = async () => {
+      const original = String(reader.result ?? "");
+      const recortada = await recortarImagenDataUrl(original);
+      setPreviewUrl(recortada || original);
     };
     reader.readAsDataURL(file);
   };
@@ -120,7 +125,9 @@ function FirmaEmpresa() {
         toast.error(out.mensaje);
         return;
       }
-      mutationGuardar.mutate(out.resultado.data_url);
+      // Mismo recorte que en la vía de subida (si el trazo ya llena el
+      // lienzo, la utilidad devuelve la imagen tal cual).
+      mutationGuardar.mutate(await recortarImagenDataUrl(out.resultado.data_url));
       return;
     }
     // `previewUrl` ya es el data URL del archivo elegido (clic o drag & drop:
